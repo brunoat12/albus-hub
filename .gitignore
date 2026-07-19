@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# Testes e qualidade
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Segredos e configurações locais
+.env
+.env.local
+*.pem
+*.key
+credentials.json
+
+# IDE
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Dados gerados
+data/raw/*
+data/rejected/*
+data/bronze/*
+data/silver/*
+data/gold/*
+data/sample/*
+
+# Modelos e artefatos
+models/*
+artifacts/*
+
+# Airflow
+infra/airflow/logs/
+infra/airflow/.env
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
