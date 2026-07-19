@@ -1,13 +1,19 @@
 # Python
 __pycache__/
 *.py[cod]
+*.so
 *.egg-info/
+dist/
+build/
+
+# Ambiente virtual
 .venv/
 
 # Testes e qualidade
 .pytest_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
 
 # Jupyter
@@ -22,6 +28,7 @@ credentials.json
 
 # IDE
 .vscode/
+.idea/
 
 # Logs
 *.log
@@ -35,9 +42,28 @@ data/silver/*
 data/gold/*
 data/sample/*
 
-# Modelos e artefatos
-models/*
-artifacts/*
+!data/raw/.gitkeep
+!data/rejected/.gitkeep
+!data/bronze/.gitkeep
+!data/silver/.gitkeep
+!data/gold/.gitkeep
+!data/sample/.gitkeep
+
+# Modelos treinados
+models/volume/*
+models/risk/*
+
+!models/volume/.gitkeep
+!models/risk/.gitkeep
+
+# Artefatos gerados
+artifacts/quality/*
+artifacts/metrics/*
+artifacts/logs/*
+
+!artifacts/quality/.gitkeep
+!artifacts/metrics/.gitkeep
+!artifacts/logs/.gitkeep
 
 # Airflow
 infra/airflow/logs/
