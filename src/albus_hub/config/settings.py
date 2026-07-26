@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     locaweb_bronze_file: Path = Path("data/bronze/locaweb_incidents.parquet")
     locaweb_silver_file: Path = Path("data/silver/locaweb_incidents.parquet")
     locaweb_quality_report: Path = Path("artifacts/quality/locaweb_quality_report.json")
+    locaweb_gold_daily_volume_file: Path = Path("data/gold/daily_incident_volume.parquet")
+    locaweb_gold_daily_breakdown_file: Path = Path("data/gold/daily_incident_breakdown.parquet")
+    locaweb_gold_daily_volume_report: Path = Path(
+        "artifacts/quality/locaweb_daily_volume_report.json"
+    )
 
     postgres_user: str = "albus"
     postgres_password: str = "albus_local"
