@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     model_risk_path: Path = Path("models/risk")
     artifact_path: Path = Path("artifacts")
 
+    locaweb_source_file: Path = Path("data/raw/locaweb/LW-DATASET.xlsx")
+    locaweb_sheet_name: str = "Dataset Geral"
+    locaweb_bronze_file: Path = Path("data/bronze/locaweb_incidents.parquet")
+    locaweb_silver_file: Path = Path("data/silver/locaweb_incidents.parquet")
+    locaweb_quality_report: Path = Path("artifacts/quality/locaweb_quality_report.json")
+
     postgres_user: str = "albus"
     postgres_password: str = "albus_local"
     postgres_db: str = "albus_hub"
