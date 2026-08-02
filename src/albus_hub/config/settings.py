@@ -38,6 +38,9 @@ class Settings(BaseSettings):
         "artifacts/quality/locaweb_daily_volume_report.json"
     )
 
+    locaweb_temporal_eda_output_dir: Path = Path("artifacts/eda/locaweb")
+    locaweb_temporal_eda_report: Path = Path("artifacts/eda/locaweb/temporal_eda_report.json")
+
     postgres_user: str = "albus"
     postgres_password: str = "albus_local"
     postgres_db: str = "albus_hub"
