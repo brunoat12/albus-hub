@@ -72,3 +72,6 @@ infra/airflow/.env
 # Sistema operacional
 .DS_Store
 Thumbs.db
+
+# Artefatos gerados pela análise exploratória
+artifacts/eda/
