@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from pathlib import Path
-
 import pandas as pd
 import streamlit as st
 
 from albus_hub.config import get_settings
+from albus_hub.integration import (
+    RiskScoreContractError,
+    VolumePredictionContractError,
+    load_risk_scores,
+    load_volume_predictions,
+)
 
 settings = get_settings()
 settings.create_local_directories()
@@ -346,91 +350,189 @@ with tab_operations:
 with tab_forecast:
     st.subheader("Previsão de Volume")
 
-    st.info(
-        "A interface de previsão está preparada, "
-        "mas o artefato de inferência D+1/D+7 "
-        "ainda não foi integrado."
-    )
+    predictions_path = settings.absolute_path(settings.locaweb_volume_predictions_file)
 
-    col1, col2 = st.columns(2)
+    try:
+        predictions = load_volume_predictions(predictions_path)
+    except VolumePredictionContractError as exc:
+        st.error(f"O artefato de previsão não respeita o contrato: {exc}")
+    else:
+        if predictions is None:
+            st.info(
+                "A interface de previsão está preparada, "
+                "mas o artefato D+1/D+7 ainda não foi integrado."
+            )
 
-    with col1:
-        st.metric(
-            "Previsão D+1",
-            "Aguardando modelo",
-        )
+            col1, col2 = st.columns(2)
 
-    with col2:
-        st.metric(
-            "Previsão D+7",
-            "Aguardando modelo",
-        )
+            col1.metric(
+                "Previsão D+1",
+                "Aguardando modelo",
+            )
 
-    st.markdown(
-        """
-        **Contrato esperado para integração**
+            col2.metric(
+                "Previsão D+7",
+                "Aguardando modelo",
+            )
 
-        - data de referência;
-        - horizonte D+1 ou D+7;
-        - escopo ALL, P2 ou P3;
-        - volume previsto;
-        - versão do modelo;
-        - data/hora da inferência.
-        """
-    )
+            st.caption("Arquivo esperado: data/gold/volume_predictions.parquet")
+
+        else:
+            scoped_predictions = predictions.loc[
+                predictions["priority_scope"].eq(priority_scope)
+            ].copy()
+
+            if scoped_predictions.empty:
+                st.info("Não há previsões disponíveis para o escopo selecionado.")
+            else:
+                latest_by_horizon = scoped_predictions.sort_values(
+                    [
+                        "reference_date",
+                        "generated_at",
+                    ]
+                ).drop_duplicates(
+                    subset=["horizon"],
+                    keep="last",
+                )
+
+                def prediction_value(
+                    horizon: str,
+                ) -> str:
+                    rows = latest_by_horizon.loc[latest_by_horizon["horizon"].eq(horizon)]
+
+                    if rows.empty:
+                        return "Indisponível"
+
+                    value = rows.iloc[-1]["predicted_incident_count"]
+
+                    return format_integer(round(value))
+
+                col1, col2 = st.columns(2)
+
+                col1.metric(
+                    "Previsão D+1",
+                    prediction_value("D+1"),
+                )
+
+                col2.metric(
+                    "Previsão D+7",
+                    prediction_value("D+7"),
+                )
+
+                st.dataframe(
+                    latest_by_horizon[
+                        [
+                            "reference_date",
+                            "horizon",
+                            "priority_scope",
+                            "predicted_incident_count",
+                            "model_version",
+                            "generated_at",
+                        ]
+                    ].sort_values("horizon"),
+                    width="stretch",
+                    hide_index=True,
+                )
 
 
 with tab_risk:
     st.subheader("Risco Operacional")
 
-    risk_score_path = settings.absolute_path(Path("data/gold/risk_scores.parquet"))
+    risk_score_path = settings.absolute_path(settings.locaweb_risk_scores_file)
 
-    if risk_score_path.exists():
-        risk_scores = load_parquet(str(risk_score_path))
-
-        st.success("Artefato de score de risco encontrado.")
-
-        st.dataframe(
-            risk_scores,
-            width="stretch",
-            hide_index=True,
-        )
-
+    try:
+        risk_scores = load_risk_scores(risk_score_path)
+    except RiskScoreContractError as exc:
+        st.error(f"O artefato de risco não respeita o contrato: {exc}")
     else:
-        st.warning("O modelo de risco e o score operacional ainda não foram integrados.")
+        if risk_scores is None:
+            st.warning("O modelo de risco e o score operacional ainda não foram integrados.")
 
-        col1, col2, col3 = st.columns(3)
+            col1, col2, col3 = st.columns(3)
 
-        col1.metric(
-            "Risk score",
-            "Aguardando modelo",
-        )
+            col1.metric(
+                "Risk score",
+                "Aguardando modelo",
+            )
 
-        col2.metric(
-            "Nível de risco",
-            "Aguardando modelo",
-        )
+            col2.metric(
+                "Nível de risco",
+                "Aguardando modelo",
+            )
 
-        col3.metric(
-            "Incidentes críticos",
-            "Aguardando modelo",
-        )
+            col3.metric(
+                "Incidentes críticos",
+                "Aguardando modelo",
+            )
 
-        st.markdown(
-            """
-            **Contrato já previsto pelo Albus-Hub**
+            st.caption("Arquivo esperado: data/gold/risk_scores.parquet")
 
-            - `incident_id`
-            - `scored_at`
-            - `risk_score` de 0 a 100
-            - `risk_level`
-            - `top_risk_factors`
-            - `model_version`
+        else:
+            latest_scores = risk_scores.sort_values("scored_at").drop_duplicates(
+                subset=["incident_id"],
+                keep="last",
+            )
 
-            A probabilidade produzida pelo modelo será
-            preservada separadamente do score operacional.
-            """
-        )
+            average_score = latest_scores["risk_score"].mean()
+
+            critical_count = int(latest_scores["risk_level"].eq("crítico").sum())
+
+            high_or_critical = int(
+                latest_scores["risk_level"]
+                .isin(
+                    [
+                        "alto",
+                        "crítico",
+                    ]
+                )
+                .sum()
+            )
+
+            col1, col2, col3 = st.columns(3)
+
+            col1.metric(
+                "Risk score médio",
+                f"{average_score:.1f}",
+            )
+
+            col2.metric(
+                "Alto ou crítico",
+                format_integer(high_or_critical),
+            )
+
+            col3.metric(
+                "Críticos",
+                format_integer(critical_count),
+            )
+
+            st.subheader("Incidentes prioritários")
+
+            ranking = (
+                latest_scores.sort_values(
+                    "risk_score",
+                    ascending=False,
+                )
+                .head(20)
+                .copy()
+            )
+
+            ranking["risk_level"] = ranking["risk_level"].str.title()
+
+            st.dataframe(
+                ranking[
+                    [
+                        "incident_id",
+                        "risk_score",
+                        "risk_level",
+                        "breach_probability",
+                        "top_risk_factors",
+                        "recommended_action",
+                        "model_version",
+                    ]
+                ],
+                width="stretch",
+                hide_index=True,
+            )
 
 
 st.divider()
