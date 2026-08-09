@@ -1,9 +1,60 @@
 name: albus-hub-local
 
 services:
+  albus-hub:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+
+    restart: unless-stopped
+
+    env_file:
+      - ../../.env
+
+    environment:
+      APP_ENV: docker
+      CLOUD_PROVIDER: local
+
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@rabbitmq:5672/
+
+    ports:
+      - "${STREAMLIT_PORT:-8501}:8501"
+
+    volumes:
+      - ../../data:/app/data
+      - ../../models:/app/models
+      - ../../artifacts:/app/artifacts
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=5)"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+    networks:
+      - albus-network
+
   postgres:
     image: postgres:17
-    container_name: albus-postgres
     restart: unless-stopped
 
     environment:
@@ -21,7 +72,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
         ]
       interval: 10s
       timeout: 5s
@@ -33,7 +84,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management
-    container_name: albus-rabbitmq
     hostname: albus-rabbitmq
     restart: unless-stopped
 
@@ -54,7 +104,7 @@ services:
           "CMD",
           "rabbitmq-diagnostics",
           "-q",
-          "ping",
+          "ping"
         ]
       interval: 10s
       timeout: 5s
@@ -64,14 +114,13 @@ services:
     networks:
       - albus-network
 
+
 volumes:
   albus_postgres_data:
-    name: albus-postgres-data
 
   albus_rabbitmq_data:
-    name: albus-rabbitmq-data
+
 
 networks:
   albus-network:
-    name: albus-network
     driver: bridge
