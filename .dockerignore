@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+
+# IDE
+.vscode
+.idea
+
+# Airflow runtime
+.airflow
+
+# Dados runtime
+data
+artifacts
+models
+
+# Azure / Terraform runtime e segredos
+infra/azure/.terraform
+infra/azure/*.tfstate
+infra/azure/*.tfstate.*
+infra/azure/*.tfplan
+infra/azure/terraform.tfvars
+
+# Configurações locais / segredos
+.env
+.env.local
+*.pem
+*.key
+credentials.json
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Evidências / arquivos temporários
+*.log
