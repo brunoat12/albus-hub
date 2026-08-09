@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     rabbitmq_queue: str = "albus_alerts"
     rabbitmq_url: str = "amqp://albus:albus_local@localhost:5672/"
 
+    locaweb_volume_predictions_file: Path = Path("data/gold/volume_predictions.parquet")
+    locaweb_risk_scores_file: Path = Path("data/gold/risk_scores.parquet")
+
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
@@ -83,7 +86,6 @@ class Settings(BaseSettings):
             self.data_silver_path,
             self.data_gold_path,
             self.data_sample_path,
-            self.data_volume_path,
             self.data_backup_path,
             self.model_volume_path,
             self.model_risk_path,

@@ -449,3 +449,42 @@ Os dados originais da empresa e os indicadores fornecidos na fonte nunca
 deverão ser sobrescritos por cálculos derivados.
 
 
+
+## Contrato para previsões de volume
+
+Arquivo futuro:
+
+`data/gold/volume_predictions.parquet`
+
+A tabela terá uma linha por data de referência, horizonte, escopo de prioridade e versão do modelo.
+
+| Campo | Tipo | Regra |
+|---|---|---|
+| reference_date | date | Data utilizada como referência da previsão |
+| generated_at | datetime | Momento em que a inferência foi executada |
+| horizon | string | Apenas `D+1` ou `D+7` |
+| priority_scope | string | Apenas `ALL`, `P2` ou `P3` |
+| predicted_incident_count | decimal | Quantidade prevista de incidentes; valor não negativo |
+| model_version | string | Versão do modelo responsável pela inferência |
+
+A chave lógica será:
+
+`reference_date + horizon + priority_scope + model_version`
+
+### Regras de integração
+
+A camada Gold histórica não deverá ser sobrescrita pelas previsões.
+
+`data/gold/daily_incident_volume.parquet` representa fatos observados.
+
+`data/gold/volume_predictions.parquet` representa resultados de inferência produzidos pelo modelo.
+
+Os horizontes suportados inicialmente serão `D+1` e `D+7`.
+
+Os escopos suportados serão `ALL`, `P2` e `P3`.
+
+O dashboard deverá consumir esse contrato sem depender da implementação interna do modelo.
+
+A ausência temporária do artefato de previsão não deverá impedir o funcionamento das demais funcionalidades do Albus-Hub.
+
+Mudanças incompatíveis nesse contrato deverão ser documentadas e versionadas.
