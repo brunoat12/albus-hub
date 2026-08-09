@@ -52,6 +52,14 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     database_url: str = "postgresql+psycopg://albus:albus_local@localhost:5432/albus_hub"
 
+    mysql_host: str = "localhost"
+    mysql_port: int = 3306
+    mysql_user: str = "albus"
+    mysql_password: str = "albus_local"
+    mysql_db: str = "albus_hub"
+    mysql_ssl_ca: Path | None = None
+    mysql_connect_timeout: int = 10
+
     rabbitmq_host: str = "localhost"
     rabbitmq_port: int = 5672
     rabbitmq_management_port: int = 15672

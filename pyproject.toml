@@ -19,6 +19,7 @@ dependencies = [
     "pyarrow>=7,<25",
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
+    "pymysql>=1.2.0",
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0.51",
     "streamlit>=1.59.1",
