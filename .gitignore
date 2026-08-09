@@ -85,3 +85,7 @@ terraform.tfvars
 
 # Apache Airflow local runtime
 .airflow/
+
+# Backups locais
+data/backups/*
+!data/backups/.gitkeep

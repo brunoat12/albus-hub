@@ -24,7 +24,10 @@ def get_project_root() -> Path:
     return root
 
 
-def run_project_script(script: str) -> dict:
+def run_project_script(
+    script: str,
+    *args: str,
+) -> dict:
     """
     Executa um script do Albus-Hub usando o ambiente Python do próprio projeto.
 
@@ -37,6 +40,7 @@ def run_project_script(script: str) -> dict:
         "run",
         "python",
         script,
+        *args,
     ]
 
     result = subprocess.run(
@@ -68,7 +72,9 @@ def run_project_script(script: str) -> dict:
 
 @dag(
     dag_id="albus_hub_data_protection",
-    description=("Pipeline de ingestão, validação e carga analítica do projeto Albus-Hub."),
+    description=(
+        "Pipeline de ingestão, validação, carga analítica e proteção de dados do projeto Albus-Hub."
+    ),
     schedule=None,
     start_date=pendulum.datetime(
         2026,
@@ -91,17 +97,7 @@ def albus_hub_data_protection():
         retries=1,
     )
     def extract_transform_locaweb() -> dict:
-        """
-        Executa a ingestão da base Locaweb.
-
-        Responsabilidades existentes no código do projeto:
-        - leitura do Excel
-        - limpeza
-        - padronização
-        - geração Bronze
-        - geração Silver
-        - quality report
-        """
+        """Executa ingestão, limpeza e transformação da base Locaweb."""
         return run_project_script("scripts/ingest_locaweb.py")
 
     @task(
@@ -111,9 +107,7 @@ def albus_hub_data_protection():
     def validate_silver(
         ingestion_report: dict,
     ) -> dict:
-        """
-        Valida o resultado da ingestão antes da carga Gold.
-        """
+        """Valida o resultado da ingestão antes da carga Gold."""
         quality_status = ingestion_report.get("quality_status")
 
         if quality_status == "failed":
@@ -137,9 +131,7 @@ def albus_hub_data_protection():
     def load_daily_volume_gold(
         silver_validation: dict,
     ) -> dict:
-        """
-        Constrói a camada Gold de volume diário.
-        """
+        """Constrói a camada Gold de volume diário."""
         if silver_validation.get("validation") != "passed":
             raise ValueError("Silver não foi validada.")
 
@@ -152,9 +144,9 @@ def albus_hub_data_protection():
     def validate_gold(
         gold_report: dict,
     ) -> dict:
-        """
-        Realiza verificações mínimas sobre a execução Gold.
-        """
+        """Realiza verificações mínimas sobre a Gold."""
+        if os.environ.get("ALBUS_HUB_SIMULATE_FAILURE") == "1":
+            raise ValueError("Falha controlada para demonstração de recovery.")
         if not gold_report:
             raise ValueError("O relatório da Gold está vazio.")
 
@@ -164,16 +156,36 @@ def albus_hub_data_protection():
         }
 
     @task(
+        task_id="backup_data",
+        retries=1,
+    )
+    def backup_data(
+        gold_validation: dict,
+    ) -> dict:
+        """Executa a política automática de backup."""
+        if gold_validation.get("validation") != "passed":
+            raise ValueError("A Gold não foi validada para backup.")
+
+        report = run_project_script(
+            "scripts/run_backup.py",
+            "--type",
+            "auto",
+        )
+
+        if report.get("status") != "success":
+            raise ValueError("O backup não terminou com sucesso.")
+
+        return report
+
+    @task(
         task_id="pipeline_complete",
     )
     def pipeline_complete(
-        gold_validation: dict,
+        backup_report: dict,
     ) -> None:
-        """
-        Marca a conclusão lógica do pipeline.
-        """
-        if gold_validation.get("validation") != "passed":
-            raise ValueError("A Gold não passou pela validação.")
+        """Marca a conclusão lógica do pipeline."""
+        if backup_report.get("status") != "success":
+            raise ValueError("O backup não foi concluído.")
 
         print("Pipeline Albus-Hub concluído com sucesso.")
 
@@ -185,7 +197,9 @@ def albus_hub_data_protection():
 
     gold_ok = validate_gold(gold)
 
-    pipeline_complete(gold_ok)
+    backup_ok = backup_data(gold_ok)
+
+    pipeline_complete(backup_ok)
 
 
 albus_hub_data_protection()
