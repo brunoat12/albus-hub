@@ -83,7 +83,6 @@ class Settings(BaseSettings):
             self.data_silver_path,
             self.data_gold_path,
             self.data_sample_path,
-            self.data_volume_path,
             self.data_backup_path,
             self.model_volume_path,
             self.model_risk_path,
