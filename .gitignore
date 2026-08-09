@@ -82,3 +82,13 @@ artifacts/eda/
 *.tfstate.*
 *.tfplan
 terraform.tfvars
+
+# Apache Airflow local runtime
+.airflow/
+
+# Backups locais
+data/backups/*
+!data/backups/.gitkeep
+
+# Restore temporário para validação de backup
+data/restore_test/

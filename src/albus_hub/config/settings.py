@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     data_gold_path: Path = Path("data/gold")
     data_sample_path: Path = Path("data/sample")
 
+    data_backup_path: Path = Path("data/backups")
+    backup_retention_days: int = 30
+    backup_full_interval_days: int = 7
+
     model_volume_path: Path = Path("models/volume")
     model_risk_path: Path = Path("models/risk")
     artifact_path: Path = Path("artifacts")
@@ -79,6 +83,8 @@ class Settings(BaseSettings):
             self.data_silver_path,
             self.data_gold_path,
             self.data_sample_path,
+            self.data_volume_path,
+            self.data_backup_path,
             self.model_volume_path,
             self.model_risk_path,
             self.artifact_path,
