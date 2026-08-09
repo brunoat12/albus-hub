@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from albus_hub.storage.mysql import MySQLRepository, create_mysql_engine
-
 from albus_hub.config.settings import get_settings
+from albus_hub.storage.mysql import MySQLRepository, create_mysql_engine
 
 
 def main() -> None:

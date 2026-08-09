@@ -1,7 +1,7 @@
-from albus_hub.storage.mysql import MySQLRepository, build_mysql_url
 from sqlalchemy import create_engine, text
 
 from albus_hub.config.settings import Settings
+from albus_hub.storage.mysql import MySQLRepository, build_mysql_url
 
 
 def test_build_mysql_url() -> None:
