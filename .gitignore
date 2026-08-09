@@ -75,3 +75,10 @@ Thumbs.db
 
 # Artefatos gerados pela análise exploratória
 artifacts/eda/
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+terraform.tfvars

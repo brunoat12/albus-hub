@@ -1,0 +1,64 @@
+ALBUS-HUB - COLUNAS DERIVADAS NO AZURE DATA FACTORY
+
+Data Flow:
+df_locaweb_transform
+
+Origem:
+raw/locaweb/LW-DATASET.xlsx
+
+1. incident_id
+Origem: Número
+Expressão:
+{Número}
+
+Descrição:
+Padroniza o identificador do incidente para utilização nas camadas
+de processamento e persistência.
+
+2. priority_code
+Origem: Prioridade
+Expressão:
+left(Prioridade, 1)
+
+Descrição:
+Extrai somente o código numérico da prioridade do incidente.
+
+3. is_monitoring
+Origem: Aberto por
+Expressão:
+lower(trim({Aberto por})) == 'monitoramento'
+
+Descrição:
+Identifica se o incidente foi aberto pelo processo de monitoramento.
+
+4. is_no_intervention
+Origem: Status
+Expressão:
+lower(trim(Status)) == 'sem intervenção'
+
+Descrição:
+Identifica incidentes classificados com status Sem Intervenção.
+
+5. processed_at
+Expressão:
+currentTimestamp()
+
+Descrição:
+Registra o momento do processamento do registro pelo fluxo ETL.
+
+FLUXO DE PERSISTÊNCIA
+
+Origem:
+Azure Data Lake Storage Gen2 / raw
+
+Transformação:
+Azure Data Factory Mapping Data Flow
+
+Destinos:
+1. Azure Data Lake Storage Gen2 / trusted
+2. Azure Database for MySQL / incidents_trusted
+3. Arquivo TXT em ADLS / exports
+
+Objetivo:
+Padronizar, enriquecer e disponibilizar os dados de incidentes da
+Locaweb para consumo analítico e demais componentes do Albus-Hub.
