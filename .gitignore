@@ -89,3 +89,6 @@ terraform.tfvars
 # Backups locais
 data/backups/*
 !data/backups/.gitkeep
+
+# Restore temporário para validação de backup
+data/restore_test/
