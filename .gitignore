@@ -82,3 +82,6 @@ artifacts/eda/
 *.tfstate.*
 *.tfplan
 terraform.tfvars
+
+# Apache Airflow local runtime
+.airflow/
