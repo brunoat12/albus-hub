@@ -18,7 +18,7 @@ resource "azurerm_container_group" "app" {
 
   container {
     name  = "albus-hub"
-    image = "${azurerm_container_registry.app.login_server}/albus-hub:sprint3"
+    image = "${azurerm_container_registry.app.login_server}/albus-hub:sprint3-appinsights"
 
     cpu    = 1
     memory = 2
@@ -29,8 +29,14 @@ resource "azurerm_container_group" "app" {
     }
 
     environment_variables = {
-      APP_ENV        = "azure"
-      CLOUD_PROVIDER = "azure"
+      APP_ENV           = "azure"
+      CLOUD_PROVIDER    = "azure"
+      OTEL_SERVICE_NAME = "albus-hub"
+    }
+
+
+    secure_environment_variables = {
+      APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.main.connection_string
     }
   }
 
