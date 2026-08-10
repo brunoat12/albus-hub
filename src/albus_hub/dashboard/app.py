@@ -10,9 +10,12 @@ from albus_hub.integration import (
     load_risk_scores,
     load_volume_predictions,
 )
+from albus_hub.observability import configure_observability
 
 settings = get_settings()
 settings.create_local_directories()
+
+configure_observability()
 
 st.set_page_config(
     page_title="Albus-Hub",

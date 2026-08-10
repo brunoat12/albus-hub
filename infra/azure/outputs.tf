@@ -60,3 +60,37 @@ output "data_factory_principal_id" {
   description = "Principal ID da Managed Identity do Data Factory."
   value       = azurerm_data_factory.main.identity[0].principal_id
 }
+output "container_registry_name" {
+  description = "Nome do Azure Container Registry do Albus-Hub."
+  value       = azurerm_container_registry.app.name
+}
+
+output "container_registry_login_server" {
+  description = "Login server do Azure Container Registry."
+  value       = azurerm_container_registry.app.login_server
+}
+
+output "log_analytics_workspace_name" {
+  description = "Nome do Log Analytics Workspace usado pelo Azure Monitor."
+  value       = azurerm_log_analytics_workspace.main.name
+}
+
+output "application_insights_name" {
+  description = "Nome do Application Insights da aplicação."
+  value       = azurerm_application_insights.main.name
+}
+
+output "container_instance_name" {
+  description = "Nome do Azure Container Instance do Albus-Hub."
+  value       = azurerm_container_group.app.name
+}
+
+output "container_instance_fqdn" {
+  description = "FQDN público do dashboard Streamlit."
+  value       = azurerm_container_group.app.fqdn
+}
+
+output "container_instance_ip_address" {
+  description = "Endereço IP público do Azure Container Instance."
+  value       = azurerm_container_group.app.ip_address
+}
