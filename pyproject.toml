@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "azure-monitor-opentelemetry>=1.8.9",
     "duckdb>=1.5.4",
     "matplotlib>=3.11.1",
     "numpy>=2.5.1",
