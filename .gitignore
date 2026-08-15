@@ -92,3 +92,7 @@ data/backups/*
 
 # Restore temporário para validação de backup
 data/restore_test/
+
+# Data Warehouse - artefatos dimensionais reproduzíveis
+data/dw/*
+!data/dw/.gitkeep
