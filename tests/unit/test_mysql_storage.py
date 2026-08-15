@@ -32,7 +32,7 @@ def test_mysql_repository_operations() -> None:
         connection.execute(
             text(
                 """
-                CREATE TABLE incidents_trusted (
+                CREATE TABLE fato_incidente (
                     incident_id VARCHAR(64)
                 )
                 """
@@ -42,7 +42,7 @@ def test_mysql_repository_operations() -> None:
         connection.execute(
             text(
                 """
-                INSERT INTO incidents_trusted (incident_id)
+                INSERT INTO fato_incidente (incident_id)
                 VALUES ('INC-1'), ('INC-2'), ('INC-3')
                 """
             )

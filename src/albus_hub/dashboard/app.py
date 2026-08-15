@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+from sqlalchemy.exc import SQLAlchemyError
 
 from albus_hub.config import get_settings
 from albus_hub.integration import (
@@ -11,6 +12,10 @@ from albus_hub.integration import (
     load_volume_predictions,
 )
 from albus_hub.observability import configure_observability
+from albus_hub.storage.mysql import (
+    MySQLRepository,
+    create_mysql_engine,
+)
 
 settings = get_settings()
 settings.create_local_directories()
@@ -28,6 +33,12 @@ st.set_page_config(
 def load_parquet(path: str) -> pd.DataFrame:
     """Carrega um arquivo Parquet utilizado pelo dashboard."""
     return pd.read_parquet(path)
+
+@st.cache_resource
+def get_mysql_repository() -> MySQLRepository:
+    """Cria o repositório utilizado pela aplicação para acessar o Azure MySQL."""
+    engine = create_mysql_engine(settings)
+    return MySQLRepository(engine)
 
 
 def format_integer(value: int | float) -> str:
@@ -155,12 +166,13 @@ breakdown_period = filter_period(
 )
 
 
-tab_overview, tab_operations, tab_forecast, tab_risk = st.tabs(
+tab_overview, tab_operations, tab_forecast, tab_risk, tab_cloud = st.tabs(
     [
         "Visão Geral",
         "Análise Operacional",
         "Previsões",
         "Risco Operacional",
+        "Cloud / MySQL",
     ]
 )
 
@@ -536,6 +548,84 @@ with tab_risk:
                 width="stretch",
                 hide_index=True,
             )
+
+with tab_cloud:
+    st.subheader("Integração Cloud")
+
+    st.caption(
+        "Integração da aplicação Albus-Hub com o "
+        "Azure Database for MySQL."
+    )
+
+    try:
+        repository = get_mysql_repository()
+
+        connected = repository.health_check()
+
+        col1, col2 = st.columns(2)
+
+        col1.metric(
+            "Azure MySQL",
+            "Conectado" if connected else "Indisponível",
+        )
+
+        summary = repository.fetch_incident_summary()
+
+        col2.metric(
+            "Incidentes no Data Warehouse",
+            format_integer(summary.total_incidents),
+        )
+
+        st.success(
+            "Aplicação conectada ao Data Warehouse "
+            "no Azure Database for MySQL."
+        )
+
+        st.divider()
+
+        st.subheader("Processamento e persistência")
+
+        st.write(
+            "A aplicação consulta a FATO_INCIDENTE, "
+            "processa o total de registros e pode persistir "
+            "uma execução na tabela operacional albus_app_runs."
+        )
+
+        if st.button(
+            "Executar processamento e registrar no MySQL",
+            type="primary",
+        ):
+            run_id = repository.insert_app_run(
+                app_env=settings.app_env,
+                action="streamlit_incident_summary",
+                processed_records=summary.total_incidents,
+            )
+
+            st.success(
+                f"Execução registrada com sucesso: {run_id}"
+            )
+
+        st.divider()
+
+        st.subheader("Últimas execuções")
+
+        recent_runs = repository.fetch_recent_app_runs(limit=5)
+
+        if recent_runs:
+            st.dataframe(
+                pd.DataFrame(recent_runs),
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.info("Nenhuma execução registrada.")
+
+    except SQLAlchemyError as exc:
+        st.warning(
+            "Não foi possível acessar o Azure MySQL neste ambiente."
+        )
+
+        st.caption(str(exc))
 
 
 st.divider()

@@ -114,7 +114,7 @@ class MySQLRepository:
         statement = text(
             """
             SELECT COUNT(*) AS total_incidents
-            FROM incidents_trusted
+            FROM fato_incidente
             """
         )
 
