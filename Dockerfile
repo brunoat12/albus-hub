@@ -27,6 +27,9 @@ COPY data/gold/daily_incident_volume.parquet \
 COPY data/gold/daily_incident_breakdown.parquet \
      /app/data/gold/daily_incident_breakdown.parquet
 
+COPY data/gold/volume_predictions.parquet \
+     /app/data/gold/volume_predictions.parquet     
+
 RUN uv sync \
     --locked \
     --no-dev
