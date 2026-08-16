@@ -7,9 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from albus_hub.config import get_settings
 from albus_hub.integration import (
     RiskScoreContractError,
-    VolumePredictionContractError,
     load_risk_scores,
-    load_volume_predictions,
 )
 from albus_hub.observability import configure_observability
 from albus_hub.storage.mysql import (
@@ -40,6 +38,82 @@ def get_mysql_repository() -> MySQLRepository:
     engine = create_mysql_engine(settings)
     return MySQLRepository(engine)
 
+@st.cache_data(
+    ttl=60,
+    show_spinner=False,
+)
+def load_current_predictions() -> pd.DataFrame:
+    """Carrega as previsões operacionais vigentes do MySQL."""
+    repository = get_mysql_repository()
+
+    rows = repository.fetch_ml_volume_predictions()
+
+    frame = pd.DataFrame(rows)
+
+    if frame.empty:
+        return frame
+
+    frame["reference_date"] = pd.to_datetime(
+        frame["reference_date"]
+    )
+
+    frame["generated_at"] = pd.to_datetime(
+        frame["generated_at"]
+    )
+
+    return frame
+
+@st.cache_data(
+    ttl=300,
+    show_spinner=False,
+)
+def load_daily_volume_from_mysql() -> pd.DataFrame:
+    """Carrega o Gold diário da camada serving MySQL."""
+
+    rows = (
+        get_mysql_repository()
+        .fetch_daily_incident_volume()
+    )
+
+    frame = pd.DataFrame(rows)
+
+    if not frame.empty:
+        frame["reference_date"] = pd.to_datetime(
+            frame["reference_date"]
+        )
+
+    return frame
+
+
+@st.cache_data(
+    ttl=60,
+    show_spinner=False,
+)
+def load_breakdown_ranking_from_mysql(
+    start_date: str,
+    end_date: str,
+    priority_scope: str,
+    dimension_name: str,
+    top_n: int,
+) -> pd.DataFrame:
+    """Consulta o ranking operacional diretamente no MySQL."""
+
+    rows = (
+        get_mysql_repository()
+        .fetch_incident_breakdown_ranking(
+            start_date=pd.Timestamp(
+                start_date
+            ).date(),
+            end_date=pd.Timestamp(
+                end_date
+            ).date(),
+            priority_scope=priority_scope,
+            dimension_name=dimension_name,
+            limit=top_n,
+        )
+    )
+
+    return pd.DataFrame(rows)
 
 def format_integer(value: int | float) -> str:
     """Formata inteiros no padrão visual pt-BR."""
@@ -78,38 +152,24 @@ def scope_sum(
         ].sum()
     )
 
-
-daily_volume_path = settings.absolute_path(settings.locaweb_gold_daily_volume_file)
-
-breakdown_path = settings.absolute_path(settings.locaweb_gold_daily_breakdown_file)
-
-
-st.title("Albus-Hub")
-
-st.caption("AIOps para previsão de incidentes, risco operacional e priorização preventiva.")
-
-
-if not daily_volume_path.exists():
+try:
+    daily_volume = load_daily_volume_from_mysql()
+except SQLAlchemyError as exc:
     st.error(
-        "A camada Gold de volume diário não foi encontrada. Execute primeiro o pipeline de dados."
+        "Não foi possível carregar os dados "
+        "analíticos do Azure MySQL."
     )
-    st.stop()
-
-if not breakdown_path.exists():
-    st.error(
-        "A camada Gold de breakdown operacional não foi encontrada. "
-        "Execute primeiro o pipeline de dados."
+    st.caption(
+        f"Detalhes técnicos: {exc}"
     )
     st.stop()
 
 
-daily_volume = load_parquet(str(daily_volume_path))
-
-breakdown = load_parquet(str(breakdown_path))
-
-daily_volume["reference_date"] = pd.to_datetime(daily_volume["reference_date"])
-
-breakdown["reference_date"] = pd.to_datetime(breakdown["reference_date"])
+if daily_volume.empty:
+    st.error(
+        "A tabela serving de volume diário está vazia."
+    )
+    st.stop()
 
 
 min_date = daily_volume["reference_date"].min()
@@ -159,11 +219,6 @@ daily_period = filter_period(
     end_date,
 )
 
-breakdown_period = filter_period(
-    breakdown,
-    start_date,
-    end_date,
-)
 
 
 tab_overview, tab_operations, tab_forecast, tab_risk, tab_cloud = st.tabs(
@@ -296,45 +351,32 @@ with tab_operations:
         step=5,
     )
 
-    operational = breakdown_period.loc[
-        breakdown_period["dimension_name"].eq(selected_dimension)
-        & breakdown_period["priority_scope"].eq(priority_scope)
-    ].copy()
+    try:
+        ranking = load_breakdown_ranking_from_mysql(
+            start_date=start_date.date().isoformat(),
+            end_date=end_date.date().isoformat(),
+            priority_scope=priority_scope,
+            dimension_name=selected_dimension,
+            top_n=top_n,
+        )
+    except SQLAlchemyError as exc:
+        st.error(
+            "Não foi possível consultar "
+            "o breakdown operacional."
+        )
+        st.caption(
+            f"Detalhes técnicos: {exc}"
+        )
+        ranking = pd.DataFrame()
 
-    operational["dimension_value"] = (
-        operational["dimension_value"]
-        .astype("string")
-        .replace(
-            "__MISSING__",
-            "Sem informação",
+    if not ranking.empty:
+        ranking["dimension_value"] = (
+            ranking["dimension_value"]
+            .astype("string")
+            .replace(
+                "__MISSING__",
+                "Sem informação",
         )
-    )
-
-    ranking = (
-        operational.groupby(
-            "dimension_value",
-            as_index=False,
-            dropna=False,
-        )
-        .agg(
-            incident_count=(
-                "incident_count",
-                "sum",
-            ),
-            entered_kpi_count=(
-                "entered_kpi_count",
-                "sum",
-            ),
-            kpi_breach_count=(
-                "kpi_breach_count",
-                "sum",
-            ),
-        )
-        .sort_values(
-            "incident_count",
-            ascending=False,
-        )
-        .head(top_n)
     )
 
     if ranking.empty:
@@ -365,17 +407,22 @@ with tab_operations:
 with tab_forecast:
     st.subheader("Previsão de Volume")
 
-    predictions_path = settings.absolute_path(settings.locaweb_volume_predictions_file)
-
     try:
-        predictions = load_volume_predictions(predictions_path)
-    except VolumePredictionContractError as exc:
-        st.error(f"O artefato de previsão não respeita o contrato: {exc}")
+        predictions = load_current_predictions()
+    except SQLAlchemyError as exc:
+        st.error(
+            "Não foi possível consultar as previsões "
+            "vigentes no Azure MySQL."
+        )
+
+        st.caption(
+            f"Detalhes técnicos: {exc}"
+        )
     else:
-        if predictions is None:
+        if predictions.empty:
             st.info(
-                "A interface de previsão está preparada, "
-                "mas o artefato D+1/D+7 ainda não foi integrado."
+                "Ainda não há previsões operacionais "
+                "disponíveis no MySQL."
             )
 
             col1, col2 = st.columns(2)
@@ -390,37 +437,52 @@ with tab_forecast:
                 "Aguardando modelo",
             )
 
-            st.caption("Arquivo esperado: data/gold/volume_predictions.parquet")
-
         else:
             scoped_predictions = predictions.loc[
-                predictions["priority_scope"].eq(priority_scope)
+                predictions["priority_scope"].eq(
+                    priority_scope
+                )
             ].copy()
 
             if scoped_predictions.empty:
-                st.info("Não há previsões disponíveis para o escopo selecionado.")
+                st.info(
+                    "Não há previsões disponíveis "
+                    "para o escopo selecionado."
+                )
             else:
-                latest_by_horizon = scoped_predictions.sort_values(
-                    [
-                        "reference_date",
-                        "generated_at",
-                    ]
-                ).drop_duplicates(
-                    subset=["horizon"],
-                    keep="last",
+                latest_by_horizon = (
+                    scoped_predictions
+                    .sort_values(
+                        [
+                            "reference_date",
+                            "generated_at",
+                        ]
+                    )
+                    .drop_duplicates(
+                        subset=["horizon"],
+                        keep="last",
+                    )
                 )
 
                 def prediction_value(
                     horizon: str,
                 ) -> str:
-                    rows = latest_by_horizon.loc[latest_by_horizon["horizon"].eq(horizon)]
+                    rows = latest_by_horizon.loc[
+                        latest_by_horizon[
+                            "horizon"
+                        ].eq(horizon)
+                    ]
 
                     if rows.empty:
                         return "Indisponível"
 
-                    value = rows.iloc[-1]["predicted_incident_count"]
+                    value = rows.iloc[-1][
+                        "predicted_incident_count"
+                    ]
 
-                    return format_integer(round(value))
+                    return format_integer(
+                        round(value)
+                    )
 
                 col1, col2 = st.columns(2)
 
@@ -434,6 +496,12 @@ with tab_forecast:
                     prediction_value("D+7"),
                 )
 
+                st.caption(
+                    "Fonte operacional: "
+                    "Azure Database for MySQL • "
+                    "Atualização automática via pipeline de inferência"
+                )
+
                 st.dataframe(
                     latest_by_horizon[
                         [
@@ -444,7 +512,9 @@ with tab_forecast:
                             "model_version",
                             "generated_at",
                         ]
-                    ].sort_values("horizon"),
+                    ].sort_values(
+                        "horizon"
+                    ),
                     width="stretch",
                     hide_index=True,
                 )

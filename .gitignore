@@ -96,3 +96,7 @@ data/restore_test/
 # Data Warehouse - artefatos dimensionais reproduzíveis
 data/dw/*
 !data/dw/.gitkeep
+
+# Runtime ML artifacts
+artifacts/models/
+artifacts/runtime/

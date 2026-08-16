@@ -43,3 +43,9 @@ resource "azurerm_storage_container" "backup" {
   storage_account_id    = azurerm_storage_account.data_lake.id
   container_access_type = "private"
 }
+
+resource "azurerm_storage_container" "models" {
+  name                  = "models"
+  storage_account_id    = azurerm_storage_account.data_lake.id
+  container_access_type = "private"
+}
