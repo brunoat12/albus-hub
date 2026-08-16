@@ -32,11 +32,16 @@ resource "azurerm_container_group" "app" {
       APP_ENV           = "azure"
       CLOUD_PROVIDER    = "azure"
       OTEL_SERVICE_NAME = "albus-hub"
+      MYSQL_HOST        = azurerm_mysql_flexible_server.main.fqdn
+      MYSQL_PORT        = "3306"
+      MYSQL_USER        = var.mysql_admin_username
+      MYSQL_DB          = azurerm_mysql_flexible_database.main.name
     }
 
 
     secure_environment_variables = {
       APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.main.connection_string
+      MYSQL_PASSWORD                        = var.mysql_admin_password
     }
   }
 

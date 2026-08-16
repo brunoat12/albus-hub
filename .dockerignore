@@ -19,7 +19,13 @@ htmlcov
 .airflow
 
 # Dados runtime
-data
+data/*
+!data/gold/
+data/gold/*
+!data/gold/daily_incident_volume.parquet
+!data/gold/daily_incident_breakdown.parquet
+
+
 artifacts
 models
 

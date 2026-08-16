@@ -19,6 +19,14 @@ RUN uv sync \
 
 COPY src ./src
 
+RUN mkdir -p /app/data/gold
+
+COPY data/gold/daily_incident_volume.parquet \
+     /app/data/gold/daily_incident_volume.parquet
+
+COPY data/gold/daily_incident_breakdown.parquet \
+     /app/data/gold/daily_incident_breakdown.parquet
+
 RUN uv sync \
     --locked \
     --no-dev
