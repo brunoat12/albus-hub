@@ -236,7 +236,7 @@ Esses elementos serão mantidos em tabelas próprias.
 
 ## Contrato para features de risco
 
-Arquivo futuro:
+Arquivo implementado:
 
 ```text
 data/gold/risk_features.parquet
@@ -292,7 +292,8 @@ predicted_volume_d1
 operational_pressure
 ```
 
-Os nomes definitivos poderão ser ajustados durante a engenharia de features.
+Os nomes definitivos utilizados pela primeira versão estão documentados em
+`docs/risk_score.md`.
 
 Toda feature histórica deverá utilizar somente dados anteriores ao incidente.
 
@@ -347,7 +348,7 @@ ligadas à definição do target.
 
 ## Contrato para o score de risco
 
-Arquivo futuro:
+Arquivo implementado:
 
 ```text
 data/gold/risk_scores.parquet
@@ -396,7 +397,7 @@ impacto da prioridade
 pressão operacional
 ```
 
-Uma fórmula inicial de referência será:
+A fórmula oficial da primeira versão é:
 
 ```text
 risk_score =
@@ -407,10 +408,29 @@ risk_score =
 )
 ```
 
-Os pesos são provisórios e deverão ser documentados, testados e ajustados.
+Os pesos são versionados e validados pelo contrato de integração. Qualquer
+alteração exige mudança documentada de versão.
+
+O impacto de prioridade da primeira versão usa:
+
+```text
+P1 = 1,00
+P2 = 0,80
+P3 = 0,60
+P4 = 0,30
+P5 = 0,10
+```
+
+A pressão operacional é a quantidade de incidentes anteriores da equipe nas
+últimas 24 horas dividida pelo percentil 95 observado no treino, limitada ao
+intervalo de 0 a 1. O percentil utilizado é salvo no metadata do modelo.
 
 O score não substituirá a probabilidade produzida pelo modelo. Os dois campos
 serão mantidos para permitir auditoria e interpretação.
+
+O threshold binário de classificação também não substitui o score nem define
+diretamente o `risk_level`. Ele é calibrado na janela temporal de validação e
+salvo no metadata do modelo.
 
 ## Contrato para eventos de alerta
 

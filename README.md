@@ -134,6 +134,10 @@ Application Insights.
 - Azure Monitor e Log Analytics;
 - Application Insights e OpenTelemetry;
 - CI com Ruff e Pytest.
+- baseline e ANN para risco de violação do KPI/OLA;
+- score operacional 0–100 e integração com o Streamlit;
+- explicabilidade local e recomendações por incidente;
+- notebook acadêmico reproduzível da frente de Deep Learning.
 
 ### Integração pendente
 
@@ -141,7 +145,6 @@ Dependente da conclusão dos artefatos de modelagem das demais frentes do
 projeto:
 
 - modelo de previsão D+1 e D+7;
-- score de risco operacional;
 - publicação de eventos críticos no RabbitMQ;
 - consumo dos alertas;
 - apresentação final dos resultados integrados no dashboard.
@@ -159,3 +162,48 @@ O projeto utiliza:
 - Ruff para análise estática e formatação;
 - Pytest para testes automatizados;
 - GitHub Actions para validação contínua dos Pull Requests.
+
+## Modelo de risco OLA/KPI
+
+A implementação da frente de risco utiliza como fonte canônica:
+
+```text
+data/silver/locaweb_incidents.parquet
+```
+
+Os dados pesados e os artefatos treinados são ignorados pelo Git. Coloque a
+Silver no caminho acima antes do treinamento.
+
+Treinar baseline, clusterização e ANN, calibrar o threshold e gerar os scores:
+
+```bash
+uv run python scripts/train_risk_model.py
+```
+
+Regenerar somente o Parquet de scores usando os artefatos salvos:
+
+```bash
+uv run python scripts/generate_risk_scores.py
+```
+
+Gerar e executar o notebook acadêmico:
+
+```bash
+uv run python scripts/build_risk_notebook.py
+uv run python scripts/execute_risk_notebook.py
+```
+
+Artefatos principais:
+
+- `notebooks/EC_Sprint_3_Albus_Hub_DeepL.ipynb`;
+- `models/risk/ann.weights.h5`;
+- `models/risk/preprocessor.joblib`;
+- `models/risk/calibrator.joblib`;
+- `models/risk/metadata.json`;
+- `data/gold/risk_features.parquet`;
+- `data/gold/risk_scores.parquet`;
+- `artifacts/metrics/risk_model_metrics.json`.
+
+Os artefatos reproduzíveis em `models/`, `data/` e `artifacts/` não devem ser
+commitados. Metodologia, métricas observadas e limitações estão detalhadas em
+`docs/risk_score.md`.
