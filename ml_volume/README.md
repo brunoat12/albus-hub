@@ -1,88 +1,119 @@
-# Previsão de Volume de Incidentes — resultados (frente ML, Integrante 2)
+# Previsão de Volume de Incidentes — frente ML (Integrante 2)
 
-**O que é:** prevemos **quantos incidentes** vão abrir **amanhã (D+1)** e **daqui a 7 dias (D+7)**,
-**por prioridade** (P1–P5) e no total (ALL). Versão atual: **v3.1** (`volume_v3.1_2026-08-21`).
-Para entender *como* e *por quê*, leia o `METODOLOGIA.md`. Atualizado: 2026-08-21.
+Prevemos **quantos incidentes vão abrir amanhã (D+1) e daqui a 7 dias (D+7)**, por prioridade
+(P1–P5) e no total (ALL), com **número + faixa de incerteza**.
 
-## O que mudou (e por que é melhor)
-1. **v3 — Contamos eventos, não alarmes** (deduplicação de cascatas — ver METODOLOGIA §2). Isso
-   limpou as séries: em P2 o erro caiu de **~56% para ~31%** (sMAPE).
-2. **v3 — Um modelo por prioridade** (cada uma se comporta diferente).
-3. **v3.1 — Faixa de incerteza que se ajusta sozinha** (*intervalo conformal adaptativo*,
-   METODOLOGIA §6b). Antes a faixa tinha largura fixa e desafinava; agora **todas as séries
-   ficam em 77–82% de cobertura** (meta 80%) — e em várias a faixa ainda **encolheu**.
+**Versão:** `volume_v3.2_2026-08-21` · **Metodologia completa:** [`METODOLOGIA.md`](METODOLOGIA.md)
+(dados, limpeza, EDA, comparações e o porquê de cada escolha).
 
-## Resultado (backtest honesto, Set–Dez 2025)
-"Skill" = quanto melhor que a régua boba (naïve). "Cobertura" = % de dias em que o real caiu
-dentro da faixa (meta **80%**); "largura" = tamanho médio da faixa, em incidentes.
+---
 
-| Prioridade | eventos/dia | Melhor modelo (D+1) | MAE D+1 | sMAPE D+1 | Skill D+1 | Cobert. D+1 | Cobert. D+7 |
-|---|---:|---|---:|---:|---:|---:|---:|
-| **ALL** (total) | 687 | Ridge | 102 | **16%** | **+35%** | 78% | 79% |
-| **P2** Alta | 34 | Poisson-offset | 11 | 31% | +21% | 80% | 80% |
-| **P3** Média | 182 | Ridge | 42 | 25% | +30% | 79% | **81%** |
-| **P4** Baixa | 471 | Ridge | 87 | 20% | +35% | 80% | 82% |
-| **P5** Muito Baixa | 0,2 | GBR | 0,2 | *(ver nota)* | +24% | 77% | 79% |
-| **P1** Crítica | ~0 | naïve | 0,0 | — | n/a | 100% | 100% |
+## Resultado
 
-*(D+7 erra um pouco mais em todas, como esperado — prever mais longe é mais difícil; detalhes
-em `outputs/metrics.json`.)*
+**Protocolo:** o preditor é escolhido em **set–out/2025** e a nota sai em **nov–dez/2025 (61 dias
+que não participaram da escolha)**. O ganho ("skill") é medido contra a **melhor** de três réguas
+bobas — `naive7` (mesmo dia da semana passada), `media7` (média dos últimos 7 dias) e `ultimo`
+(repete o último valor) — não contra a mais fraca.
 
-### Efeito do intervalo conformal (v3.1) — cobertura antes → depois
-| Série | Faixa fixa (v3) | Conformal (v3.1) | Largura fixa → conformal |
-|---|---:|---:|---:|
-| P3 D+7 | 74% | **81%** | 124 → 146 *(alargou onde faltava)* |
-| P4 D+1 | 86% | **80%** | 250 → 239 *(apertou onde sobrava)* |
-| ALL D+1 | 82% | 78% | 308 → **272** *(mais estreita, mesma confiança)* |
-| P5 D+1 | 71% | **77%** | 1 → 1 |
+| série | hor | preditor | tipo | MAE | sMAPE | **skill** | cobertura |
+|---|---|---|---|---:|---:|---:|---:|
+| ALL | D+1 | `ultimo` | régua simples | 76,6 | 10,3% | −4% | 77% |
+| ALL | D+7 | GBR | modelo | 91,6 | 12,7% | **+13%** | 80% |
+| P2 | D+1 | **Ridge** | modelo | 9,8 | 30,0% | **+16%** | 79% |
+| P2 | D+7 | GBR | modelo | 10,0 | 30,9% | **+15%** | 79% |
+| P3 | D+1 | GBR | modelo | 58,9 | 29,4% | −7% | 82% |
+| P3 | D+7 | GBR | modelo | 62,1 | 30,8% | **+18%** | 79% |
+| P4 | D+1 | `ultimo` | régua simples | 49,5 | 10,5% | +0% | 75% |
+| P4 | D+7 | GBR | modelo | 66,2 | 14,3% | **+14%** | 84% |
+| P5 | D+7 | GBR | modelo | 0,2 | *(ver nota)* | **+30%** | 82% |
+| P1 | ambos | `naive7` | régua simples | 0,0 | — | n/a | 100% |
 
-> **Nota honesta:** o "51%" citado na versão anterior vinha de um protocolo mais duro (calibrar
-> uma vez em 60% do período e nunca mais atualizar). Na tabela acima **as duas colunas usam o
-> mesmo protocolo** (recalibrando todo dia com os últimos 60 dias), então a comparação é justa:
-> parte do ganho vem de recalibrar sempre, parte do conformal em si.
+**Cobertura** = % de dias em que o real caiu dentro da faixa prevista (meta 80%).
 
-## Previsão futura (a partir de 2025-12-31) — no contrato
-| Prioridade | D+1 (01/01) | D+7 (07/01) |
+### Como ler isso
+
+- **Em D+7 o modelo ganha em todas as séries** (+13% a +30%). A 7 dias a regra trivial perde
+  validade e as features (calendário, exposição, nível recente) passam a valer.
+- **Em D+1 o modelo só ganha claramente no P2** (+16%). Em ALL e P4 — séries lisas — a regra
+  trivial é imbatível, e o pipeline **entrega a regra trivial**. Isso é decisão de engenharia, não
+  fracasso: `metrics.json` traz o MAE de todos os candidatos para auditar.
+- **Mancha declarada:** no P3 D+1 a seleção escolheu GBR (−7%); o Ridge teria dado +16%. Errou
+  porque 61 dias de seleção é pouco. Corrigir isso exigiria olhar o período da nota — o vício que
+  o protocolo existe para eliminar. Fica registrado.
+- **Versões anteriores anunciavam "+35%"**: era correto na aritmética, mas contra a régua fraca e
+  com o modelo escolhido olhando o teste. Os números acima são menores e defensáveis.
+
+## Previsão futura (a partir de 31/12/2025)
+
+| série | D+1 (01/01) | D+7 (07/01) |
 |---|---|---|
-| ALL | 721 (603–842) | 889 (790–1092) |
-| P2 | 27 (14–40) | 41 (25–60) |
-| P3 | 266 (204–367) | 183 (122–266) |
-| P4 | 389 (304–434) | 447 (367–559) |
+| ALL | 752 (635–900) | 889 (790–1092) |
+| P2 | 29 (16–43) | 41 (25–60) |
+| P3 | 395 (302–605) | 297 (207–528) |
+| P4 | 367 (300–434) | 447 (367–559) |
 | P5 | ~0 (0–1) | ~0 (0–1) |
 | P1 | 0 | 0 |
 
-## Notas honestas por prioridade
-- **P4** é a mais previsível (série lisa, "puxa" o valor recente) → +35%.
-- **P3** vai bem em D+1 (+30%) e o **intervalo de D+7 foi corrigido no v3.1** (74% → 81%).
-- **P2** melhorou muito com a deduplicação; o modelo de **contagem (Poisson-offset)** venceu, como esperado.
-- **P5** é **intermitente** (quase sempre 0): o sMAPE dá ~196% porque dividir por zero explode — **é métrica sem sentido aqui**; o número honesto é o MAE 0,2 ("esperar ~0, às vezes 1").
-- **P1** teve **1 evento no ano inteiro** → não há série; tratamos como **evento raro**.
+*Nota P5:* série intermitente (quase sempre 0). O sMAPE explode por divisão perto de zero — **é
+métrica sem sentido ali**; o número honesto é o MAE 0,2.
+
+## Os três achados que sustentam tudo
+
+1. **O salto de 7× em set/2025 não é aumento de incidente — é aumento de monitoramento.**
+   Aberturas manuais caíram (0,77×), automáticas ×11,4, e a carga elegível a KPI ficou estável
+   (0,85×). Volume bruto ×6,6, carga real estável.
+2. **Os picos são cascatas, não crises.** Em 05/11 o P2 teve 684 incidentes — **510 eram filhos de
+   uma única falha**. Contando eventos-raiz, o dia vira ~84. Deduplicar fez a previsibilidade do
+   P2 saltar (acf1 de 0,05 → 0,32).
+3. **Cada prioridade é um bicho diferente.** P2 é humana (cai 48% no fim de semana); **P4 é
+   máquina** (força sazonal 0,03 — não sabe que é domingo). Foi isso que revelou que o baseline
+   antigo era um espantalho para o P4.
 
 ## Como rodar
+
 ```bash
-python pipeline_prioridades.py    # v3: treina, backtest, gera outputs/ e plots/
-python predict.py                 # imprime a previsão futura (contrato)
-pip install streamlit && streamlit run app_streamlit.py   # painel do Bruno
+python pipeline_prioridades.py
 ```
+
+```bash
+python predict.py
+```
+
+```bash
+streamlit run app_streamlit.py
+```
+
 ```python
 from predict import prever_volume
-prever_volume(scope="P3", horizon="D+1")   # o Bruno/BI chamam assim
+prever_volume(scope="P3", horizon="D+1")   # o BI / o app do time chamam assim
 ```
 
-## Arquivos
-- `pipeline_prioridades.py` — **pipeline v3.1** (por prioridade, deduplicado, intervalo conformal).
-- `pipeline_volume.py` — v2 (ALL/P2/P3, série crua) — mantido por histórico.
-- `predict.py` — função de inferência (lê o contrato).
-- `app_streamlit.py` — painel.
-- `METODOLOGIA.md` — processo e porquê das escolhas (explicado para leigos).
-- `outputs/` (predições no contrato + `metrics.json`) · `plots/backtest_v3_D1.png`.
-
 ## Contrato de saída (congelado)
-`reference_date, horizon (D+1|D+7), scope (ALL|P1..P5), predicted_incidents,
-actual_incidents, lower_bound, upper_bound, model, model_version, generated_at`.
+
+`reference_date, horizon (D+1|D+7), scope (ALL|P1..P5), predicted_incidents, actual_incidents,
+lower_bound, upper_bound, model, model_version, generated_at`
+
+## Arquivos
+
+| Arquivo | O que é |
+|---|---|
+| `pipeline_prioridades.py` | pipeline **v3.2** — treina, faz backtest, gera tudo |
+| `predict.py` | função de inferência (o time chama sem abrir notebook) |
+| `app_streamlit.py` | painel |
+| `METODOLOGIA.md` | **o documento**: dados, limpeza, EDA, comparações, decisões e limitações |
+| `outputs/` | predições no contrato + `metrics.json` (MAE de todos os candidatos) |
+| `plots/backtest_v32_D1.png` | previsto vs real com intervalo |
+| `data/incidents.parquet` | dado tratado |
+
+## Limitações (resumo — detalhe em METODOLOGIA §11)
+
+Regime pleno tem ~4 meses → capta sazonalidade semanal, não anual · janela de seleção curta
+(61 dias) · storms de cascata são imprevisíveis no *timing* · previsões para 2026 extrapolam ·
+séries superdispersas têm teto de acerto.
 
 ## Próximos passos
-- ~~Intervalo conformal/adaptativo~~ → **feito no v3.1** (todas as séries em 77–82%).
-- Modelo de **demanda intermitente** dedicado para P5 (Croston), se o negócio quiser.
+
+- Avaliar jan–ago com **erro relativo** (adimensional) como teste de robustez no regime antigo.
+- Croston (demanda intermitente) para P5, se o negócio quiser.
 - Handoff para a frente de **risco/score** (Integrante 3): mesmo dado tratado, alvo `KPI Violado?`.
-- Plugar `prever_volume()` no app/Power BI.
+- Plugar `prever_volume()` no app do time / Power BI.

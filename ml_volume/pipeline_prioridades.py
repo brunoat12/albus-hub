@@ -1,13 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-Albus Hub - Frente ML (Integrante 2) - Pipeline v3: VOLUME por PRIORIDADE, DEDUPLICADO.
+Albus Hub - Frente ML (Integrante 2) - Pipeline v3.2: VOLUME por PRIORIDADE, DEDUPLICADO.
 
-O que muda vs v2:
-  - Alvo = serie DEDUPLICADA (so incidentes-raiz, sem 'Incidente Pai') -> conta eventos,
-    nao alarmes de cascata. Alinha com o KPI (filho nao entra no KPI).
-  - Uma serie por prioridade: ALL, P1, P2, P3, P4, P5 (cada uma com seu modelo).
-Fluxo: dados -> features (sem vazamento) -> backtest walk-forward -> metricas (+cobertura)
-       -> predicoes (contrato) -> graficos.
+HISTORICO
+  v3   - serie deduplicada (so incidentes-raiz) + um modelo por prioridade.
+  v3.1 - intervalo conformal adaptativo (faixa que se ajusta sozinha).
+  v3.2 - HONESTIDADE METODOLOGICA (esta versao). Tres correcoes:
+    (1) BASELINE JUSTO. Antes comparavamos so com "naive7" (mesmo dia da semana passada).
+        Descobrimos que em series SEM sazonalidade semanal (P4: forca sazonal 0,03) essa
+        regua e um espantalho. Agora concorremos contra a MELHOR de tres reguas bobas:
+        naive7, media7 (media dos ultimos 7 dias) e ultimo (repete o valor conhecido).
+    (2) JANELA DE TREINO TESTADA. Hipotese: treinar so no regime pleno (Set-Dez) seria
+        melhor. FALSA - o Ridge PIORA 21-24% com menos dados. Mantemos o ano inteiro.
+    (3) PREDITOR FIXADO A PRIORI. Antes o codigo escolhia o vencedor olhando o proprio
+        teste (viesado). Agora escolhe em SET-OUT e reporta em NOV-DEZ. As reguas bobas
+        SAO CANDIDATAS de pleno direito e vale a regra de Occam ao longo da escada de
+        complexidade: fica o preditor mais SIMPLES que chega a 5% do melhor.
+
+PROTOCOLO
+  walk-forward diario | selecao: set-out/2025 (61d) | nota: nov-dez/2025 (61d nunca vistos)
 Le o dataset bruto (fonte de verdade); cacheia parquet local.
 """
 import os, json, warnings
@@ -24,7 +35,7 @@ SRC  = os.path.join(HERE, "..", "Dados", "LW-DATASET.xlsx")
 CACHE= os.path.join(HERE, "data", "incidents.parquet")
 OUT  = os.path.join(HERE, "outputs"); PLOTS = os.path.join(HERE, "plots")
 for d in (os.path.dirname(CACHE), OUT, PLOTS): os.makedirs(d, exist_ok=True)
-MODEL_VERSION = "volume_v3.1_2026-08-21"   # v3.1 = intervalo conformal adaptativo (secao 3b)
+MODEL_VERSION = "volume_v3.2_2026-08-21"
 
 # ---------------------------------------------------------------- 1. DADOS
 if os.path.exists(CACHE): df = pd.read_parquet(CACHE)
@@ -68,94 +79,118 @@ def build_Xy(y,h):
     return X.join(CAL), y
 FEATS_LEVEL=["seas_lag7","seas_lag14","last","roll7_mean","roll7_std","roll28_mean","exp_last","exp_roll7","trend"]+CALCOLS
 FEATS_RATE =["r_last","r_roll7","r_seas7"]+CALCOLS
-ALLF=list(dict.fromkeys(FEATS_LEVEL+FEATS_RATE)); MODELS=["naive","poisson_off","ridge","gbr"]
+ALLF=list(dict.fromkeys(FEATS_LEVEL+FEATS_RATE))
 
-def mk(name):
-    if name=="ridge": return make_pipeline(StandardScaler(),Ridge(alpha=5.0))
-    if name=="gbr":   return HistGradientBoostingRegressor(loss="poisson",max_depth=3,learning_rate=0.08,max_iter=250,min_samples_leaf=15,random_state=0)
+# REGUAS BOBAS (candidatas de pleno direito) e MODELOS
+BASES  = ["naive7","media7","ultimo"]         # simples: sem treino, so aritmetica do passado
+LEARNED= ["ridge","poisson_off","gbr"]        # aprendidos
+CANDS  = BASES + LEARNED
+# escada de complexidade, do mais simples ao mais complexo (usada na regra de Occam):
+# regua boba < linear interpretavel < contagem interpretavel < caixa-preta
+ORDER  = ["naive7","media7","ultimo","ridge","poisson_off","gbr"]
+def base_series(y,h):
+    """As tres reguas bobas, ja com o shift correto para o horizonte h."""
+    return {"naive7": y.shift(7),                       # mesmo dia da semana passada
+            "media7": y.shift(h).rolling(7).mean(),     # media dos ultimos 7 dias conhecidos
+            "ultimo": y.shift(h)}                       # repete o ultimo valor conhecido
 def fit_pred(name,Xtr,ytr,xrow):
-    if ytr.nunique()<=1: return float(ytr.iloc[0]) if len(ytr) else 0.0   # serie constante (ex.: P1)
-    if name=="naive": return max(0.0,float(xrow["seas_lag7"].iloc[0]))
+    if len(ytr)==0: return 0.0
+    if ytr.nunique()<=1: return float(ytr.iloc[0])      # serie constante (ex.: P1)
     if name=="poisson_off":
         expo=Xtr["exp_roll7"].clip(lower=1e-6); rate=ytr/expo
         if rate.sum()==0: return 0.0
         m=make_pipeline(StandardScaler(),PoissonRegressor(alpha=1e-4,max_iter=6000))
         m.fit(Xtr[FEATS_RATE],rate,poissonregressor__sample_weight=expo.values)
         return max(0.0,float(m.predict(xrow[FEATS_RATE])[0])*max(1e-6,float(xrow["exp_roll7"].iloc[0])))
-    m=mk(name); m.fit(Xtr[FEATS_LEVEL],ytr); return max(0.0,float(m.predict(xrow[FEATS_LEVEL])[0]))
+    m=(make_pipeline(StandardScaler(),Ridge(alpha=5.0)) if name=="ridge"
+       else HistGradientBoostingRegressor(loss="poisson",max_depth=3,learning_rate=0.08,
+                                          max_iter=250,min_samples_leaf=15,random_state=0))
+    m.fit(Xtr[FEATS_LEVEL],ytr); return max(0.0,float(m.predict(xrow[FEATS_LEVEL])[0]))
 
 def smape(a,p): a,p=np.asarray(a,float),np.asarray(p,float); return float(100*np.mean(2*np.abs(a-p)/(np.abs(a)+np.abs(p)+1e-9)))
-def mets(a,p): a,p=np.asarray(a,float),np.asarray(p,float); return {"MAE":float(np.mean(np.abs(a-p))),"RMSE":float(np.sqrt(np.mean((a-p)**2))),"sMAPE":smape(a,p),"n":int(len(a))}
+def mae(a,p): return float(np.mean(np.abs(np.asarray(a,float)-np.asarray(p,float))))
+def mets(a,p): a,p=np.asarray(a,float),np.asarray(p,float); return {"MAE":mae(a,p),"RMSE":float(np.sqrt(np.mean((a-p)**2))),"sMAPE":smape(a,p),"n":int(len(a))}
 
-# ------------------------------------- 3b. INTERVALO CONFORMAL ADAPTATIVO
-# PROBLEMA (v3): a faixa era FIXA - mesma largura todo dia, tirada dos quantis dos
-# residuos. Em serie cujo erro cresce com o nivel (P3), isso sub-cobre: nos dias
-# calmos a faixa sobra, nos dias cheios ela falta -> cobertura 51% (meta 80%).
-# SOLUCAO (v3.1), duas ideias somadas:
-#   (1) ESCALA: a largura e proporcional a sqrt(previsto) - regra de contagem
-#       (numa Poisson o desvio ~ raiz da media). Dia cheio -> faixa larga sozinha.
-#   (2) AUTO-CORRECAO (ACI): se o real caiu FORA da faixa, alargamos amanha; se
-#       ficou dentro com folga, apertamos. O "alpha" caminha sozinho ate a
-#       cobertura bater na meta.
-# Honesto: cada dia usa SO residuos de dias anteriores (janela WIN), nunca o futuro.
-ALPHA=0.20; BURN=28; WIN=60; GAMMA=0.03      # meta 80% | aquecimento | janela | passo do ACI
+# ------------------------------------- 3b. INTERVALO CONFORMAL ADAPTATIVO (v3.1)
+# Largura proporcional a sqrt(previsto) (escala de contagem) + auto-correcao diaria do
+# alpha (ACI): caiu fora -> alarga amanha; sobrou folga -> aperta. So residuos passados.
+ALPHA=0.20; BURN=28; WIN=60; GAMMA=0.03
 def _s(x): return max(1.0, float(np.sqrt(max(float(x),0.0))))
 def bands(a,p):
-    """Devolve faixa conformal (lo_c,hi_c), faixa fixa antiga (lo_f,hi_f) para
-    comparacao, mascara dos dias avaliaveis e os quantis finais (p/ o futuro)."""
-    n=len(a); lo_c=np.full(n,np.nan); hi_c=np.full(n,np.nan)
-    lo_f=np.full(n,np.nan); hi_f=np.full(n,np.nan)
-    sc=[]; rw=[]; at=ALPHA; qlo=qhi=0.0
+    n=len(a); lo=np.full(n,np.nan); hi=np.full(n,np.nan); sc=[]; at=ALPHA; qlo=qhi=0.0
     for i in range(n):
         if i>=BURN:
-            ps=np.array(sc[-WIN:]); pr=np.array(rw[-WIN:])
+            ps=np.array(sc[-WIN:])
             qlo=float(np.quantile(ps,at/2)); qhi=float(np.quantile(ps,1-at/2))
-            lo_c[i]=max(0.0,p[i]+qlo*_s(p[i])); hi_c[i]=p[i]+qhi*_s(p[i])
-            lo_f[i]=max(0.0,p[i]+float(np.quantile(pr,ALPHA/2))); hi_f[i]=p[i]+float(np.quantile(pr,1-ALPHA/2))
-            miss=0.0 if (lo_c[i]<=a[i]<=hi_c[i]) else 1.0
-            at=float(np.clip(at+GAMMA*(ALPHA-miss),0.01,0.60))          # ACI
-        sc.append((a[i]-p[i])/_s(p[i])); rw.append(a[i]-p[i])
+            lo[i]=max(0.0,p[i]+qlo*_s(p[i])); hi[i]=p[i]+qhi*_s(p[i])
+            at=float(np.clip(at+GAMMA*(ALPHA-(0.0 if lo[i]<=a[i]<=hi[i] else 1.0)),0.01,0.60))
+        sc.append((a[i]-p[i])/_s(p[i]))
     ev=np.zeros(n,bool); ev[BURN:]=True
-    return lo_c,hi_c,lo_f,hi_f,ev,(qlo,qhi)
+    return lo,hi,ev,(qlo,qhi)
 def _bf(v,p):
-    """Preenche o aquecimento (dias < BURN) com a 1a faixa valida - so para exibir
-    o historico; esses dias NAO entram na medicao de cobertura."""
     v=np.asarray(v,float).copy(); ok=np.flatnonzero(~np.isnan(v))
     if len(ok)==0: return np.asarray(p,float).copy()
     v[:ok[0]]=v[ok[0]]; return v
-def _cov(a,lo,hi,ev):
-    return float(np.mean((a[ev]>=lo[ev])&(a[ev]<=hi[ev]))) if ev.any() else float("nan")
 
-# -------------------------------------------------- 4. BACKTEST + PREVISAO
-TEST0=pd.Timestamp("2025-09-01"); all_metrics={}; all_preds=[]
+# ---------------------------- 4. WALK-FORWARD + SELECAO HONESTA + PREVISAO
+EVAL0=pd.Timestamp("2025-09-01")    # comeco do walk-forward (inicio do regime pleno)
+SELEND=pd.Timestamp("2025-10-31")   # SET+OUT (61d): so para escolher e aquecer o conformal.
+                                    # 1 mes so era ruidoso demais e escolhia mal; 2 meses estabiliza.
+REP0=pd.Timestamp("2025-11-01")     # daqui em diante: a nota (61 dias, nunca vistos na escolha)
+TIEBREAK=0.05                       # se a regua boba chega a 5% do melhor, fica a regua (Occam)
+
+all_metrics={}; all_preds=[]; chosen={}
 for scope,y in series.items():
     all_metrics[scope]={}
     for h,hn in [(1,"D+1"),(7,"D+7")]:
-        X,yt=build_Xy(y,h); ok=X[ALLF].notna().all(axis=1)
-        hist=ok & yt.notna() & (yt.index<=LAST); td=yt.index[hist & (yt.index>=TEST0)]
-        preds={m:[] for m in MODELS}
+        X,yt=build_Xy(y,h); ok=X[ALLF].notna().all(axis=1) & yt.notna() & (yt.index<=LAST)
+        B=base_series(y,h); td=yt.index[ok & (yt.index>=EVAL0)]
+        preds={c:[] for c in CANDS}
         for d in td:
-            tr=hist & (yt.index<d); Xtr,ytr,xr=X.loc[tr],yt.loc[tr],X.loc[[d]]
-            for m in MODELS: preds[m].append(fit_pred(m,Xtr,ytr,xr))
-        a=yt.loc[td].values
-        for m in MODELS: all_metrics[scope].setdefault(hn,{})[m]=mets(a,preds[m])
-        base=all_metrics[scope][hn]["naive"]["MAE"]
-        for m in MODELS: all_metrics[scope][hn][m]["skill_vs_naive"]=float(1-all_metrics[scope][hn][m]["MAE"]/base) if base>1e-9 else float("nan")
-        best=min(MODELS,key=lambda m: all_metrics[scope][hn][m]["MAE"]); all_metrics[scope][hn]["_best"]=best
-        bp=np.array(preds[best])
-        lo_c,hi_c,lo_f,hi_f,ev,(qlo,qhi)=bands(a,bp)      # faixa conformal + faixa fixa (comparacao)
+            tr=ok & (yt.index<d); Xtr,ytr,xr=X.loc[tr],yt.loc[tr],X.loc[[d]]
+            for c in BASES:   preds[c].append(max(0.0,float(B[c].loc[d])))
+            for c in LEARNED: preds[c].append(fit_pred(c,Xtr,ytr,xr))
+        a=yt.loc[td].values; Pm={c:np.array(preds[c]) for c in CANDS}
+        sel=td<=SELEND; rep=td>=REP0
+
+        # --- (3) escolha do preditor: SO com set-out. Regra de Occam ao longo da escada de
+        # complexidade (ORDER): fica o PRIMEIRO candidato que chega a 5% do melhor. Assim
+        # so pagamos complexidade (e perda de interpretabilidade) quando ela compra acerto.
+        msel={c:mae(a[sel],Pm[c][sel]) for c in CANDS}
+        floor_=min(msel.values())
+        pick=next(c for c in ORDER if msel[c] <= floor_*(1+TIEBREAK))
+        chosen[(scope,hn)]=pick
+
+        # --- (1) nota em nov-dez contra a MELHOR regua boba (medida no proprio periodo)
+        mrep={c:mae(a[rep],Pm[c][rep]) for c in CANDS}
+        base_ref=min(BASES,key=lambda c: mrep[c])
+        m=mets(a[rep],Pm[pick][rep])
+        m["skill_vs_melhor_regua"]=float(1-mrep[pick]/mrep[base_ref]) if mrep[base_ref]>1e-9 else float("nan")
+        m["skill_vs_naive7"]      =float(1-mrep[pick]/mrep["naive7"]) if mrep["naive7"]>1e-9 else float("nan")
+        all_metrics[scope][hn]={"_escolhido":pick,"_tipo":("regua simples" if pick in BASES else "modelo"),
+            "_regua_referencia":base_ref,"_mae_candidatos_nov_dez":{c:round(mrep[c],2) for c in CANDS},
+            "_mae_candidatos_out":{c:round(msel[c],2) for c in CANDS}, **m}
+
+        # --- intervalo conformal sobre o preditor escolhido
+        bp=Pm[pick]; lo,hi,ev,(qlo,qhi)=bands(a,bp)
+        evr=ev & rep
         all_metrics[scope][hn]["_coverage"]={"nominal":.8,
-            "conformal_oos":_cov(a,lo_c,hi_c,ev),"fixo_oos":_cov(a,lo_f,hi_f,ev),
-            "largura_media_conformal":float(np.nanmean(hi_c-lo_c)),"largura_media_fixo":float(np.nanmean(hi_f-lo_f)),
-            "n_avaliado":int(ev.sum()),"metodo":"conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"}
-        LO,HI=_bf(lo_c,bp),_bf(hi_c,bp)
+            "conformal_nov_dez":float(np.mean((a[evr]>=lo[evr])&(a[evr]<=hi[evr]))) if evr.any() else float("nan"),
+            "largura_media":float(np.nanmean(hi[evr]-lo[evr])) if evr.any() else float("nan"),
+            "n_avaliado":int(evr.sum())}
+        LO,HI=_bf(lo,bp),_bf(hi,bp)
         for dte,av,pv,l_,h_ in zip(td,a,bp,LO,HI):
             all_preds.append(dict(reference_date=dte.date(),horizon=hn,scope=scope,predicted_incidents=int(round(pv)),
-                actual_incidents=int(av),lower_bound=max(0,int(round(l_))),upper_bound=int(round(max(h_,l_))),model=best,model_version=MODEL_VERSION))
-        fut=LAST+pd.Timedelta(days=h); fp=fit_pred(best,X.loc[hist],yt.loc[hist],X.loc[[fut]])
-        fl,fh=max(0.0,fp+qlo*_s(fp)),fp+qhi*_s(fp)       # mesma regra de escala no futuro
+                actual_incidents=int(av),lower_bound=max(0,int(round(l_))),upper_bound=int(round(max(h_,l_))),
+                model=pick,model_version=MODEL_VERSION))
+        # --- previsao futura com o preditor escolhido
+        fut=LAST+pd.Timedelta(days=h)
+        fp=(max(0.0,float(B[pick].loc[fut])) if pick in BASES
+            else fit_pred(pick,X.loc[ok],yt.loc[ok],X.loc[[fut]]))
+        fl,fh=max(0.0,fp+qlo*_s(fp)),fp+qhi*_s(fp)
         all_preds.append(dict(reference_date=fut.date(),horizon=hn,scope=scope,predicted_incidents=int(round(fp)),
-            actual_incidents=None,lower_bound=max(0,int(round(fl))),upper_bound=int(round(max(fh,fl))),model=best,model_version=MODEL_VERSION))
+            actual_incidents=None,lower_bound=max(0,int(round(fl))),upper_bound=int(round(max(fh,fl))),
+            model=pick,model_version=MODEL_VERSION))
 
 pred_df=pd.DataFrame(all_preds)
 pred_df.to_csv(os.path.join(OUT,"predictions_volume.csv"),index=False)
@@ -163,32 +198,45 @@ pred_df.to_parquet(os.path.join(OUT,"predictions_volume.parquet"),index=False)
 json.dump(all_metrics,open(os.path.join(OUT,"metrics.json"),"w",encoding="utf-8"),ensure_ascii=False,indent=2,default=str)
 
 # ---------------------------------------------------------- 5. RESUMO
-print("="*94,"\nPIPELINE v3.1 — VOLUME por PRIORIDADE, DEDUPLICADO + INTERVALO CONFORMAL — backtest Set-Dez 2025\n","="*94)
-print("cobertura: % de dias em que o real caiu dentro da faixa (meta 80%) — fixo = v3, conf = v3.1\n")
-pct=lambda v: "n/a" if not np.isfinite(v) else f"{v*100:.0f}%"
-print(f"{'scope':6}{'total25':>9}{'media/d':>9}  {'horiz':6}{'melhor':>12}{'MAE':>8}{'sMAPE':>8}{'skill':>7}"
-      f"{'cob_fixo':>9}{'cob_conf':>9}{'larg_fix':>9}{'larg_cnf':>9}")
+print("="*110)
+print("PIPELINE v3.2 - VOLUME por PRIORIDADE, DEDUPLICADO")
+print("  escolha do preditor: SET+OUT/2025  |  nota: NOV-DEZ/2025 (61 dias, nao usados na escolha)")
+print("  skill = ganho sobre a MELHOR das 3 reguas bobas (naive7 / media7 / ultimo)")
+print("="*110)
+print(f"{'scope':6}{'hor':5}{'preditor':>13}{'tipo':>16}{'regua':>9}{'MAE':>8}{'sMAPE':>8}"
+      f"{'skill':>8}{'(vs naive7)':>13}{'cobert':>8}")
+pct=lambda v: "n/a" if not np.isfinite(v) else f"{v*100:+.0f}%"
 for scope in series:
-    tot=int(series[scope].loc[:LAST].sum()); md=series[scope].loc["2025-09":LAST].mean()
     for hn in ["D+1","D+7"]:
-        mm=all_metrics[scope][hn]; b=mm["_best"]; r=mm[b]; c=mm["_coverage"]
-        sk="n/a" if not np.isfinite(r["skill_vs_naive"]) else f"{r['skill_vs_naive']*100:+.0f}%"
-        print(f"{scope:6}{tot:>9}{md:>9.1f}  {hn:6}{b:>12}{r['MAE']:>8.1f}{r['sMAPE']:>7.1f}%{sk:>7}"
-              f"{pct(c['fixo_oos']):>9}{pct(c['conformal_oos']):>9}{c['largura_media_fixo']:>9.0f}{c['largura_media_conformal']:>9.0f}")
+        m=all_metrics[scope][hn]; c=m["_coverage"]
+        cv="n/a" if not np.isfinite(c["conformal_nov_dez"]) else f"{c['conformal_nov_dez']*100:.0f}%"
+        print(f"{scope:6}{hn:5}{m['_escolhido']:>13}{m['_tipo']:>16}{m['_regua_referencia']:>9}"
+              f"{m['MAE']:>8.1f}{m['sMAPE']:>7.1f}%{pct(m['skill_vs_melhor_regua']):>8}"
+              f"{pct(m['skill_vs_naive7']):>13}{cv:>8}")
+
+n_mod=sum(1 for v in chosen.values() if v in LEARNED)
+print(f"\nPreditor escolhido: MODELO em {n_mod}/{len(chosen)} combinacoes; REGUA SIMPLES nas demais.")
+print("(entregar a regua simples onde ela ganha e decisao de engenharia, nao fracasso do ML)")
 
 print("\nPREVISAO FUTURA (a partir de 2025-12-31):")
-print(pred_df[pred_df.actual_incidents.isna()][["scope","horizon","reference_date","predicted_incidents","lower_bound","upper_bound","model"]].to_string(index=False))
+print(pred_df[pred_df.actual_incidents.isna()][["scope","horizon","reference_date",
+      "predicted_incidents","lower_bound","upper_bound","model"]].to_string(index=False))
 
 # ---------------------------------------------------------- 6. GRAFICO
 plt.rcParams.update({"font.size":10,"axes.grid":True,"grid.alpha":.25,"axes.spines.top":False,"axes.spines.right":False})
 show=["ALL","P2","P3","P4"]; fig,ax=plt.subplots(len(show),1,figsize=(14,13),constrained_layout=True)
-fig.suptitle("v3.1 — Backtest D+1: previsto vs real + intervalo conformal adaptativo (Set–Dez 2025)",fontweight="bold",fontsize=13)
+fig.suptitle("v3.2 — Backtest D+1: previsto vs real + intervalo conformal (nota: Nov–Dez 2025)",fontweight="bold",fontsize=13)
 for a_,scope in zip(ax,show):
     sub=pred_df[(pred_df.scope==scope)&(pred_df.horizon=="D+1")&(pred_df.actual_incidents.notna())]
-    a_.plot(pd.to_datetime(sub.reference_date),sub.actual_incidents,color="#263238",lw=1.3,label="real")
-    a_.plot(pd.to_datetime(sub.reference_date),sub.predicted_incidents,color="#c62828",lw=1.3,ls="--",label="previsto")
-    a_.fill_between(pd.to_datetime(sub.reference_date),sub.lower_bound,sub.upper_bound,color="#c62828",alpha=.15,label="intervalo")
-    mm=all_metrics[scope]["D+1"]; b=mm["_best"]
-    a_.set_title(f"{scope} (modelo {b}: MAE {mm[b]['MAE']:.1f}, sMAPE {mm[b]['sMAPE']:.0f}%)"); a_.set_ylabel("eventos/dia"); a_.legend(loc="upper left",ncol=3)
-fig.savefig(os.path.join(PLOTS,"backtest_v3_D1.png"),dpi=140,bbox_inches="tight")
-print("\nSALVOS: outputs/ (predictions_volume.csv/parquet, metrics.json) + plots/backtest_v3_D1.png")
+    dts=pd.to_datetime(sub.reference_date)
+    a_.plot(dts,sub.actual_incidents,color="#263238",lw=1.3,label="real")
+    a_.plot(dts,sub.predicted_incidents,color="#c62828",lw=1.3,ls="--",label="previsto")
+    a_.fill_between(dts,sub.lower_bound,sub.upper_bound,color="#c62828",alpha=.15,label="intervalo 80%")
+    a_.axvline(REP0,color="#1565c0",lw=1.2,ls=":"); a_.text(REP0,a_.get_ylim()[1],"  início da nota",
+        color="#1565c0",va="top",fontsize=8)
+    m=all_metrics[scope]["D+1"]
+    a_.set_title(f"{scope} — preditor: {m['_escolhido']} ({m['_tipo']}) · MAE {m['MAE']:.1f} · "
+                 f"skill {pct(m['skill_vs_melhor_regua'])} vs melhor régua")
+    a_.set_ylabel("eventos/dia"); a_.legend(loc="upper left",ncol=3)
+fig.savefig(os.path.join(PLOTS,"backtest_v32_D1.png"),dpi=140,bbox_inches="tight")
+print("\nSALVOS: outputs/ (predictions_volume.csv/parquet, metrics.json) + plots/backtest_v32_D1.png")

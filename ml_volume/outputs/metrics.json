@@ -1,493 +1,409 @@
 {
   "ALL": {
     "D+1": {
-      "naive": {
-        "MAE": 158.10655737704917,
-        "RMSE": 244.18578320883358,
-        "sMAPE": 25.45844883761308,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "ultimo",
+      "_tipo": "regua simples",
+      "_regua_referencia": "media7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 104.82,
+        "media7": 73.4,
+        "ultimo": 76.62,
+        "ridge": 73.97,
+        "poisson_off": 134.61,
+        "gbr": 85.75
       },
-      "poisson_off": {
-        "MAE": 182.11183478981104,
-        "RMSE": 271.5826187559311,
-        "sMAPE": 27.416206575862432,
-        "n": 122,
-        "skill_vs_naive": -0.15182973945549016
+      "_mae_candidatos_out": {
+        "naive7": 211.39,
+        "media7": 155.71,
+        "ultimo": 111.64,
+        "ridge": 130.94,
+        "poisson_off": 229.62,
+        "gbr": 126.95
       },
-      "ridge": {
-        "MAE": 102.45336909183443,
-        "RMSE": 153.70619816548756,
-        "sMAPE": 16.334943719757312,
-        "n": 122,
-        "skill_vs_naive": 0.3519979766082326
-      },
-      "gbr": {
-        "MAE": 106.3472912595259,
-        "RMSE": 165.0955323751974,
-        "sMAPE": 16.145415099279578,
-        "n": 122,
-        "skill_vs_naive": 0.3273695093751796
-      },
-      "_best": "ridge",
+      "MAE": 76.62295081967213,
+      "RMSE": 98.44495840857252,
+      "sMAPE": 10.334294521857593,
+      "n": 61,
+      "skill_vs_melhor_regua": -0.043969368219527905,
+      "skill_vs_naive7": 0.2690021895527057,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.776595744680851,
-        "fixo_oos": 0.8191489361702128,
-        "largura_media_conformal": 271.50466381950577,
-        "largura_media_fixo": 307.8867637296281,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.7704918032786885,
+        "largura_media": 225.34617269519293,
+        "n_avaliado": 61
       }
     },
     "D+7": {
-      "naive": {
-        "MAE": 158.10655737704917,
-        "RMSE": 244.18578320883358,
-        "sMAPE": 25.45844883761308,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "gbr",
+      "_tipo": "modelo",
+      "_regua_referencia": "naive7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 104.82,
+        "media7": 106.7,
+        "ultimo": 104.82,
+        "ridge": 101.09,
+        "poisson_off": 135.05,
+        "gbr": 91.56
       },
-      "poisson_off": {
-        "MAE": 176.1385842489963,
-        "RMSE": 252.49194012606037,
-        "sMAPE": 31.315058181524886,
-        "n": 122,
-        "skill_vs_naive": -0.114049835573516
+      "_mae_candidatos_out": {
+        "naive7": 211.39,
+        "media7": 202.82,
+        "ultimo": 211.39,
+        "ridge": 192.87,
+        "poisson_off": 217.22,
+        "gbr": 145.05
       },
-      "ridge": {
-        "MAE": 146.98025835226105,
-        "RMSE": 219.50501670116554,
-        "sMAPE": 22.848237400553714,
-        "n": 122,
-        "skill_vs_naive": 0.07037215413054854
-      },
-      "gbr": {
-        "MAE": 118.30585392115289,
-        "RMSE": 182.5757027975581,
-        "sMAPE": 18.209128521210793,
-        "n": 122,
-        "skill_vs_naive": 0.2517334139467752
-      },
-      "_best": "gbr",
+      "MAE": 91.5581103318955,
+      "RMSE": 120.92504407996087,
+      "sMAPE": 12.701772067472156,
+      "n": 61,
+      "skill_vs_melhor_regua": 0.12651787140356185,
+      "skill_vs_naive7": 0.12651787140356185,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.7872340425531915,
-        "fixo_oos": 0.7659574468085106,
-        "largura_media_conformal": 419.27107779097554,
-        "largura_media_fixo": 374.20850710934013,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.8032786885245902,
+        "largura_media": 332.3850850957398,
+        "n_avaliado": 61
       }
     }
   },
   "P1": {
     "D+1": {
-      "naive": {
-        "MAE": 0.0,
-        "RMSE": 0.0,
-        "sMAPE": 0.0,
-        "n": 122,
-        "skill_vs_naive": NaN
+      "_escolhido": "naive7",
+      "_tipo": "regua simples",
+      "_regua_referencia": "naive7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 0.0,
+        "media7": 0.0,
+        "ultimo": 0.0,
+        "ridge": 0.0,
+        "poisson_off": 0.01,
+        "gbr": 0.0
       },
-      "poisson_off": {
-        "MAE": 0.009658527149487164,
-        "RMSE": 0.011364194007120004,
-        "sMAPE": 199.99997598980158,
-        "n": 122,
-        "skill_vs_naive": NaN
+      "_mae_candidatos_out": {
+        "naive7": 0.0,
+        "media7": 0.0,
+        "ultimo": 0.0,
+        "ridge": 0.01,
+        "poisson_off": 0.01,
+        "gbr": 0.0
       },
-      "ridge": {
-        "MAE": 0.004611411498446525,
-        "RMSE": 0.01440732583288367,
-        "sMAPE": 37.704908150406816,
-        "n": 122,
-        "skill_vs_naive": NaN
-      },
-      "gbr": {
-        "MAE": 5.713333648057346e-06,
-        "RMSE": 1.526378573558159e-05,
-        "sMAPE": 199.86649123442345,
-        "n": 122,
-        "skill_vs_naive": NaN
-      },
-      "_best": "naive",
+      "MAE": 0.0,
+      "RMSE": 0.0,
+      "sMAPE": 0.0,
+      "n": 61,
+      "skill_vs_melhor_regua": NaN,
+      "skill_vs_naive7": NaN,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 1.0,
-        "fixo_oos": 1.0,
-        "largura_media_conformal": 0.0,
-        "largura_media_fixo": 0.0,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 1.0,
+        "largura_media": 0.0,
+        "n_avaliado": 61
       }
     },
     "D+7": {
-      "naive": {
-        "MAE": 0.0,
-        "RMSE": 0.0,
-        "sMAPE": 0.0,
-        "n": 122,
-        "skill_vs_naive": NaN
+      "_escolhido": "naive7",
+      "_tipo": "regua simples",
+      "_regua_referencia": "naive7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 0.0,
+        "media7": 0.0,
+        "ultimo": 0.0,
+        "ridge": 0.0,
+        "poisson_off": 0.01,
+        "gbr": 0.0
       },
-      "poisson_off": {
-        "MAE": 0.009696369897356122,
-        "RMSE": 0.011463196053425592,
-        "sMAPE": 199.99997566142747,
-        "n": 122,
-        "skill_vs_naive": NaN
+      "_mae_candidatos_out": {
+        "naive7": 0.0,
+        "media7": 0.0,
+        "ultimo": 0.0,
+        "ridge": 0.0,
+        "poisson_off": 0.01,
+        "gbr": 0.0
       },
-      "ridge": {
-        "MAE": 0.0027403434654465087,
-        "RMSE": 0.0073647549254428684,
-        "sMAPE": 31.14740266341936,
-        "n": 122,
-        "skill_vs_naive": NaN
-      },
-      "gbr": {
-        "MAE": 1.1657942212689707e-06,
-        "RMSE": 2.5631328566174966e-06,
-        "sMAPE": 199.72235370046155,
-        "n": 122,
-        "skill_vs_naive": NaN
-      },
-      "_best": "naive",
+      "MAE": 0.0,
+      "RMSE": 0.0,
+      "sMAPE": 0.0,
+      "n": 61,
+      "skill_vs_melhor_regua": NaN,
+      "skill_vs_naive7": NaN,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 1.0,
-        "fixo_oos": 1.0,
-        "largura_media_conformal": 0.0,
-        "largura_media_fixo": 0.0,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 1.0,
+        "largura_media": 0.0,
+        "n_avaliado": 61
       }
     }
   },
   "P2": {
     "D+1": {
-      "naive": {
-        "MAE": 13.59016393442623,
-        "RMSE": 17.332807894516016,
-        "sMAPE": 41.21737142941444,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "ridge",
+      "_tipo": "modelo",
+      "_regua_referencia": "media7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 12.79,
+        "media7": 11.73,
+        "ultimo": 13.18,
+        "ridge": 9.84,
+        "poisson_off": 10.05,
+        "gbr": 10.19
       },
-      "poisson_off": {
-        "MAE": 10.69160656469673,
-        "RMSE": 13.809606673803339,
-        "sMAPE": 31.286631064024846,
-        "n": 122,
-        "skill_vs_naive": 0.21328347352653731
+      "_mae_candidatos_out": {
+        "naive7": 14.39,
+        "media7": 14.13,
+        "ultimo": 14.38,
+        "ridge": 11.86,
+        "poisson_off": 11.33,
+        "gbr": 11.65
       },
-      "ridge": {
-        "MAE": 10.850279361138,
-        "RMSE": 13.990079285819062,
-        "sMAPE": 31.847565593588467,
-        "n": 122,
-        "skill_vs_naive": 0.20160791190661276
-      },
-      "gbr": {
-        "MAE": 10.921380682685863,
-        "RMSE": 14.10345356607723,
-        "sMAPE": 32.50281146560985,
-        "n": 122,
-        "skill_vs_naive": 0.1963760896938026
-      },
-      "_best": "poisson_off",
+      "MAE": 9.843166640363737,
+      "RMSE": 12.828213194006254,
+      "sMAPE": 29.977876473246962,
+      "n": 61,
+      "skill_vs_melhor_regua": 0.1605687726312529,
+      "skill_vs_naive7": 0.23021389094591294,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.7978723404255319,
-        "fixo_oos": 0.7872340425531915,
-        "largura_media_conformal": 35.81727372085178,
-        "largura_media_fixo": 33.86687069572773,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.7868852459016393,
+        "largura_media": 33.16495471021679,
+        "n_avaliado": 61
       }
     },
     "D+7": {
-      "naive": {
-        "MAE": 13.59016393442623,
-        "RMSE": 17.332807894516016,
-        "sMAPE": 41.21737142941444,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "gbr",
+      "_tipo": "modelo",
+      "_regua_referencia": "media7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 12.79,
+        "media7": 11.81,
+        "ultimo": 12.79,
+        "ridge": 10.42,
+        "poisson_off": 10.79,
+        "gbr": 10.02
       },
-      "poisson_off": {
-        "MAE": 12.051700462716765,
-        "RMSE": 14.666579559161471,
-        "sMAPE": 35.81235527502786,
-        "n": 122,
-        "skill_vs_naive": 0.11320418790624531
+      "_mae_candidatos_out": {
+        "naive7": 14.39,
+        "media7": 15.3,
+        "ultimo": 14.39,
+        "ridge": 13.84,
+        "poisson_off": 13.32,
+        "gbr": 11.8
       },
-      "ridge": {
-        "MAE": 12.130567222981814,
-        "RMSE": 14.898569993135677,
-        "sMAPE": 36.919022224112304,
-        "n": 122,
-        "skill_vs_naive": 0.10740096429204993
-      },
-      "gbr": {
-        "MAE": 10.913586146341602,
-        "RMSE": 14.22367592906558,
-        "sMAPE": 32.543802527913876,
-        "n": 122,
-        "skill_vs_naive": 0.1969496321751052
-      },
-      "_best": "gbr",
+      "MAE": 10.022712344351541,
+      "RMSE": 12.9490789094581,
+      "sMAPE": 30.902919355594737,
+      "n": 61,
+      "skill_vs_melhor_regua": 0.1513586811346208,
+      "skill_vs_naive7": 0.21617249614686673,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.7978723404255319,
-        "fixo_oos": 0.7872340425531915,
-        "largura_media_conformal": 38.782877182434696,
-        "largura_media_fixo": 37.69522306953415,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.7868852459016393,
+        "largura_media": 35.596353238646834,
+        "n_avaliado": 61
       }
     }
   },
   "P3": {
     "D+1": {
-      "naive": {
-        "MAE": 59.19672131147541,
-        "RMSE": 80.94675440794602,
-        "sMAPE": 34.55997222486701,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "gbr",
+      "_tipo": "modelo",
+      "_regua_referencia": "media7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 75.8,
+        "media7": 54.78,
+        "ultimo": 56.52,
+        "ridge": 45.78,
+        "poisson_off": 67.72,
+        "gbr": 58.87
       },
-      "poisson_off": {
-        "MAE": 56.04042124360352,
-        "RMSE": 83.79118212501521,
-        "sMAPE": 29.505624755498378,
-        "n": 122,
-        "skill_vs_naive": 0.05331883249520497
+      "_mae_candidatos_out": {
+        "naive7": 42.59,
+        "media7": 44.29,
+        "ultimo": 51.93,
+        "ridge": 37.45,
+        "poisson_off": 44.37,
+        "gbr": 34.9
       },
-      "ridge": {
-        "MAE": 41.61864304150971,
-        "RMSE": 54.18821978528288,
-        "sMAPE": 25.381333128338607,
-        "n": 122,
-        "skill_vs_naive": 0.2969434434970666
-      },
-      "gbr": {
-        "MAE": 46.886491570432554,
-        "RMSE": 63.92537918111687,
-        "sMAPE": 27.191959568717177,
-        "n": 122,
-        "skill_vs_naive": 0.20795458715137471
-      },
-      "_best": "ridge",
+      "MAE": 58.869699066875604,
+      "RMSE": 78.63103147237187,
+      "sMAPE": 29.36784355558425,
+      "n": 61,
+      "skill_vs_melhor_regua": -0.07461360728265576,
+      "skill_vs_naive7": 0.22338848549320678,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.7872340425531915,
-        "fixo_oos": 0.7659574468085106,
-        "largura_media_conformal": 136.32831148169117,
-        "largura_media_fixo": 118.03681209947327,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.819672131147541,
+        "largura_media": 175.66345260571495,
+        "n_avaliado": 61
       }
     },
     "D+7": {
-      "naive": {
-        "MAE": 59.19672131147541,
-        "RMSE": 80.94675440794602,
-        "sMAPE": 34.55997222486701,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "gbr",
+      "_tipo": "modelo",
+      "_regua_referencia": "naive7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 75.8,
+        "media7": 83.73,
+        "ultimo": 75.8,
+        "ridge": 50.96,
+        "poisson_off": 69.84,
+        "gbr": 62.08
       },
-      "poisson_off": {
-        "MAE": 56.67907694985006,
-        "RMSE": 81.3970482038184,
-        "sMAPE": 31.34821756049247,
-        "n": 122,
-        "skill_vs_naive": 0.042530131835820106
+      "_mae_candidatos_out": {
+        "naive7": 42.59,
+        "media7": 50.37,
+        "ultimo": 42.59,
+        "ridge": 42.66,
+        "poisson_off": 43.51,
+        "gbr": 40.17
       },
-      "ridge": {
-        "MAE": 46.81176357403759,
-        "RMSE": 60.296372620575426,
-        "sMAPE": 30.14132283333813,
-        "n": 122,
-        "skill_vs_naive": 0.20921695430177423
-      },
-      "gbr": {
-        "MAE": 51.125670661831684,
-        "RMSE": 75.76436014540077,
-        "sMAPE": 30.010804407199,
-        "n": 122,
-        "skill_vs_naive": 0.13634286613909363
-      },
-      "_best": "ridge",
+      "MAE": 62.08270819877617,
+      "RMSE": 95.1042193504595,
+      "sMAPE": 30.781232182508848,
+      "n": 61,
+      "skill_vs_melhor_regua": 0.18100233561303058,
+      "skill_vs_naive7": 0.18100233561303058,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.8085106382978723,
-        "fixo_oos": 0.7446808510638298,
-        "largura_media_conformal": 145.80014388400775,
-        "largura_media_fixo": 123.82120776667271,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.7868852459016393,
+        "largura_media": 216.5224784494643,
+        "n_avaliado": 61
       }
     }
   },
   "P4": {
     "D+1": {
-      "naive": {
-        "MAE": 133.38524590163934,
-        "RMSE": 221.23818853347578,
-        "sMAPE": 30.167215159938998,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "ultimo",
+      "_tipo": "regua simples",
+      "_regua_referencia": "ultimo",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 78.07,
+        "media7": 52.34,
+        "ultimo": 49.54,
+        "ridge": 56.12,
+        "poisson_off": 77.49,
+        "gbr": 59.42
       },
-      "poisson_off": {
-        "MAE": 18720.688939783937,
-        "RMSE": 204556.84938303469,
-        "sMAPE": 33.77161980374707,
-        "n": 122,
-        "skill_vs_naive": -139.35052237778163
+      "_mae_candidatos_out": {
+        "naive7": 188.7,
+        "media7": 134.56,
+        "ultimo": 77.66,
+        "ridge": 116.85,
+        "poisson_off": 37363.89,
+        "gbr": 124.14
       },
-      "ridge": {
-        "MAE": 86.48341522234976,
-        "RMSE": 140.73862558912313,
-        "sMAPE": 20.324990101146852,
-        "n": 122,
-        "skill_vs_naive": 0.3516268262074189
-      },
-      "gbr": {
-        "MAE": 91.78140462933892,
-        "RMSE": 145.47542052803482,
-        "sMAPE": 19.656274246047822,
-        "n": 122,
-        "skill_vs_naive": 0.3119073701972993
-      },
-      "_best": "ridge",
+      "MAE": 49.540983606557376,
+      "RMSE": 64.53693820939,
+      "sMAPE": 10.46821761433492,
+      "n": 61,
+      "skill_vs_melhor_regua": 0.0,
+      "skill_vs_naive7": 0.3653926921461571,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.7978723404255319,
-        "fixo_oos": 0.8617021276595744,
-        "largura_media_conformal": 238.62219630657435,
-        "largura_media_fixo": 250.41184723583225,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.7540983606557377,
+        "largura_media": 120.84595383662516,
+        "n_avaliado": 61
       }
     },
     "D+7": {
-      "naive": {
-        "MAE": 133.38524590163934,
-        "RMSE": 221.23818853347578,
-        "sMAPE": 30.167215159938998,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "gbr",
+      "_tipo": "modelo",
+      "_regua_referencia": "media7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 78.07,
+        "media7": 77.02,
+        "ultimo": 78.07,
+        "ridge": 80.1,
+        "poisson_off": 91.79,
+        "gbr": 66.2
       },
-      "poisson_off": {
-        "MAE": 356.2721909242528,
-        "RMSE": 2326.788287220278,
-        "sMAPE": 38.42302093069711,
-        "n": 122,
-        "skill_vs_naive": -1.671001492826083
+      "_mae_candidatos_out": {
+        "naive7": 188.7,
+        "media7": 174.88,
+        "ultimo": 188.7,
+        "ridge": 161.71,
+        "poisson_off": 620.76,
+        "gbr": 136.11
       },
-      "ridge": {
-        "MAE": 120.90818208004985,
-        "RMSE": 194.51088393851143,
-        "sMAPE": 27.962355537149193,
-        "n": 122,
-        "skill_vs_naive": 0.09354155879271908
-      },
-      "gbr": {
-        "MAE": 101.15587163334753,
-        "RMSE": 167.43892100594135,
-        "sMAPE": 22.81743101907907,
-        "n": 122,
-        "skill_vs_naive": 0.2416262312254409
-      },
-      "_best": "gbr",
+      "MAE": 66.1985889688364,
+      "RMSE": 80.80638462605592,
+      "sMAPE": 14.259275004599544,
+      "n": 61,
+      "skill_vs_melhor_regua": 0.14048719890251027,
+      "skill_vs_naive7": 0.15201303504850472,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.8191489361702128,
-        "fixo_oos": 0.8191489361702128,
-        "largura_media_conformal": 361.1889355464816,
-        "largura_media_fixo": 315.0098786219397,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.8360655737704918,
+        "largura_media": 221.24340951719037,
+        "n_avaliado": 61
       }
     }
   },
   "P5": {
     "D+1": {
-      "naive": {
-        "MAE": 0.3114754098360656,
-        "RMSE": 0.6401843996644799,
-        "sMAPE": 53.278688474658466,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "gbr",
+      "_tipo": "modelo",
+      "_regua_referencia": "media7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 0.33,
+        "media7": 0.27,
+        "ultimo": 0.3,
+        "ridge": 0.3,
+        "poisson_off": 0.51,
+        "gbr": 0.28
       },
-      "poisson_off": {
-        "MAE": 0.6946695374163185,
-        "RMSE": 0.8383367300878004,
-        "sMAPE": 179.9765527574698,
-        "n": 122,
-        "skill_vs_naive": -1.2302548306523908
+      "_mae_candidatos_out": {
+        "naive7": 0.3,
+        "media7": 0.24,
+        "ultimo": 0.23,
+        "ridge": 0.36,
+        "poisson_off": 0.88,
+        "gbr": 0.2
       },
-      "ridge": {
-        "MAE": 0.3311814344596115,
-        "RMSE": 0.553435801367903,
-        "sMAPE": 125.19119663953848,
-        "n": 122,
-        "skill_vs_naive": -0.06326671063348965
-      },
-      "gbr": {
-        "MAE": 0.23804810967375367,
-        "RMSE": 0.48780093230598975,
-        "sMAPE": 196.55353897581213,
-        "n": 122,
-        "skill_vs_naive": 0.2357402794684751
-      },
-      "_best": "gbr",
+      "MAE": 0.27845650558312834,
+      "RMSE": 0.5542523260916273,
+      "sMAPE": 194.50418327860436,
+      "n": 61,
+      "skill_vs_melhor_regua": -0.025007998999963865,
+      "skill_vs_naive7": 0.15070765797145846,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.7659574468085106,
-        "fixo_oos": 0.7127659574468085,
-        "largura_media_conformal": 0.9679522310496124,
-        "largura_media_fixo": 0.7250076837582694,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.7868852459016393,
+        "largura_media": 1.0594101693761717,
+        "n_avaliado": 61
       }
     },
     "D+7": {
-      "naive": {
-        "MAE": 0.3114754098360656,
-        "RMSE": 0.6401843996644799,
-        "sMAPE": 53.278688474658466,
-        "n": 122,
-        "skill_vs_naive": 0.0
+      "_escolhido": "gbr",
+      "_tipo": "modelo",
+      "_regua_referencia": "media7",
+      "_mae_candidatos_nov_dez": {
+        "naive7": 0.33,
+        "media7": 0.32,
+        "ultimo": 0.33,
+        "ridge": 0.31,
+        "poisson_off": 0.53,
+        "gbr": 0.22
       },
-      "poisson_off": {
-        "MAE": 0.6995205529480472,
-        "RMSE": 0.8121623850443729,
-        "sMAPE": 179.72688970821187,
-        "n": 122,
-        "skill_vs_naive": -1.245829143675309
+      "_mae_candidatos_out": {
+        "naive7": 0.3,
+        "media7": 0.26,
+        "ultimo": 0.3,
+        "ridge": 0.31,
+        "poisson_off": 0.87,
+        "gbr": 0.21
       },
-      "ridge": {
-        "MAE": 0.3103257336619256,
-        "RMSE": 0.5434408967464364,
-        "sMAPE": 131.92390786453086,
-        "n": 122,
-        "skill_vs_naive": 0.0036910656117125074
-      },
-      "gbr": {
-        "MAE": 0.21663806363845692,
-        "RMSE": 0.46076086542467326,
-        "sMAPE": 194.1644695840661,
-        "n": 122,
-        "skill_vs_naive": 0.30447779568705935
-      },
-      "_best": "gbr",
+      "MAE": 0.22254262533607597,
+      "RMSE": 0.5082726858030868,
+      "sMAPE": 192.41342533358835,
+      "n": 61,
+      "skill_vs_melhor_regua": 0.30128161015805544,
+      "skill_vs_naive7": 0.3212449927249682,
       "_coverage": {
         "nominal": 0.8,
-        "conformal_oos": 0.7872340425531915,
-        "fixo_oos": 0.7340425531914894,
-        "largura_media_conformal": 0.788473394713015,
-        "largura_media_fixo": 0.6131505915191751,
-        "n_avaliado": 94,
-        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
+        "conformal_nov_dez": 0.819672131147541,
+        "largura_media": 0.7913339529846175,
+        "n_avaliado": 61
       }
     }
   }
