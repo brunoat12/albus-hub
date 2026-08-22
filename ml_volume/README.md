@@ -1,106 +1,69 @@
-# Albus Hub — Frente de ML: Previsão de Volume de Incidentes (D+1 / D+7)
+# Previsão de Volume de Incidentes — resultados (frente ML, Integrante 2)
 
-**Integrante 2 · disciplina Machine Learning.** Prevê o **volume diário de incidentes abertos**
-para **D+1** (amanhã) e **D+7** (7 dias), nos recortes **ALL / P2 / P3**.
-Versão: `volume_v2_2026-08-16`. Atualizado: 2026-08-16.
+**O que é:** prevemos **quantos incidentes** vão abrir **amanhã (D+1)** e **daqui a 7 dias (D+7)**,
+**por prioridade** (P1–P5) e no total (ALL). Versão atual: **v3** (`volume_v3_2026-08-16`).
+Para entender *como* e *por quê*, leia o `METODOLOGIA.md`. Atualizado: 2026-08-16.
 
-## TL;DR — deu certo?
-Sim. Todos os 6 casos (3 recortes × 2 horizontes) **batem o baseline honesto** (naïve sazonal)
-por **15 a 34%** de MAE, com features sem vazamento e avaliação temporal (walk-forward).
+## O que mudou no v3 (e por que é melhor)
+1. **Contamos eventos, não alarmes** (deduplicação de cascatas — ver METODOLOGIA §2). Isso limpou
+   as séries: em P2 o erro caiu de **~56% para ~31%** (sMAPE).
+2. **Um modelo por prioridade** (cada uma se comporta diferente).
 
-| Recorte | Horizonte | Melhor modelo | MAE | sMAPE | **Ganho vs naïve** | Cobertura intervalo* |
-|---|---|---|---:|---:|---:|---:|
-| ALL | D+1 | Ridge | 137 | 18% | **+34%** | 92% |
-| ALL | D+7 | GBR   | 168 | 23% | +19% | 96% |
-| P2  | D+1 | GBR   | 49  | 56% | +22% | 76% |
-| P2  | D+7 | GBR   | 51  | 55% | +18% | 78% |
-| P3  | D+1 | GBR   | 58  | 29% | +24% | 49% |
-| P3  | D+7 | Ridge | 64  | 34% | +17% | 69% |
+## Resultado (backtest honesto, Set–Dez 2025)
+"Skill" = quanto melhor que a régua boba (naïve). "Cobertura" = % de vezes que o real caiu dentro da faixa (meta 80%).
 
-\* Cobertura empírica *fora da amostra* do intervalo 10–90% (nominal 80%). Ver seção Calibração.
+| Prioridade | eventos/dia | Melhor modelo (D+1) | MAE D+1 | sMAPE D+1 | Skill D+1 | Cobertura |
+|---|---:|---|---:|---:|---:|---:|
+| **ALL** (total) | 687 | Ridge | 102 | **16%** | **+35%** | 94% |
+| **P2** Alta | 34 | Poisson-offset | 11 | 31% | +21% | 88% |
+| **P3** Média | 182 | Ridge | 42 | 25% | +30% | 69% |
+| **P4** Baixa | 471 | Ridge | 87 | 20% | +35% | 92% |
+| **P5** Muito Baixa | 0,2 | — | 0,2 | *(ver nota)* | — | — |
+| **P1** Crítica | 0 | — | — | — | — | — |
 
-## Previsão futura (a partir de 2025-12-31) — saída no contrato
-| scope | horizonte | data | previsto | intervalo 10–90% |
-|---|---|---|---:|---|
-| ALL | D+1 | 2026-01-01 | 824 | 607 – 986 |
-| ALL | D+7 | 2026-01-07 | 985 | 757 – 1292 |
-| P2  | D+1 | 2026-01-01 | 86  | 25 – 163 |
-| P2  | D+7 | 2026-01-07 | 77  | 12 – 151 |
-| P3  | D+1 | 2026-01-01 | 397 | 336 – 503 |
-| P3  | D+7 | 2026-01-07 | 245 | 156 – 341 |
+*(D+7 fica um pouco pior em todas, como esperado — prever mais longe é mais difícil; detalhes em `outputs/metrics.json`.)*
 
-## Modelos (a "escada")
-`naïve sazonal` (régua) · `Poisson` · **`Poisson-offset`** · **`Ridge`** (linear interpretável) · `GBR`.
-- **Ridge/GBR vencem** em todos os recortes.
-- **Poisson-offset** (taxa por CI ativo, `sample_weight=exposição`) é a versão *estatisticamente correta*
-  para contagem e **interpretável**: consertou a instabilidade do Poisson simples (P2 D+1 saltou de
-  **−102%** para **+18%** de skill). Fica competitivo, sobretudo em P2, e é a base dos *drivers*.
+## Previsão futura (a partir de 2025-12-31) — no contrato
+| Prioridade | D+1 (01/01) | D+7 (07/01) |
+|---|---|---|
+| ALL | 721 (566–854) | 889 (788–1089) |
+| P2 | 27 (7–40) | 41 (24–61) |
+| P3 | 266 (211–340) | 183 (119–253) |
+| P4 | 389 (259–482) | 447 (351–604) |
+| P5 | ~0 (0–1) | ~0 (0–1) |
+| P1 | 0 | 0 |
 
-## Por que funciona
-1. **Baseline honesto primeiro:** o naïve sazonal ("amanhã = mesmo dia da semana passada") já é forte
-   pela sazonalidade semanal. Só aceitamos modelo que o supere.
-2. **O que o naïve não vê, o modelo vê:** o **nível recente** (`last`, `roll7`, `roll28`) e a **deriva**
-   (`trend`, exposição de CIs) capturam a alta de dezembro e o crescimento do monitoramento → +15–34% MAE.
-3. **Usa TODO o 2025 (dois regimes)** sem cair na quebra de set/2025: `CIs ativos (exposição)` entra como
-   feature/offset (`corr(volume, CIs)=0,93`) — o modelo entende que o salto foi instrumentação, não incidente.
-4. **Interpretável:** drivers (Poisson-offset, efeito na taxa por CI, ALL D+1) sobem com o nível recente
-   (`r_roll7`, `r_last`) e **caem** no fim de semana, feriado e véspera de feriado.
-
-## Cascatas pai→filho
-Os maiores picos são **cascatas** (em 22/09 um pai gerou **630 filhos**; em 05/11, 510). A série "raiz"
-(sem filhos) é mais estável. Tratamento: feature `child_last` + **intervalos** que absorvem os surtos
-(imprevisíveis no *timing*). Filhos não entram no KPI (regra do dicionário).
-
-## Calendário BR / notícias (honesto)
-- **Dia da semana** domina (fim de semana: ALL −18%, P3 −34%, **P2 −55%**).
-- **Feriado quase não afeta o volume bruto** (monitoramento é 24/7).
-- **Apagões públicos não explicam os picos:** AWS (20/10) → dia *abaixo* do previsto; Cloudflare (18/11) →
-  neutro. Os picos são cascatas internas. **Black Friday (28/11)** → leve alta (+16/dia).
-- Só features **conhecíveis de antemão** (calendário, Black Friday) entram no modelo; apagões de terceiros
-  ficam como anotação, não como feature (não são previsíveis).
-
-## Calibração dos intervalos (validação de cobertura)
-Medida fora da amostra (calibra em 60% do teste, mede em 40%; nominal 80%):
-- **ALL D+1/D+7 = 92%/96%** → conservador (intervalo um pouco largo).
-- **P2 D+1/D+7 = 76%/78%** → bem calibrado.
-- **P3 D+1 = 49%** → **sub-cobre** (intervalo estreito demais): a volatilidade de dezembro é maior que a
-  de set/out usada na calibração. **Correção recomendada:** intervalo *conformal*/adaptativo por volatilidade.
-
-## Como está montado (sem vazamento)
-- **Split temporal** + **backtest walk-forward** (treino expande dia a dia; teste = Set–Dez 2025).
-- Toda feature "olha só para trás" (`shift(h)`); o calendário usa o **dia-alvo** (determinístico).
-- Métricas: MAE, RMSE, sMAPE + *skill* vs naïve + **cobertura do intervalo**.
+## Notas honestas por prioridade
+- **P4** é a mais previsível (série lisa, "puxa" o valor recente) → +35%.
+- **P3** vai bem em D+1 (+30%), mas o **intervalo de D+7 sub-cobre (51%)** → a corrigir com intervalo *conformal*.
+- **P2** melhorou muito com a deduplicação; o modelo de **contagem (Poisson-offset)** venceu, como esperado.
+- **P5** é **intermitente** (quase sempre 0): o sMAPE dá ~196% porque dividir por zero explode — **é métrica sem sentido aqui**; o número honesto é o MAE 0,2 ("esperar ~0, às vezes 1").
+- **P1** teve **1 evento no ano inteiro** → não há série; tratamos como **evento raro**.
 
 ## Como rodar
 ```bash
-python pipeline_volume.py     # treina, backtest, gera outputs/ e plots/
-python predict.py             # imprime a previsão futura (contrato)
+python pipeline_prioridades.py    # v3: treina, backtest, gera outputs/ e plots/
+python predict.py                 # imprime a previsão futura (contrato)
 pip install streamlit && streamlit run app_streamlit.py   # painel do Bruno
 ```
 ```python
 from predict import prever_volume
-prever_volume(scope="P2", horizon="D+7")   # o Bruno chama assim, sem notebook
+prever_volume(scope="P3", horizon="D+1")   # o Bruno/BI chamam assim
 ```
 
 ## Arquivos
-- `pipeline_volume.py` — pipeline completo (dados→features→backtest→predições→modelos→gráficos).
-- `predict.py` — **função de inferência** (Definition of Done da frente).
-- `app_streamlit.py` — painel Streamlit pronto (integração do Bruno).
-- `outputs/predictions_volume.csv|parquet` — predições no contrato (backtest + futuro).
-- `outputs/metrics.json` — métricas + cobertura por recorte/horizonte/modelo.
-- `outputs/drivers_ALL_D1.csv`, `plots/backtest_D1.png`, `plots/drivers_ALL_D1.png`.
+- `pipeline_prioridades.py` — **pipeline v3** (por prioridade, deduplicado).
+- `pipeline_volume.py` — v2 (ALL/P2/P3, série crua) — mantido por histórico.
+- `predict.py` — função de inferência (lê o contrato).
+- `app_streamlit.py` — painel.
+- `METODOLOGIA.md` — processo e porquê das escolhas (explicado para leigos).
+- `outputs/` (predições no contrato + `metrics.json`) · `plots/backtest_v3_D1.png`.
 
 ## Contrato de saída (congelado)
-`reference_date, horizon (D+1|D+7), scope (ALL|P2|P3), predicted_incidents,
-actual_incidents (backtest), lower_bound, upper_bound, model, model_version, generated_at`.
+`reference_date, horizon (D+1|D+7), scope (ALL|P1..P5), predicted_incidents,
+actual_incidents, lower_bound, upper_bound, model, model_version, generated_at`.
 
-## Limitações (declaradas)
-- Regime pleno tem ~4 meses (Set–Dez): capta sazonalidade **semanal**, não anual.
-- Previsões 2026 **extrapolam** → mais incerteza (por isso os intervalos).
-- **Cascatas são imprevisíveis no timing** — o modelo acerta o nível típico, não o surto exato.
-- **Intervalo de P3 D+1 sub-cobre (49%)** → próximo passo é conformal/adaptativo.
-
-## Handoff para a frente de risco (Integrante 3 / score)
-Mesmo dataset, alvo `KPI Violado?` (~1% positivo, severamente desbalanceado): classificação com
-PR-AUC/recall + class weights + ANN. As features de **abertura** e o tratamento pai/filho já mapeados
-aqui reaproveitam; `data/incidents.parquet` (cache) e o `pipeline_volume.py` servem de ponto de partida.
+## Próximos passos
+- Intervalo **conformal/adaptativo** (corrige a cobertura de P3 D+7).
+- Modelo de **demanda intermitente** dedicado para P5 (Croston), se o negócio quiser.
+- Handoff para a frente de **risco/score** (Integrante 3): mesmo dado tratado, alvo `KPI Violado?`.
