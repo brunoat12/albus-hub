@@ -32,7 +32,12 @@
       "_best": "ridge",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.9387755102040817
+        "conformal_oos": 0.776595744680851,
+        "fixo_oos": 0.8191489361702128,
+        "largura_media_conformal": 271.50466381950577,
+        "largura_media_fixo": 307.8867637296281,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     },
     "D+7": {
@@ -67,7 +72,12 @@
       "_best": "gbr",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.9387755102040817
+        "conformal_oos": 0.7872340425531915,
+        "fixo_oos": 0.7659574468085106,
+        "largura_media_conformal": 419.27107779097554,
+        "largura_media_fixo": 374.20850710934013,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     }
   },
@@ -104,7 +114,12 @@
       "_best": "naive",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 1.0
+        "conformal_oos": 1.0,
+        "fixo_oos": 1.0,
+        "largura_media_conformal": 0.0,
+        "largura_media_fixo": 0.0,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     },
     "D+7": {
@@ -139,7 +154,12 @@
       "_best": "naive",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 1.0
+        "conformal_oos": 1.0,
+        "fixo_oos": 1.0,
+        "largura_media_conformal": 0.0,
+        "largura_media_fixo": 0.0,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     }
   },
@@ -176,7 +196,12 @@
       "_best": "poisson_off",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.8775510204081632
+        "conformal_oos": 0.7978723404255319,
+        "fixo_oos": 0.7872340425531915,
+        "largura_media_conformal": 35.81727372085178,
+        "largura_media_fixo": 33.86687069572773,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     },
     "D+7": {
@@ -211,7 +236,12 @@
       "_best": "gbr",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.8571428571428571
+        "conformal_oos": 0.7978723404255319,
+        "fixo_oos": 0.7872340425531915,
+        "largura_media_conformal": 38.782877182434696,
+        "largura_media_fixo": 37.69522306953415,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     }
   },
@@ -248,7 +278,12 @@
       "_best": "ridge",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.6938775510204082
+        "conformal_oos": 0.7872340425531915,
+        "fixo_oos": 0.7659574468085106,
+        "largura_media_conformal": 136.32831148169117,
+        "largura_media_fixo": 118.03681209947327,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     },
     "D+7": {
@@ -283,7 +318,12 @@
       "_best": "ridge",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.5102040816326531
+        "conformal_oos": 0.8085106382978723,
+        "fixo_oos": 0.7446808510638298,
+        "largura_media_conformal": 145.80014388400775,
+        "largura_media_fixo": 123.82120776667271,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     }
   },
@@ -320,7 +360,12 @@
       "_best": "ridge",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.9183673469387755
+        "conformal_oos": 0.7978723404255319,
+        "fixo_oos": 0.8617021276595744,
+        "largura_media_conformal": 238.62219630657435,
+        "largura_media_fixo": 250.41184723583225,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     },
     "D+7": {
@@ -355,7 +400,12 @@
       "_best": "gbr",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.9387755102040817
+        "conformal_oos": 0.8191489361702128,
+        "fixo_oos": 0.8191489361702128,
+        "largura_media_conformal": 361.1889355464816,
+        "largura_media_fixo": 315.0098786219397,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     }
   },
@@ -392,7 +442,12 @@
       "_best": "gbr",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.6530612244897959
+        "conformal_oos": 0.7659574468085106,
+        "fixo_oos": 0.7127659574468085,
+        "largura_media_conformal": 0.9679522310496124,
+        "largura_media_fixo": 0.7250076837582694,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     },
     "D+7": {
@@ -427,7 +482,12 @@
       "_best": "gbr",
       "_coverage": {
         "nominal": 0.8,
-        "empirico_oos": 0.5918367346938775
+        "conformal_oos": 0.7872340425531915,
+        "fixo_oos": 0.7340425531914894,
+        "largura_media_conformal": 0.788473394713015,
+        "largura_media_fixo": 0.6131505915191751,
+        "n_avaliado": 94,
+        "metodo": "conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"
       }
     }
   }

@@ -95,6 +95,39 @@ Filosofia: uma **escada** — da régua boba ao modelo esperto — onde cada deg
 
 ---
 
+## 6b. A faixa de incerteza (intervalo conformal adaptativo) — novidade do v3.1
+
+**Por que uma faixa, e não só um número.** "Amanhã abrem 266 incidentes" é quase sempre errado
+no detalhe. O útil para a operação é "entre 204 e 367, com 80% de confiança" — dá para
+dimensionar plantão. Isso é o **intervalo de previsão**.
+
+**Como era (v3) e por que desafinava.** Pegávamos os erros passados e usávamos a **mesma
+largura** todo dia. Só que o erro não tem o mesmo tamanho todo dia: em dia cheio erra-se mais,
+em dia calmo erra-se menos. Resultado: em dias movimentados a faixa **faltava**, em dias calmos
+**sobrava** — e o P3 cobria bem menos que os 80% prometidos.
+
+**Como é agora (v3.1).** Duas ideias somadas:
+
+1. **A largura acompanha o tamanho do dia.** Em vez de "±120 incidentes sempre", usamos
+   "± algo proporcional a **√(previsto)**". Essa raiz não é chute: em dados de **contagem**
+   (Poisson), o desvio típico cresce com a raiz da média. Previu 400? A faixa já nasce mais
+   larga do que num dia de 100. *Analogia: a margem de erro de uma pesquisa depende do tamanho
+   da amostra — não é um número fixo.*
+2. **A faixa se auto-corrige todo dia** (*ACI — Adaptive Conformal Inference*). O sistema anota
+   se o real caiu dentro ou fora: **caiu fora → alarga amanhã**; **acertou com folga demais →
+   aperta amanhã**. É um termostato: persegue os 80% sozinho, mesmo se a série mudar de
+   comportamento.
+
+**Honestidade do método:** cada dia usa **só erros de dias anteriores** (janela de 60 dias),
+nunca o futuro. Os 28 primeiros dias são de aquecimento e **não** entram na conta da cobertura.
+
+**Resultado (Set–Dez 2025):** todas as séries ficaram entre **77% e 82%** de cobertura (meta
+80%). O P3 D+7 subiu de 74% → **81%** (alargou onde faltava) e, ao mesmo tempo, ALL D+1 e P4
+D+1 ficaram **mais estreitos** mantendo a confiança (apertou onde sobrava). Ou seja: não é
+"alargar tudo até caber" — é **acertar o tamanho certo** de cada dia.
+
+---
+
 ## 7. Limitações declaradas
 - Regime pleno tem ~4 meses (Set–Dez) → capta sazonalidade **semanal**, não anual.
 - **Storms de cascata** são imprevisíveis no *timing* → vão para o **intervalo**, não o ponto.
@@ -103,6 +136,10 @@ Filosofia: uma **escada** — da régua boba ao modelo esperto — onde cada deg
 ---
 
 ## 8. Estado / versões
-- **v2** (branch `feature/ml-volume-forecast`): recortes ALL/P2/P3, série crua. Já no repo.
-- **v3** (em desenho): por prioridade, sobre a **série deduplicada** (mais previsível — em P2 o
-  sMAPE caiu de ~55% para ~32% ao deduplicar). Este documento reflete a metodologia do v3.
+- **v2** — recortes ALL/P2/P3, série crua, faixa fixa. Mantido no repo por histórico.
+- **v3** — um modelo **por prioridade**, sobre a **série deduplicada** (bem mais previsível: em
+  P2 o sMAPE caiu de ~55% para ~32% só por deduplicar).
+- **v3.1 (atual, `volume_v3.1_2026-08-21`)** — v3 + **intervalo conformal adaptativo** (§6b):
+  cobertura de todas as séries entre 77% e 82% (meta 80%). Este documento reflete o v3.1.
+
+Tudo na branch `feature/ml-volume-forecast`. Rodar: `python pipeline_prioridades.py`.

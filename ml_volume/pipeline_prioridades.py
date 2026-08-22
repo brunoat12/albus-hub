@@ -24,7 +24,7 @@ SRC  = os.path.join(HERE, "..", "Dados", "LW-DATASET.xlsx")
 CACHE= os.path.join(HERE, "data", "incidents.parquet")
 OUT  = os.path.join(HERE, "outputs"); PLOTS = os.path.join(HERE, "plots")
 for d in (os.path.dirname(CACHE), OUT, PLOTS): os.makedirs(d, exist_ok=True)
-MODEL_VERSION = "volume_v3_2026-08-16"
+MODEL_VERSION = "volume_v3.1_2026-08-21"   # v3.1 = intervalo conformal adaptativo (secao 3b)
 
 # ---------------------------------------------------------------- 1. DADOS
 if os.path.exists(CACHE): df = pd.read_parquet(CACHE)
@@ -87,6 +87,45 @@ def fit_pred(name,Xtr,ytr,xrow):
 def smape(a,p): a,p=np.asarray(a,float),np.asarray(p,float); return float(100*np.mean(2*np.abs(a-p)/(np.abs(a)+np.abs(p)+1e-9)))
 def mets(a,p): a,p=np.asarray(a,float),np.asarray(p,float); return {"MAE":float(np.mean(np.abs(a-p))),"RMSE":float(np.sqrt(np.mean((a-p)**2))),"sMAPE":smape(a,p),"n":int(len(a))}
 
+# ------------------------------------- 3b. INTERVALO CONFORMAL ADAPTATIVO
+# PROBLEMA (v3): a faixa era FIXA - mesma largura todo dia, tirada dos quantis dos
+# residuos. Em serie cujo erro cresce com o nivel (P3), isso sub-cobre: nos dias
+# calmos a faixa sobra, nos dias cheios ela falta -> cobertura 51% (meta 80%).
+# SOLUCAO (v3.1), duas ideias somadas:
+#   (1) ESCALA: a largura e proporcional a sqrt(previsto) - regra de contagem
+#       (numa Poisson o desvio ~ raiz da media). Dia cheio -> faixa larga sozinha.
+#   (2) AUTO-CORRECAO (ACI): se o real caiu FORA da faixa, alargamos amanha; se
+#       ficou dentro com folga, apertamos. O "alpha" caminha sozinho ate a
+#       cobertura bater na meta.
+# Honesto: cada dia usa SO residuos de dias anteriores (janela WIN), nunca o futuro.
+ALPHA=0.20; BURN=28; WIN=60; GAMMA=0.03      # meta 80% | aquecimento | janela | passo do ACI
+def _s(x): return max(1.0, float(np.sqrt(max(float(x),0.0))))
+def bands(a,p):
+    """Devolve faixa conformal (lo_c,hi_c), faixa fixa antiga (lo_f,hi_f) para
+    comparacao, mascara dos dias avaliaveis e os quantis finais (p/ o futuro)."""
+    n=len(a); lo_c=np.full(n,np.nan); hi_c=np.full(n,np.nan)
+    lo_f=np.full(n,np.nan); hi_f=np.full(n,np.nan)
+    sc=[]; rw=[]; at=ALPHA; qlo=qhi=0.0
+    for i in range(n):
+        if i>=BURN:
+            ps=np.array(sc[-WIN:]); pr=np.array(rw[-WIN:])
+            qlo=float(np.quantile(ps,at/2)); qhi=float(np.quantile(ps,1-at/2))
+            lo_c[i]=max(0.0,p[i]+qlo*_s(p[i])); hi_c[i]=p[i]+qhi*_s(p[i])
+            lo_f[i]=max(0.0,p[i]+float(np.quantile(pr,ALPHA/2))); hi_f[i]=p[i]+float(np.quantile(pr,1-ALPHA/2))
+            miss=0.0 if (lo_c[i]<=a[i]<=hi_c[i]) else 1.0
+            at=float(np.clip(at+GAMMA*(ALPHA-miss),0.01,0.60))          # ACI
+        sc.append((a[i]-p[i])/_s(p[i])); rw.append(a[i]-p[i])
+    ev=np.zeros(n,bool); ev[BURN:]=True
+    return lo_c,hi_c,lo_f,hi_f,ev,(qlo,qhi)
+def _bf(v,p):
+    """Preenche o aquecimento (dias < BURN) com a 1a faixa valida - so para exibir
+    o historico; esses dias NAO entram na medicao de cobertura."""
+    v=np.asarray(v,float).copy(); ok=np.flatnonzero(~np.isnan(v))
+    if len(ok)==0: return np.asarray(p,float).copy()
+    v[:ok[0]]=v[ok[0]]; return v
+def _cov(a,lo,hi,ev):
+    return float(np.mean((a[ev]>=lo[ev])&(a[ev]<=hi[ev]))) if ev.any() else float("nan")
+
 # -------------------------------------------------- 4. BACKTEST + PREVISAO
 TEST0=pd.Timestamp("2025-09-01"); all_metrics={}; all_preds=[]
 for scope,y in series.items():
@@ -103,17 +142,20 @@ for scope,y in series.items():
         base=all_metrics[scope][hn]["naive"]["MAE"]
         for m in MODELS: all_metrics[scope][hn][m]["skill_vs_naive"]=float(1-all_metrics[scope][hn][m]["MAE"]/base) if base>1e-9 else float("nan")
         best=min(MODELS,key=lambda m: all_metrics[scope][hn][m]["MAE"]); all_metrics[scope][hn]["_best"]=best
-        bp=np.array(preds[best]); res=a-bp
-        lo,hi=(float(np.quantile(res,.1)),float(np.quantile(res,.9))) if len(res)>=5 else (0.0,0.0)
-        k=int(len(res)*0.6)
-        cov=float(np.mean((a[k:]>=bp[k:]+np.quantile(res[:k],.1))&(a[k:]<=bp[k:]+np.quantile(res[:k],.9)))) if k>=5 and len(res)-k>=3 else float("nan")
-        all_metrics[scope][hn]["_coverage"]={"nominal":.8,"empirico_oos":cov}
-        for dte,av,pv in zip(td,a,bp):
+        bp=np.array(preds[best])
+        lo_c,hi_c,lo_f,hi_f,ev,(qlo,qhi)=bands(a,bp)      # faixa conformal + faixa fixa (comparacao)
+        all_metrics[scope][hn]["_coverage"]={"nominal":.8,
+            "conformal_oos":_cov(a,lo_c,hi_c,ev),"fixo_oos":_cov(a,lo_f,hi_f,ev),
+            "largura_media_conformal":float(np.nanmean(hi_c-lo_c)),"largura_media_fixo":float(np.nanmean(hi_f-lo_f)),
+            "n_avaliado":int(ev.sum()),"metodo":"conformal adaptativo (ACI, escala sqrt(previsto), janela 60d)"}
+        LO,HI=_bf(lo_c,bp),_bf(hi_c,bp)
+        for dte,av,pv,l_,h_ in zip(td,a,bp,LO,HI):
             all_preds.append(dict(reference_date=dte.date(),horizon=hn,scope=scope,predicted_incidents=int(round(pv)),
-                actual_incidents=int(av),lower_bound=max(0,int(round(pv+lo))),upper_bound=int(round(pv+hi)),model=best,model_version=MODEL_VERSION))
+                actual_incidents=int(av),lower_bound=max(0,int(round(l_))),upper_bound=int(round(max(h_,l_))),model=best,model_version=MODEL_VERSION))
         fut=LAST+pd.Timedelta(days=h); fp=fit_pred(best,X.loc[hist],yt.loc[hist],X.loc[[fut]])
+        fl,fh=max(0.0,fp+qlo*_s(fp)),fp+qhi*_s(fp)       # mesma regra de escala no futuro
         all_preds.append(dict(reference_date=fut.date(),horizon=hn,scope=scope,predicted_incidents=int(round(fp)),
-            actual_incidents=None,lower_bound=max(0,int(round(fp+lo))),upper_bound=int(round(fp+hi)),model=best,model_version=MODEL_VERSION))
+            actual_incidents=None,lower_bound=max(0,int(round(fl))),upper_bound=int(round(max(fh,fl))),model=best,model_version=MODEL_VERSION))
 
 pred_df=pd.DataFrame(all_preds)
 pred_df.to_csv(os.path.join(OUT,"predictions_volume.csv"),index=False)
@@ -121,15 +163,18 @@ pred_df.to_parquet(os.path.join(OUT,"predictions_volume.parquet"),index=False)
 json.dump(all_metrics,open(os.path.join(OUT,"metrics.json"),"w",encoding="utf-8"),ensure_ascii=False,indent=2,default=str)
 
 # ---------------------------------------------------------- 5. RESUMO
-print("="*84,"\nPIPELINE v3 — VOLUME por PRIORIDADE, DEDUPLICADO — backtest Set-Dez 2025\n","="*84)
-print(f"{'scope':6}{'total25':>9}{'media/d':>9}  {'horiz':6}{'melhor':>12}{'MAE':>8}{'sMAPE':>8}{'skill':>7}{'cobert':>8}")
+print("="*94,"\nPIPELINE v3.1 — VOLUME por PRIORIDADE, DEDUPLICADO + INTERVALO CONFORMAL — backtest Set-Dez 2025\n","="*94)
+print("cobertura: % de dias em que o real caiu dentro da faixa (meta 80%) — fixo = v3, conf = v3.1\n")
+pct=lambda v: "n/a" if not np.isfinite(v) else f"{v*100:.0f}%"
+print(f"{'scope':6}{'total25':>9}{'media/d':>9}  {'horiz':6}{'melhor':>12}{'MAE':>8}{'sMAPE':>8}{'skill':>7}"
+      f"{'cob_fixo':>9}{'cob_conf':>9}{'larg_fix':>9}{'larg_cnf':>9}")
 for scope in series:
     tot=int(series[scope].loc[:LAST].sum()); md=series[scope].loc["2025-09":LAST].mean()
     for hn in ["D+1","D+7"]:
-        mm=all_metrics[scope][hn]; b=mm["_best"]; r=mm[b]
+        mm=all_metrics[scope][hn]; b=mm["_best"]; r=mm[b]; c=mm["_coverage"]
         sk="n/a" if not np.isfinite(r["skill_vs_naive"]) else f"{r['skill_vs_naive']*100:+.0f}%"
-        cv=mm["_coverage"]["empirico_oos"]; cvs="n/a" if not np.isfinite(cv) else f"{cv*100:.0f}%"
-        print(f"{scope:6}{tot:>9}{md:>9.1f}  {hn:6}{b:>12}{r['MAE']:>8.1f}{r['sMAPE']:>7.1f}%{sk:>7}{cvs:>8}")
+        print(f"{scope:6}{tot:>9}{md:>9.1f}  {hn:6}{b:>12}{r['MAE']:>8.1f}{r['sMAPE']:>7.1f}%{sk:>7}"
+              f"{pct(c['fixo_oos']):>9}{pct(c['conformal_oos']):>9}{c['largura_media_fixo']:>9.0f}{c['largura_media_conformal']:>9.0f}")
 
 print("\nPREVISAO FUTURA (a partir de 2025-12-31):")
 print(pred_df[pred_df.actual_incidents.isna()][["scope","horizon","reference_date","predicted_incidents","lower_bound","upper_bound","model"]].to_string(index=False))
@@ -137,7 +182,7 @@ print(pred_df[pred_df.actual_incidents.isna()][["scope","horizon","reference_dat
 # ---------------------------------------------------------- 6. GRAFICO
 plt.rcParams.update({"font.size":10,"axes.grid":True,"grid.alpha":.25,"axes.spines.top":False,"axes.spines.right":False})
 show=["ALL","P2","P3","P4"]; fig,ax=plt.subplots(len(show),1,figsize=(14,13),constrained_layout=True)
-fig.suptitle("v3 — Backtest D+1 previsto vs real (série deduplicada, Set–Dez 2025)",fontweight="bold",fontsize=13)
+fig.suptitle("v3.1 — Backtest D+1: previsto vs real + intervalo conformal adaptativo (Set–Dez 2025)",fontweight="bold",fontsize=13)
 for a_,scope in zip(ax,show):
     sub=pred_df[(pred_df.scope==scope)&(pred_df.horizon=="D+1")&(pred_df.actual_incidents.notna())]
     a_.plot(pd.to_datetime(sub.reference_date),sub.actual_incidents,color="#263238",lw=1.3,label="real")
