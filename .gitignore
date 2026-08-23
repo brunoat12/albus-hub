@@ -100,3 +100,8 @@ data/dw/*
 # Runtime ML artifacts
 artifacts/models/
 artifacts/runtime/
+
+# Artefatos locais de entrega/auditoria
+auditoria_ml_dl/
+entrega_data_protection_sprint3/
+entrega_data_protection_sprint3.zip
