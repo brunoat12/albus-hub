@@ -147,3 +147,160 @@ def delete_file(
     )
 
     file_client.delete_file()
+
+
+def list_files(
+    file_system: str,
+    remote_prefix: str,
+) -> list[str]:
+    """Lista arquivos existentes abaixo de um caminho no ADLS."""
+
+    fs_client = get_file_system_client(
+        file_system
+    )
+
+    return sorted(
+        item.name
+        for item in fs_client.get_paths(
+            path=remote_prefix,
+            recursive=True,
+        )
+        if not item.is_directory
+    )
+
+
+def sync_directory(
+    local_root: Path,
+    file_system: str,
+    remote_prefix: str,
+) -> dict:
+    """Publica backups locais no ADLS sem remover arquivos remotos."""
+
+    local_root = local_root.resolve()
+
+    if not local_root.exists():
+        raise FileNotFoundError(
+            f"Diretório local não encontrado: {local_root}"
+        )
+
+    remote_prefix = remote_prefix.strip("/")
+
+    local_files = sorted(
+        path
+        for path in local_root.rglob("*")
+        if path.is_file()
+        and path.name != ".gitkeep"
+    )
+
+    uploaded_files = 0
+    uploaded_bytes = 0
+
+    for local_path in local_files:
+        relative_path = (
+            local_path
+            .relative_to(local_root)
+            .as_posix()
+        )
+
+        remote_path = (
+            f"{remote_prefix}/{relative_path}"
+        )
+
+        upload_file(
+            local_path=local_path,
+            file_system=file_system,
+            remote_path=remote_path,
+        )
+
+        uploaded_files += 1
+        uploaded_bytes += (
+            local_path.stat().st_size
+        )
+
+    return {
+        "status": "success",
+        "file_system": file_system,
+        "remote_prefix": remote_prefix,
+        "uploaded_files": uploaded_files,
+        "uploaded_bytes": uploaded_bytes,
+    }
+
+
+
+def download_directory(
+    file_system: str,
+    remote_prefix: str,
+    local_root: Path,
+) -> dict:
+    """Baixa uma árvore de arquivos do ADLS."""
+
+    import shutil
+
+    local_root = local_root.resolve()
+
+    if local_root.exists():
+        shutil.rmtree(
+            local_root
+        )
+
+    local_root.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    remote_prefix = remote_prefix.strip("/")
+
+    remote_files = list_files(
+        file_system=file_system,
+        remote_prefix=remote_prefix,
+    )
+
+    if not remote_files:
+        raise RuntimeError(
+            "Nenhum arquivo encontrado no backup do ADLS."
+        )
+
+    downloaded_files = 0
+    downloaded_bytes = 0
+
+    prefix_with_slash = (
+        f"{remote_prefix}/"
+    )
+
+    for remote_path in remote_files:
+        if not remote_path.startswith(
+            prefix_with_slash
+        ):
+            continue
+
+        relative_path = (
+            remote_path[
+                len(prefix_with_slash):
+            ]
+        )
+
+        local_path = (
+            local_root
+            / relative_path
+        )
+
+        download_file(
+            file_system=file_system,
+            remote_path=remote_path,
+            local_path=local_path,
+        )
+
+        downloaded_files += 1
+        downloaded_bytes += (
+            local_path.stat().st_size
+        )
+
+    return {
+        "status": "success",
+        "file_system": file_system,
+        "remote_prefix": remote_prefix,
+        "downloaded_files": downloaded_files,
+        "downloaded_bytes": downloaded_bytes,
+        "destination": str(local_root),
+    }
+
