@@ -1,0 +1,16 @@
+relationship dCalendario_fIncidentes
+	fromColumn: fIncidentes.'Data de abertura'
+	toColumn: dCalendario.Date
+
+relationship dCalendario_fVolumeGold
+	fromColumn: fVolumeGold.Data
+	toColumn: dCalendario.Date
+
+relationship dPrioridade_fIncidentes
+	fromColumn: fIncidentes.'Código de prioridade'
+	toColumn: dPrioridade.Código
+
+relationship dCalendario_fPrevisoes
+	fromColumn: fPrevisoes.Data
+	toColumn: dCalendario.Date
+

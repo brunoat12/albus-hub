@@ -1,0 +1,423 @@
+/// Tabela técnica que agrupa todas as medidas do modelo.
+table _Medidas
+	lineageTag: a78e308e-b022-4b1f-a12f-446ff28620bd
+
+	/// Contagem de incidentes abertos no período filtrado.
+	measure Incidentes = COUNTROWS ( fIncidentes )
+		formatString: #,0
+		displayFolder: 01 Volume
+		lineageTag: 39d1b66d-d83b-43de-8daa-2581cc1c6f8e
+
+	/// Incidentes de prioridade 2 (Alta).
+	measure 'Incidentes P2' = CALCULATE ( [Incidentes], fIncidentes[Código de prioridade] = 2 )
+		formatString: #,0
+		displayFolder: 01 Volume
+		lineageTag: b533d0a6-3d44-4ad6-bfbe-6d89d9a6d09a
+
+	/// Incidentes de prioridade 3 (Média).
+	measure 'Incidentes P3' = CALCULATE ( [Incidentes], fIncidentes[Código de prioridade] = 3 )
+		formatString: #,0
+		displayFolder: 01 Volume
+		lineageTag: 6d2e3f03-48c0-4eb4-9bbd-d6822873424e
+
+	/// Quantidade de dias do calendário no contexto atual.
+	measure 'Dias no período' =
+			// Conta só os dias que existem na base de incidentes. O calendário vai
+			// até a última data prevista (07/01/2026), então COUNTROWS puro inflava
+			// o denominador da média diária e divergia do Streamlit.
+			VAR PrimeiroDado = CALCULATE ( MIN ( fIncidentes[Data de abertura] ), REMOVEFILTERS () )
+			VAR UltimoDado = CALCULATE ( MAX ( fIncidentes[Data de abertura] ), REMOVEFILTERS () )
+			RETURN
+			    COUNTROWS (
+			        FILTER (
+			            dCalendario,
+			            dCalendario[Date] >= PrimeiroDado
+			                && dCalendario[Date] <= UltimoDado
+			        )
+			    )
+		formatString: #,0
+		displayFolder: 01 Volume
+		lineageTag: 6bfafe88-cadc-4ae8-8ed2-558642e42fe2
+
+	/// Incidentes por dia no período filtrado.
+	measure 'Média diária' = DIVIDE ( [Incidentes], [Dias no período] )
+		formatString: #,0.0
+		displayFolder: 01 Volume
+		lineageTag: faf07e48-959b-457a-9081-fb7d5b660053
+
+	/// Volume vindo da camada Gold do pipeline, escopo ALL. Serve para conferir o modelo contra o pipeline.
+	measure 'Incidentes (Gold)' = CALCULATE ( SUM ( fVolumeGold[Incidentes (Gold)] ), fVolumeGold[Escopo] = "ALL" )
+		formatString: #,0
+		displayFolder: 05 Conferência
+		lineageTag: 8e5893f3-5d8e-4248-9ad1-2f49174799c1
+
+	/// Deve ser sempre zero. Qualquer valor diferente indica divergencia entre o modelo e o pipeline.
+	measure 'Diferença vs Gold' = [Incidentes] - [Incidentes (Gold)]
+		formatString: #,0
+		displayFolder: 05 Conferência
+		lineageTag: 4d6db789-1cb6-48a4-a7d7-c4c43b515a41
+
+	/// Incidentes que entraram na apuração de KPI segundo a fonte.
+	measure 'Entraram no KPI' = SUM ( fIncidentes[Entrou no KPI] )
+		formatString: #,0
+		displayFolder: 02 KPI e SLA
+		lineageTag: 43766ecb-9a7f-41b9-b428-3583b3436231
+
+	/// Incidentes que violaram o SLA segundo a fonte.
+	measure 'KPI violado' = SUM ( fIncidentes[KPI violado] )
+		formatString: #,0
+		displayFolder: 02 KPI e SLA
+		lineageTag: f1ef3d8b-8505-4db0-90ab-fcdfd433270e
+
+	/// KPI violado dividido pelos incidentes que entraram no KPI.
+	measure 'Taxa de violação' = DIVIDE ( [KPI violado], [Entraram no KPI] )
+		formatString: 0.00%
+		displayFolder: 02 KPI e SLA
+		lineageTag: bea01254-9627-46e7-a120-03243f0d89ea
+
+	/// Complemento da taxa de violação: percentual dos incidentes no KPI que cumpriram o SLA.
+	measure 'Aderência a SLA' =
+			VAR NoKPI = [Entraram no KPI]
+			RETURN
+			    IF ( NoKPI > 0, DIVIDE ( NoKPI - [KPI violado], NoKPI ) )
+		formatString: 0.00%
+		displayFolder: 02 KPI e SLA
+		lineageTag: e6bd194e-f7fa-406f-8b20-35dafa0bf837
+
+	/// Mediana da duração dos incidentes. Preferível à média: a distribuição tem cauda muito longa.
+	measure 'Duração mediana (h)' = MEDIAN ( fIncidentes[Duração (h)] )
+		formatString: #,0.0
+		displayFolder: 03 Atendimento
+		lineageTag: 672e1b83-4e5e-48f9-b0a5-b973267fe735
+
+	/// 90% dos incidentes foram encerrados em até este tempo.
+	measure 'Duração P90 (h)' = PERCENTILE.INC ( fIncidentes[Duração (h)], 0.9 )
+		formatString: #,0.0
+		displayFolder: 03 Atendimento
+		lineageTag: 91025e5a-3ade-497b-8aab-6060f5a99b99
+
+	/// Percentual de incidentes abertos automaticamente pelo monitoramento.
+	measure '% Monitoramento' = DIVIDE ( SUM ( fIncidentes[Aberto por monitoramento] ), [Incidentes] )
+		formatString: 0.0%
+		displayFolder: 03 Atendimento
+		lineageTag: 75d504c1-f39c-44bf-832e-f94e6ae5bf08
+
+	/// Percentual de incidentes encerrados sem intervenção humana.
+	measure '% Sem intervenção' = DIVIDE ( SUM ( fIncidentes[Sem intervenção] ), [Incidentes] )
+		formatString: 0.0%
+		displayFolder: 03 Atendimento
+		lineageTag: 8c2dfb6f-2d2e-4748-95c6-af2cbcf54ec9
+
+	/// Média móvel de 7 dias do volume diário. Suaviza o ruído do dia a dia.
+	measure 'Incidentes MM7' =
+			VAR UltimaData = MAX ( dCalendario[Date] )
+			VAR Janela =
+			    DATESINPERIOD ( dCalendario[Date], UltimaData, -7, DAY )
+			RETURN
+			    CALCULATE ( DIVIDE ( [Incidentes], COUNTROWS ( Janela ) ), Janela )
+		formatString: #,0.0
+		displayFolder: 04 Tendência
+		lineageTag: 87585669-cd94-43ac-b4a0-e3c156e8c83d
+
+	/// Volume do mesmo recorte no mês anterior.
+	measure 'Incidentes mês anterior' = CALCULATE ( [Incidentes], DATEADD ( dCalendario[Date], -1, MONTH ) )
+		formatString: #,0
+		displayFolder: 04 Tendência
+		lineageTag: 4d92b161-ea28-4a01-8a9c-fd1face83c34
+
+	/// Variação percentual contra o mês anterior.
+	measure 'Var % mês anterior' =
+			VAR Anterior = [Incidentes mês anterior]
+			RETURN
+			    IF ( Anterior > 0, DIVIDE ( [Incidentes] - Anterior, Anterior ) )
+		formatString: +0.0%;-0.0%;0.0%
+		displayFolder: 04 Tendência
+		lineageTag: d107ff02-7815-4abc-8de2-09d9d13b8e0b
+
+	/// Acumulado do início do ano até a data em contexto.
+	measure 'Incidentes acumulado no ano' = CALCULATE ( [Incidentes], DATESYTD ( dCalendario[Date] ) )
+		formatString: #,0
+		displayFolder: 04 Tendência
+		lineageTag: 14366c4c-fcd7-49fc-a6a4-e7a952882a5b
+
+	/// Peso do item em contexto sobre o total visível. Use em Pareto por grupo, produto ou categoria.
+	measure 'Participação no total' =
+			DIVIDE (
+			    [Incidentes],
+			    CALCULATE ( [Incidentes], REMOVEFILTERS ( fIncidentes[Grupo designado], fIncidentes[Produto], fIncidentes[Categoria], fIncidentes[Item de configuração] ) )
+			)
+		formatString: 0.0%
+		displayFolder: 04 Tendência
+		lineageTag: ed4106ab-7ebb-4a23-9dfe-168e49dc0d21
+
+	/// Alerta em texto quando o recorte selecionado mistura patamares de volume diferentes.
+	measure 'Regime em foco' =
+			VAR Regimes = DISTINCTCOUNT ( dCalendario[Regime] )
+			RETURN
+			    IF (
+			        Regimes > 1,
+			        "Atenção: o período mistura " & Regimes & " patamares de volume distintos.",
+			        SELECTEDVALUE ( dCalendario[Regime], "" )
+			    )
+		displayFolder: 06 Contexto
+		lineageTag: 7981f0da-babd-4fc2-8d77-12eb01d9b48b
+
+	/// Percentual acumulado para Pareto. Detecta sozinha qual dimensão está no eixo: grupo designado, produto, categoria ou item de configuração.
+	measure 'Acumulado %' =
+			VAR Atual = [Incidentes]
+			VAR PorGrupo =
+			    VAR B = ADDCOLUMNS ( ALLSELECTED ( fIncidentes[Grupo designado] ), "@v", CALCULATE ( [Incidentes] ) )
+			    RETURN DIVIDE ( SUMX ( FILTER ( B, [@v] >= Atual ), [@v] ), SUMX ( B, [@v] ) )
+			VAR PorProduto =
+			    VAR B = ADDCOLUMNS ( ALLSELECTED ( fIncidentes[Produto] ), "@v", CALCULATE ( [Incidentes] ) )
+			    RETURN DIVIDE ( SUMX ( FILTER ( B, [@v] >= Atual ), [@v] ), SUMX ( B, [@v] ) )
+			VAR PorCategoria =
+			    VAR B = ADDCOLUMNS ( ALLSELECTED ( fIncidentes[Categoria] ), "@v", CALCULATE ( [Incidentes] ) )
+			    RETURN DIVIDE ( SUMX ( FILTER ( B, [@v] >= Atual ), [@v] ), SUMX ( B, [@v] ) )
+			VAR PorItem =
+			    VAR B = ADDCOLUMNS ( ALLSELECTED ( fIncidentes[Item de configuração] ), "@v", CALCULATE ( [Incidentes] ) )
+			    RETURN DIVIDE ( SUMX ( FILTER ( B, [@v] >= Atual ), [@v] ), SUMX ( B, [@v] ) )
+			RETURN
+			    IF (
+			        NOT ISBLANK ( Atual ),
+			        SWITCH (
+			            TRUE (),
+			            ISINSCOPE ( fIncidentes[Grupo designado] ), PorGrupo,
+			            ISINSCOPE ( fIncidentes[Produto] ), PorProduto,
+			            ISINSCOPE ( fIncidentes[Categoria] ), PorCategoria,
+			            ISINSCOPE ( fIncidentes[Item de configuração] ), PorItem
+			        )
+			    )
+		formatString: 0.0%
+		displayFolder: 04 Tendência
+		lineageTag: 3b99d4e9-7336-4d77-b30b-f59a6b78f503
+
+	/// Dias de segunda a sexta no contexto atual.
+	measure 'Dias úteis no período' =
+			VAR PrimeiroDado = CALCULATE ( MIN ( fIncidentes[Data de abertura] ), REMOVEFILTERS () )
+			VAR UltimoDado = CALCULATE ( MAX ( fIncidentes[Data de abertura] ), REMOVEFILTERS () )
+			RETURN
+			    COUNTROWS (
+			        FILTER (
+			            dCalendario,
+			            dCalendario[Fim de semana] = "Dia útil"
+			                && dCalendario[Date] >= PrimeiroDado
+			                && dCalendario[Date] <= UltimoDado
+			        )
+			    )
+		formatString: #,0
+		displayFolder: 01 Volume
+		lineageTag: 693ffc0b-8c47-463d-8ae7-c199620ce2bd
+
+	/// Incidentes por dia útil. Compare com a Média diária: se as duas forem parecidas, a operação não tem sazonalidade de fim de semana.
+	measure 'Média por dia útil' =
+			VAR Uteis = [Dias úteis no período]
+			RETURN
+			    DIVIDE (
+			        CALCULATE ( [Incidentes], dCalendario[Fim de semana] = "Dia útil" ),
+			        Uteis
+			    )
+		formatString: #,0.0
+		displayFolder: 01 Volume
+		lineageTag: 1d006756-f425-41f6-9a9c-b9fefabf7900
+
+	/// Incidentes de prioridade 1 (Crítica). A base tem apenas 1 em três anos.
+	measure 'Incidentes P1' = CALCULATE ( [Incidentes], fIncidentes[Código de prioridade] = 1 )
+		formatString: #,0
+		displayFolder: 01 Volume
+		lineageTag: 92b99788-2838-4e9a-8a33-145beb38afcd
+
+	/// Percentual dos incidentes do período que entraram na apuração de KPI.
+	measure '% no KPI' = DIVIDE ( [Entraram no KPI], [Incidentes] )
+		formatString: 0.0%
+		displayFolder: 02 KPI e SLA
+		lineageTag: 5943fab6-73ce-4eeb-8ad8-b42925dac500
+
+	/// Texto do recorte selecionado, para usar em cartão ou título dinâmico de visual.
+	measure 'Rótulo do período' =
+			VAR PrimeiroDado = CALCULATE ( MIN ( fIncidentes[Data de abertura] ), REMOVEFILTERS () )
+			VAR UltimoDado = CALCULATE ( MAX ( fIncidentes[Data de abertura] ), REMOVEFILTERS () )
+			VAR IniCal = MIN ( dCalendario[Date] )
+			VAR FimCal = MAX ( dCalendario[Date] )
+			VAR Ini = IF ( IniCal < PrimeiroDado, PrimeiroDado, IniCal )
+			VAR Fim = IF ( FimCal > UltimoDado, UltimoDado, FimCal )
+			VAR Dias = [Dias no período]
+			RETURN
+			    FORMAT ( Ini, "dd/mm/yyyy" ) & " — " & FORMAT ( Fim, "dd/mm/yyyy" ) & "  ·  " & FORMAT ( Dias, "#,0" ) & " dias"
+		displayFolder: 06 Contexto
+		lineageTag: 15f21a64-f6ec-4873-9952-1ff122607862
+
+	/// Data mais recente com incidente registrado, independente do filtro. Use no rodapé como referência de atualização.
+	measure 'Última data da base' = FORMAT ( CALCULATE ( MAX ( fIncidentes[Data de abertura] ), REMOVEFILTERS () ), "dd/mm/yyyy" )
+		displayFolder: 06 Contexto
+		lineageTag: 79018b85-769b-4dee-938f-78ae3814dee4
+
+	/// Hex para formatação condicional da taxa de violação. Ligue em Formato → Cor → fx → Valor do campo.
+	measure 'Cor · taxa de violação' =
+			VAR Taxa = [Taxa de violação]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( Taxa ), "#6e6d78",
+			        Taxa >= 0.05, "#f2434f",
+			        Taxa >= 0.02, "#f5803e",
+			        Taxa >= 0.01, "#f2b705",
+			        "#1eae72"
+			    )
+		displayFolder: 07 Formatação condicional
+		lineageTag: d5befc9f-855d-4d5d-b05b-35e0df7b1a80
+
+	/// Hex para formatação condicional da aderência, com a meta em 95%.
+	measure 'Cor · aderência a SLA' =
+			VAR Ader = [Aderência a SLA]
+			RETURN
+			    SWITCH (
+			        TRUE (),
+			        ISBLANK ( Ader ), "#6e6d78",
+			        Ader >= 0.98, "#1eae72",
+			        Ader >= 0.95, "#f2b705",
+			        "#f2434f"
+			    )
+		displayFolder: 07 Formatação condicional
+		lineageTag: 3c08f0af-7001-4e9b-8b31-6b72ce138f31
+
+	/// Hex da escala de severidade P1 a P5, para colorir barras e rótulos por prioridade.
+	measure 'Cor · prioridade' =
+			SWITCH (
+			    SELECTEDVALUE ( dPrioridade[Código] ),
+			    1, "#f2434f",
+			    2, "#f5803e",
+			    3, "#f2b705",
+			    4, "#4a9fe8",
+			    5, "#1eae72",
+			    "#3987e5"
+			)
+		displayFolder: 07 Formatação condicional
+		lineageTag: b779f313-9eb2-49c7-ac2e-6b75eb46e47e
+
+	/// Soma dos valores previstos. Sem escopo selecionado usa ALL, porque ALL ja contem P2 e P3.
+	measure Previsto =
+			IF (
+			    ISFILTERED ( fPrevisoes[Escopo] ),
+			    SUM ( fPrevisoes[Previsto] ),
+			    CALCULATE ( SUM ( fPrevisoes[Previsto] ), fPrevisoes[Escopo] = "ALL" )
+			)
+		formatString: #,0
+		displayFolder: 08 Previsão
+		lineageTag: 47ff590b-d5fa-54f9-a524-1ff51f5f1765
+
+	/// Valor real observado nas linhas de backtest. Sem escopo selecionado usa ALL.
+	measure 'Realizado no backtest' =
+			IF (
+			    ISFILTERED ( fPrevisoes[Escopo] ),
+			    SUM ( fPrevisoes[Realizado] ),
+			    CALCULATE ( SUM ( fPrevisoes[Realizado] ), fPrevisoes[Escopo] = "ALL" )
+			)
+		formatString: #,0
+		displayFolder: 08 Previsão
+		lineageTag: 311f9780-f0e1-53dd-8b9e-5edb550d1b6f
+
+	/// Previsao mais recente para o horizonte de um dia. Sem escopo selecionado usa ALL.
+	measure 'Previsão D+1' =
+			VAR EscopoAtivo =
+			    IF ( ISFILTERED ( fPrevisoes[Escopo] ), SELECTEDVALUE ( fPrevisoes[Escopo], "ALL" ), "ALL" )
+			VAR Ult =
+			    CALCULATE ( MAX ( fPrevisoes[Data] ), fPrevisoes[Horizonte] = "D+1", fPrevisoes[Escopo] = EscopoAtivo, REMOVEFILTERS ( dCalendario ) )
+			RETURN
+			    CALCULATE ( SUM ( fPrevisoes[Previsto] ), fPrevisoes[Horizonte] = "D+1", fPrevisoes[Escopo] = EscopoAtivo, fPrevisoes[Data] = Ult, REMOVEFILTERS ( dCalendario ) )
+		formatString: #,0
+		displayFolder: 08 Previsão
+		lineageTag: 17e63516-c178-5315-87dd-c5c32cd3ee72
+
+	/// Previsao mais recente para o horizonte de sete dias. Sem escopo selecionado usa ALL.
+	measure 'Previsão D+7' =
+			VAR EscopoAtivo =
+			    IF ( ISFILTERED ( fPrevisoes[Escopo] ), SELECTEDVALUE ( fPrevisoes[Escopo], "ALL" ), "ALL" )
+			VAR Ult =
+			    CALCULATE ( MAX ( fPrevisoes[Data] ), fPrevisoes[Horizonte] = "D+7", fPrevisoes[Escopo] = EscopoAtivo, REMOVEFILTERS ( dCalendario ) )
+			RETURN
+			    CALCULATE ( SUM ( fPrevisoes[Previsto] ), fPrevisoes[Horizonte] = "D+7", fPrevisoes[Escopo] = EscopoAtivo, fPrevisoes[Data] = Ult, REMOVEFILTERS ( dCalendario ) )
+		formatString: #,0
+		displayFolder: 08 Previsão
+		lineageTag: 2725a441-22f1-5ca2-a1e0-8ab029683eba
+
+	/// Erro medio absoluto nas linhas de backtest. Compare com a Media realizada no backtest.
+	measure 'Erro absoluto médio' =
+			VAR ComFiltro =
+			    AVERAGEX ( FILTER ( fPrevisoes, NOT ISBLANK ( fPrevisoes[Realizado] ) ), ABS ( fPrevisoes[Previsto] - fPrevisoes[Realizado] ) )
+			VAR SomenteALL =
+			    CALCULATE ( AVERAGEX ( FILTER ( fPrevisoes, NOT ISBLANK ( fPrevisoes[Realizado] ) ), ABS ( fPrevisoes[Previsto] - fPrevisoes[Realizado] ) ), fPrevisoes[Escopo] = "ALL" )
+			RETURN
+			    IF ( ISFILTERED ( fPrevisoes[Escopo] ), ComFiltro, SomenteALL )
+		formatString: #,0.0
+		displayFolder: 08 Previsão
+		lineageTag: a6949c43-4edc-50b3-a97b-9a85c9da27db
+
+	/// Linhas de previsao que ja tem valor real para comparar. Sem escopo selecionado usa ALL.
+	measure 'Dias avaliados no backtest' =
+			VAR ComFiltro =
+			    COUNTROWS ( FILTER ( fPrevisoes, NOT ISBLANK ( fPrevisoes[Realizado] ) ) )
+			VAR SomenteALL =
+			    CALCULATE ( COUNTROWS ( FILTER ( fPrevisoes, NOT ISBLANK ( fPrevisoes[Realizado] ) ) ), fPrevisoes[Escopo] = "ALL" )
+			RETURN
+			    IF ( ISFILTERED ( fPrevisoes[Escopo] ), ComFiltro, SomenteALL )
+		formatString: #,0
+		displayFolder: 08 Previsão
+		lineageTag: 883d85d7-dafb-5810-a602-caac1f052c46
+
+	/// Versao do artefato de previsao publicado.
+	measure 'Versão da previsão' = SELECTEDVALUE ( fPrevisoes[Versão do modelo], MAX ( fPrevisoes[Versão do modelo] ) )
+		displayFolder: 08 Previsão
+		lineageTag: 0024adab-c284-5aef-a62a-2d3c28e9e17c
+
+	/// Quantidade de incidentes que receberam score de risco.
+	measure 'Incidentes com score' = COUNTROWS ( fRiscos )
+		formatString: #,0
+		displayFolder: 09 Risco
+		lineageTag: 8ec737ae-7d01-5252-b989-8b0ad4d3c1a7
+
+	/// Media do score de risco na populacao pontuada.
+	measure 'Score médio' = AVERAGE ( fRiscos[Score de risco] )
+		formatString: #,0.0
+		displayFolder: 09 Risco
+		lineageTag: f13b1a5a-8576-5293-8bd2-ed376bbfce32
+
+	/// Maior score observado. Compare com os cortes de nivel para ver se alto e critico sao alcancaveis.
+	measure 'Score máximo' = MAX ( fRiscos[Score de risco] )
+		formatString: #,0
+		displayFolder: 09 Risco
+		lineageTag: c4d1b92b-0a7a-5ae7-9e7e-2c031979b8d1
+
+	/// Incidentes classificados nos dois niveis superiores.
+	measure 'Alto ou crítico' = CALCULATE ( COUNTROWS ( fRiscos ), fRiscos[Nível de risco] IN { "alto", "crítico" } )
+		formatString: #,0
+		displayFolder: 09 Risco
+		lineageTag: b1ffc612-4245-5e65-875a-9ec711185b36
+
+	/// Media da probabilidade prevista pelo modelo.
+	measure 'Probabilidade média de violação' = AVERAGE ( fRiscos[Probabilidade de violação] )
+		formatString: 0.00%
+		displayFolder: 09 Risco
+		lineageTag: ecadae5e-ebe1-5fb4-bb42-daffb3c12861
+
+	/// Media de incidentes por dia na janela de backtest. E a base de comparacao do erro.
+	measure 'Média realizada no backtest' = DIVIDE ( [Realizado no backtest], [Dias avaliados no backtest] )
+		formatString: #,0.0
+		displayFolder: 08 Previsão
+		lineageTag: af90cace-a353-5607-a4dd-d089dd85fbb6
+
+	/// Erro medio dividido pela media realizada. Diz o tamanho do erro frente ao volume.
+	measure 'Erro relativo' = DIVIDE ( [Erro absoluto médio], [Média realizada no backtest] )
+		formatString: 0.0%
+		displayFolder: 08 Previsão
+		lineageTag: f91a747a-3b01-5671-aa23-e33c5b2423a7
+
+	column _
+		lineageTag: 9dbb4d1b-9568-420b-a53d-d83e251d79d4
+		isNameInferred
+		sourceColumn: [_]
+
+	partition _Medidas = calculated
+		mode: import
+		source = ROW ( "_", BLANK () )
+

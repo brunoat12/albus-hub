@@ -1,0 +1,43 @@
+/// Dimensão de prioridade P1 a P5 com ordem de severidade, para os visuais ordenarem corretamente.
+table dPrioridade
+	lineageTag: 2b72008b-b82b-4f2d-9151-8b423dd05208
+
+	column Código
+		lineageTag: 9390a598-225c-44e9-ad2a-e6ddf1032848
+		isNameInferred
+		sourceColumn: [Código]
+
+	column Prioridade
+		lineageTag: 8e6e802d-bf39-4d13-8900-4a54d7103885
+		isNameInferred
+		sourceColumn: [Prioridade]
+		sortByColumn: Severidade
+
+	column 'Rótulo curto'
+		lineageTag: a14b847f-03a2-412b-ae89-034964e7f1a1
+		isNameInferred
+		sourceColumn: [Rótulo curto]
+		sortByColumn: Severidade
+
+	column Severidade
+		lineageTag: 7fa6d61d-bb0a-4b8c-934e-167ca4956abc
+		isNameInferred
+		sourceColumn: [Severidade]
+
+	partition dPrioridade = calculated
+		mode: import
+		source =
+				DATATABLE (
+				    "Código", INTEGER,
+				    "Prioridade", STRING,
+				    "Rótulo curto", STRING,
+				    "Severidade", INTEGER,
+				    {
+				        { 1, "P1 — Crítica", "P1", 1 },
+				        { 2, "P2 — Alta", "P2", 2 },
+				        { 3, "P3 — Média", "P3", 3 },
+				        { 4, "P4 — Baixa", "P4", 4 },
+				        { 5, "P5 — Muito baixa", "P5", 5 }
+				    }
+				)
+

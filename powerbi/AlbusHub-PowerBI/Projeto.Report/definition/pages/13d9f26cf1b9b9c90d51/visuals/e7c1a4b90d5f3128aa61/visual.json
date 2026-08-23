@@ -1,0 +1,80 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
+  "name": "e7c1a4b90d5f3128aa61",
+  "position": {
+    "x": 1380,
+    "y": 624,
+    "z": 11000,
+    "height": 416,
+    "width": 516,
+    "tabOrder": 11000
+  },
+  "visual": {
+    "visualType": "textbox",
+    "objects": {
+      "general": [
+        {
+          "properties": {
+            "paragraphs": [
+              {
+                "textRuns": [
+                  {
+                    "value": "DIVERGÊNCIAS DE REGRA DE SLA\n",
+                    "textStyle": {
+                      "color": "#A8A7B0",
+                      "fontSize": "9pt",
+                      "fontFamily": "Consolas"
+                    }
+                  }
+                ],
+                "horizontalTextAlignment": "left"
+              },
+              {
+                "textRuns": [
+                  {
+                    "value": "\n3.550 incidentes têm a marcação de violação da fonte divergindo da regra de SLA por prioridade recalculada pelo pipeline (entered_kpi_rule_mismatch e kpi_breached_rule_mismatch no relatório de qualidade).\n\nAté a Locaweb confirmar qual regra vale, os números de KPI desta página seguem a regra recalculada — não o campo original da fonte.\n\nA medida Diferença vs Gold marca zero nos três patamares: o modelo conta o mesmo que o pipeline.",
+                    "textStyle": {
+                      "color": "#6E6D78",
+                      "fontSize": "9pt",
+                      "fontFamily": "Segoe UI"
+                    }
+                  }
+                ],
+                "horizontalTextAlignment": "left"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "subTitle": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

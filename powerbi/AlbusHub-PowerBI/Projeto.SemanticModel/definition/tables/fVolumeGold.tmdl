@@ -1,0 +1,72 @@
+/// Camada Gold do pipeline: série diária contínua por escopo de prioridade (ALL, P2, P3). Usada para conferência e para a base de previsão.
+table fVolumeGold
+	isHidden
+	lineageTag: 1e2a5287-a3e7-4858-88de-bd94534f1193
+
+	column Data
+		dataType: dateTime
+		formatString: dd/mm/yyyy
+		lineageTag: 857eb4e0-7947-4ec6-8900-b857b06cc90f
+		sourceColumn: Data
+
+	column Escopo
+		dataType: string
+		lineageTag: 6d392940-28fe-4eb8-a66c-c128e416530e
+		sourceColumn: Escopo
+
+	column 'Incidentes (Gold)'
+		dataType: int64
+		lineageTag: e8d12e38-1fec-4202-8150-be43e6752050
+		summarizeBy: sum
+		sourceColumn: Incidentes (Gold)
+
+	column 'Entraram no KPI (Gold)'
+		dataType: int64
+		lineageTag: db382586-1576-4801-aa8b-f105a9581690
+		summarizeBy: sum
+		sourceColumn: Entraram no KPI (Gold)
+
+	column 'KPI violado (Gold)'
+		dataType: int64
+		lineageTag: ed627a9b-841f-4ec6-ad70-c0bfbbcf4a42
+		summarizeBy: sum
+		sourceColumn: KPI violado (Gold)
+
+	column 'Monitoramento (Gold)'
+		dataType: int64
+		lineageTag: 264703c0-3015-4ab8-8511-2c9b1185b870
+		summarizeBy: sum
+		sourceColumn: Monitoramento (Gold)
+
+	column 'Sem intervenção (Gold)'
+		dataType: int64
+		lineageTag: ec097da3-a92b-4e82-b4e9-340cd0c3045b
+		summarizeBy: sum
+		sourceColumn: Sem intervenção (Gold)
+
+	partition fVolumeGold = m
+		mode: import
+		source =
+				let
+				    Fonte = Parquet.Document(File.Contents("C:\Users\cymko\Downloads\albus-hub\data\gold\daily_incident_volume.parquet")),
+				    Tipos = Table.TransformColumnTypes(Fonte, {
+				        {"reference_date", type date},
+				        {"priority_scope", type text},
+				        {"incident_count", Int64.Type},
+				        {"entered_kpi_count", Int64.Type},
+				        {"kpi_breach_count", Int64.Type},
+				        {"monitoring_incident_count", Int64.Type},
+				        {"no_intervention_count", Int64.Type}
+				    }),
+				    Renomeadas = Table.RenameColumns(Tipos, {
+				        {"reference_date","Data"},
+				        {"priority_scope","Escopo"},
+				        {"incident_count","Incidentes (Gold)"},
+				        {"entered_kpi_count","Entraram no KPI (Gold)"},
+				        {"kpi_breach_count","KPI violado (Gold)"},
+				        {"monitoring_incident_count","Monitoramento (Gold)"},
+				        {"no_intervention_count","Sem intervenção (Gold)"}
+				    })
+				in
+				    Renomeadas
+
