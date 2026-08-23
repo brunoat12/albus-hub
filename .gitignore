@@ -105,3 +105,6 @@ artifacts/runtime/
 auditoria_ml_dl/
 entrega_data_protection_sprint3/
 entrega_data_protection_sprint3.zip
+
+# Logs que fazem parte das evidências acadêmicas
+!evidencias_sprint3/02_data_protection/*.log
