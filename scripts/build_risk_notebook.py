@@ -138,18 +138,18 @@ def build_notebook() -> None:
 
 ## Objetivo
 
-Construir um MVP local capaz de estimar, **no momento de abertura do incidente**, a probabilidade de quebra do KPI/OLA. O notebook demonstra de forma executável o pré-processamento, a avaliação de clusterização, a construção e parametrização da ANN, a avaliação temporal e previsões reais.
+Construir um MVP local para estimar, **no momento de abertura do incidente**, a probabilidade de quebra do KPI/OLA. O notebook passa pelas etapas de preparação dos dados, teste de clusterização, treinamento da ANN, avaliação do modelo e geração das previsões.
 
 **Resumo da execução de referência:** {_latest_summary()}
 
-Como a classe positiva é rara, Accuracy não é usada como métrica principal. A análise prioriza PR-AUC, Recall, Precision, F1 e ROC-AUC.
+Como existem poucos casos positivos, Accuracy sozinha poderia dar uma visão enganosa do resultado. Por isso, usamos principalmente PR-AUC, Recall, Precision e F1, deixando ROC-AUC como métrica complementar.
 """
         ),
         _md(
             """
 ## 1. Bibliotecas
 
-O notebook contém as funções essenciais do modelo. Assim, a construção da solução pode ser auditada diretamente no arquivo entregue, sem esconder a ANN, o pré-processamento ou a clusterização atrás de imports internos do projeto.
+As principais funções usadas no modelo foram incluídas no próprio notebook. Isso facilita acompanhar o que foi feito em cada etapa, principalmente no pré-processamento, na clusterização e na construção da ANN.
 """
         ),
         _code(
@@ -184,7 +184,7 @@ np.random.seed(SEED)
             """
 ## 2. Contrato de dados e prevenção de leakage
 
-A população oficial é formada por incidentes com `entered_kpi_source == True`, e o target é `kpi_breached_source`. Colunas conhecidas somente após o desfecho do incidente são bloqueadas como features. `closed_at` é utilizada apenas para determinar **quando um resultado histórico já era conhecido**, nunca como predictor do incidente corrente.
+Para o treinamento, consideramos apenas os incidentes com `entered_kpi_source == True`, usando `kpi_breached_source` como target. Para evitar leakage, não usamos como features informações que só aparecem depois que o incidente foi resolvido. O `closed_at` serve apenas para verificar se o resultado de um incidente anterior já era conhecido naquele momento.
 """
         ),
         _code(contracts_code),
@@ -198,7 +198,7 @@ pd.DataFrame({"feature_permitida": MODEL_FEATURES})
             """
 ## 3. Carregamento e qualidade da Silver
 
-A Silver possui uma linha por incidente. A validação exige identificador único, data de abertura válida e target preenchido para a população elegível.
+Cada linha da Silver representa um incidente. Antes de montar as features, verificamos duplicidade no identificador, datas de abertura inválidas e se o target está preenchido nos casos elegíveis.
 """
         ),
         _code(
@@ -231,7 +231,7 @@ display(nulls[nulls.gt(0)].head(15).rename("nulos").to_frame())
             """
 ## 4. Feature engineering temporal e histórica
 
-As features temporais usam apenas a data de abertura. As contagens históricas usam janelas estritamente anteriores ao timestamp corrente. A taxa histórica de quebra da equipe considera somente incidentes que já estavam encerrados antes da abertura atual, evitando vazamento de informação futura.
+As features temporais são criadas a partir da data de abertura. Já as features históricas usam apenas acontecimentos anteriores ao incidente atual. Na taxa de quebra da equipe, por exemplo, só entram incidentes que já tinham sido encerrados naquele momento. Assim, o modelo não recebe informação do futuro.
 """
         ),
         _code(features_code),
@@ -258,7 +258,7 @@ eligible[["incident_id", "opened_at", *MODEL_FEATURES, TARGET_COLUMN]].head(5)
             """
 ## 5. Split temporal
 
-O dataset é ordenado por abertura e dividido em 60% treino, 20% validação e 20% teste. Não há embaralhamento. O teste permanece intocado até a escolha da arquitetura e do threshold, respeitando a ordem temporal.
+Como os incidentes possuem ordem temporal, não usamos embaralhamento. A base é ordenada pela data de abertura e dividida em 60% treino, 20% validação e 20% teste. A validação é usada nas escolhas de modelagem, enquanto o teste fica separado até a avaliação final.
 """
         ),
         _code(
@@ -294,7 +294,7 @@ pd.DataFrame({
             """
 ## 6. Pré-processamento para entrada da ANN
 
-As variáveis numéricas recebem imputação pela mediana e `StandardScaler`. As categóricas recebem imputação explícita e `OneHotEncoder`, com tratamento para categorias desconhecidas. O pré-processador é **ajustado apenas no treino** e reutilizado em validação e teste.
+Nas variáveis numéricas, preenchemos os valores ausentes pela mediana e aplicamos `StandardScaler`. Nas categóricas, tratamos os nulos e usamos `OneHotEncoder`, permitindo categorias novas. O ajuste do pré-processamento é feito somente com o treino e depois reaplicado na validação e no teste.
 """
         ),
         _code(preprocessing_code),
@@ -348,9 +348,9 @@ pd.DataFrame(baseline_metrics).T
             """
 ## 8. Avaliação de clusterização
 
-A clusterização é investigada como possível enriquecimento do feature engineering. O K-Means não utiliza o target no ajuste. São testados `k = 2, 3, 4, 5` e o melhor `k` é escolhido por silhouette. Em seguida, o rótulo do cluster é acrescentado a um baseline separado para verificar se existe ganho material de PR-AUC.
+Testamos a clusterização para verificar se os grupos encontrados ajudariam na previsão. O K-Means é ajustado sem usar o target, com `k = 2, 3, 4, 5`, e o melhor valor é escolhido pelo silhouette. Depois, o cluster selecionado é adicionado a um baseline separado para comparar a PR-AUC.
 
-A clusterização **não é obrigada a entrar no modelo final**: ela só é mantida se demonstrar utilidade preditiva além de separar perfis operacionais.
+Se o cluster não melhorar o resultado, ele não é usado como feature da ANN. Assim, a clusterização entra como experimento e não como uma etapa obrigatória do modelo final.
 """
         ),
         _code(clustering_code),
@@ -381,9 +381,9 @@ pd.Series({
             """
 ## 9. Construção e parametrização da ANN
 
-Foram testadas duas arquiteturas densas. Cada camada oculta utiliza ReLU seguida de Dropout; a saída possui um neurônio com Sigmoid. O treinamento usa Adam, binary cross-entropy e PR-AUC como métrica de validação.
+Foram testadas duas arquiteturas densas. Cada camada oculta usa ReLU seguida de Dropout, enquanto a saída possui um neurônio com Sigmoid. O treinamento usa Adam, binary cross-entropy e PR-AUC como métrica de validação.
 
-O desbalanceamento é tratado com `class_weight`. `EarlyStopping` restaura os melhores pesos e `ReduceLROnPlateau` reduz a taxa de aprendizado quando a PR-AUC de validação deixa de evoluir.
+Como a classe positiva é rara, usamos `class_weight`. O `EarlyStopping` recupera os melhores pesos e o `ReduceLROnPlateau` reduz a taxa de aprendizado quando a PR-AUC de validação para de melhorar.
 """
         ),
         _code(model_code),
@@ -454,7 +454,7 @@ selected_model.summary()
             """
 ## 11. Calibração e escolha do threshold
 
-A saída Sigmoid é calibrada por Platt scaling usando exclusivamente a validação. O threshold operacional também é escolhido na validação, priorizando Recall mínimo de 70% e, entre os candidatos elegíveis, maior Precision/F1. Só então ele é aplicado ao teste final.
+A saída Sigmoid é calibrada com Platt scaling usando a validação. O threshold também é escolhido nessa etapa: buscamos Recall de pelo menos 70% e, entre os thresholds que atendem esse critério, priorizamos melhores valores de Precision/F1. Depois disso, o threshold escolhido é aplicado ao teste final.
 """
         ),
         _code(probability_code),
@@ -477,7 +477,7 @@ threshold_table.sort_values(["recall", "precision"], ascending=False).head(10)
             """
 ## 12. Avaliação de desempenho
 
-Devido à raridade do target, PR-AUC e Recall recebem atenção especial. ROC-AUC complementa a leitura de ranking; Precision e F1 explicitam o custo de falsos positivos; a matriz de confusão mostra o impacto operacional do threshold escolhido.
+Como há poucos casos de quebra do KPI/OLA, damos mais atenção à PR-AUC e ao Recall. Também analisamos ROC-AUC, Precision, F1 e a matriz de confusão para entender quantas quebras o modelo consegue encontrar e quantos falsos alertas ele gera com o threshold escolhido.
 """
         ),
         _code(
@@ -502,7 +502,7 @@ pd.Series(ann_test_metrics["confusion_matrix"], name="quantidade").to_frame()
             """
 ## 13. Previsões reais
 
-A tabela abaixo aplica a ANN escolhida aos incidentes do conjunto temporal de teste. `breach_probability` representa a probabilidade calibrada de quebra e `predicted_breach` aplica o threshold definido exclusivamente na validação.
+Na tabela abaixo aplicamos a ANN escolhida aos incidentes do conjunto de teste. A coluna `breach_probability` mostra a probabilidade calibrada de quebra, enquanto `predicted_breach` indica o resultado após aplicar o threshold escolhido na validação.
 """
         ),
         _code(
@@ -518,15 +518,17 @@ predictions.sort_values("breach_probability", ascending=False).head(15)
             """
 ## 14. Interpretação e limitações
 
-- A classe positiva é extremamente rara, portanto um threshold com alto Recall produz muitos falsos positivos. O modelo deve apoiar **priorização**, não decisão automática.
-- O split temporal reduz risco de leakage e representa melhor o uso futuro do modelo.
-- A clusterização é avaliada quantitativamente; se não houver ganho material de PR-AUC, seu rótulo não entra na ANN final.
-- A calibração usa apenas a janela de validação e deve ser reavaliada com novos dados.
-- Antes de produção, são necessários monitoramento de drift, avaliação de custo operacional dos alertas e recalibração periódica.
+- A classe positiva é rara. Por isso, aumentar o Recall também tende a aumentar a quantidade de falsos positivos. O modelo deve apoiar **priorização**, não decisão automática.
+- O split temporal foi mantido para respeitar a ordem dos incidentes e reduzir o risco de leakage.
+- A clusterização só entra no modelo se realmente melhorar a PR-AUC; separar perfis por si só não é suficiente.
+- A calibração foi feita apenas com a validação e precisa ser revista quando houver novos dados.
+- Em uma aplicação futura, também será necessário acompanhar mudanças no comportamento dos dados e revisar periodicamente o threshold e a calibração.
 
 ## Conclusão
 
-O MVP demonstra viabilidade técnica: carrega os dados, produz features disponíveis na abertura, avalia clusterização, treina e compara ANNs, seleciona arquitetura e threshold sem consultar o teste final e gera probabilidades reais para incidentes futuros no recorte temporal de teste.
+Os testes mostram que é possível usar os dados disponíveis na abertura do incidente para estimar o risco de quebra do KPI/OLA. Durante o desenvolvimento, comparamos diferentes configurações da ANN e também testamos se a clusterização ajudaria no resultado.
+
+A avaliação respeitou a ordem temporal dos dados e manteve o conjunto de teste separado das decisões de modelagem. Como as violações são raras, o principal ponto de atenção continua sendo o equilíbrio entre identificar as quebras e evitar um número excessivo de falsos alertas.
 """
         ),
     ]
