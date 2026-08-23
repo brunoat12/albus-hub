@@ -1,0 +1,92 @@
+/// Previsoes de volume publicadas pela frente de modelagem, ja traduzidas para o contrato de integracao.
+table fPrevisoes
+	lineageTag: e5d97d91-d30f-5226-8fcd-d46a31aa40a8
+
+	column Data
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: de9b4a7f-e762-5989-9dd5-3d0360d67163
+		summarizeBy: none
+		sourceColumn: Data
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column Horizonte
+		dataType: string
+		lineageTag: 5e4338e8-cf5d-59a4-a90f-b00aa7e8280e
+		sourceColumn: Horizonte
+
+	column Escopo
+		dataType: string
+		lineageTag: dbae2c6d-1368-567a-80cf-52c4c7ddc405
+		sourceColumn: Escopo
+
+	column Previsto
+		dataType: int64
+		formatString: #,0
+		lineageTag: 814c4120-dc25-5e8f-b496-b31d74af5f17
+		summarizeBy: sum
+		sourceColumn: Previsto
+
+	column Realizado
+		dataType: double
+		formatString: #,0
+		lineageTag: 5202c279-a1b7-5cb2-b47f-7967e17d7179
+		summarizeBy: sum
+		sourceColumn: Realizado
+
+	column 'Limite inferior'
+		dataType: int64
+		formatString: #,0
+		lineageTag: b15c2c7c-be43-5c5d-8d1b-9752dbb64119
+		summarizeBy: sum
+		sourceColumn: Limite inferior
+
+	column 'Limite superior'
+		dataType: int64
+		formatString: #,0
+		lineageTag: 4185fe9b-bc2a-5f58-858f-09b363b81c0e
+		summarizeBy: sum
+		sourceColumn: Limite superior
+
+	column Modelo
+		dataType: string
+		lineageTag: 22e3cde8-5a1b-567d-93f3-ba7b27b93c42
+		sourceColumn: Modelo
+
+	column 'Versão do modelo'
+		dataType: string
+		lineageTag: e0707b83-1683-5b38-ae08-f7d1da1f77cc
+		sourceColumn: Versão do modelo
+
+	partition fPrevisoes = m
+		mode: import
+		source =
+				let
+				    Fonte = Parquet.Document(File.Contents("C:\Users\cymko\Downloads\albus-hub\data\gold\volume_predictions.parquet")),
+				    Tipos = Table.TransformColumnTypes(Fonte, {
+				        {"reference_date", type date},
+				        {"horizon", type text},
+				        {"priority_scope", type text},
+				        {"predicted_incident_count", Int64.Type},
+				        {"actual_incidents", type number},
+				        {"lower_bound", Int64.Type},
+				        {"upper_bound", Int64.Type},
+				        {"model", type text},
+				        {"model_version", type text}
+				    }),
+				    Renomeadas = Table.RenameColumns(Tipos, {
+				        {"reference_date","Data"},
+				        {"horizon","Horizonte"},
+				        {"priority_scope","Escopo"},
+				        {"predicted_incident_count","Previsto"},
+				        {"actual_incidents","Realizado"},
+				        {"lower_bound","Limite inferior"},
+				        {"upper_bound","Limite superior"},
+				        {"model","Modelo"},
+				        {"model_version","Versão do modelo"}
+				    }),
+				    Final = Table.SelectColumns(Renomeadas, {"Data","Horizonte","Escopo","Previsto","Realizado","Limite inferior","Limite superior","Modelo","Versão do modelo"})
+				in
+				    Final
+

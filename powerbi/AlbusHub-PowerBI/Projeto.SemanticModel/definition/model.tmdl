@@ -1,0 +1,25 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	valueFilterBehavior: independent
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 0
+
+annotation PBI_ProTooling = ["DevMode","MCP-PBIModeling"]
+
+annotation PBI_QueryOrder = ["fIncidentes","fVolumeGold","fRiscos","fPrevisoes"]
+
+ref table fIncidentes
+ref table dCalendario
+ref table fVolumeGold
+ref table _Medidas
+ref table dPrioridade
+ref table fRiscos
+ref table fPrevisoes
+
+ref cultureInfo en-US
+

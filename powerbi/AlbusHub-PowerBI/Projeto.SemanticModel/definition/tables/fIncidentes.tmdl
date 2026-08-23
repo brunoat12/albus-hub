@@ -1,0 +1,212 @@
+/// Grão: um incidente. Origem: camada Silver do pipeline Albus-Hub (data/silver/locaweb_incidents.parquet).
+table fIncidentes
+	lineageTag: 5e1485a2-4845-45c2-95e7-90c79f2786a1
+
+	column Incidente
+		dataType: string
+		lineageTag: 01bc137c-17cb-4c82-a106-e4607b46edcd
+		sourceColumn: Incidente
+
+	column 'Aberto em'
+		dataType: dateTime
+		formatString: dd/mm/yyyy hh:nn
+		lineageTag: 5d83ba48-970c-47d3-a2b2-612128d884a0
+		sourceColumn: Aberto em
+
+	column 'Data de abertura'
+		dataType: dateTime
+		formatString: dd/mm/yyyy
+		lineageTag: a0e5f06a-b7d5-4af7-9873-ee7ebbf31a7b
+		sourceColumn: Data de abertura
+
+	column 'Resolvido em'
+		dataType: dateTime
+		formatString: dd/mm/yyyy hh:nn
+		lineageTag: e1b0ea9b-5906-4f6f-bc69-721a750973fa
+		sourceColumn: Resolvido em
+
+	column 'Encerrado em'
+		dataType: dateTime
+		formatString: dd/mm/yyyy hh:nn
+		lineageTag: 40b6118d-6b81-416d-a621-6ff24a6348da
+		sourceColumn: Encerrado em
+
+	column 'Código de prioridade'
+		dataType: int64
+		lineageTag: cc4a73fd-b3d4-4b7e-ae9b-42205c3c7335
+		summarizeBy: none
+		sourceColumn: Código de prioridade
+
+	column Prioridade
+		dataType: string
+		lineageTag: 01f14a75-5614-4bce-ba77-a02c06749f15
+		sourceColumn: Prioridade
+
+	column Produto
+		dataType: string
+		lineageTag: 487f781c-01ba-46f2-96ec-37f905135837
+		sourceColumn: Produto
+
+	column Categoria
+		dataType: string
+		lineageTag: e5106341-9cd9-45cf-8515-f10ae077803e
+		sourceColumn: Categoria
+
+	column Subcategoria
+		dataType: string
+		lineageTag: 6222eba2-de7b-420b-b4a8-d39bef184b9f
+		sourceColumn: Subcategoria
+
+	column 'Grupo designado'
+		dataType: string
+		lineageTag: eeef6fda-973f-49a5-a2e6-b4da1f24b132
+		sourceColumn: Grupo designado
+
+	column 'Item de configuração'
+		dataType: string
+		lineageTag: 48ecf054-a0c0-444e-aac5-beeb643b7967
+		sourceColumn: Item de configuração
+
+	column Status
+		dataType: string
+		lineageTag: 4f25d73c-b73f-4d7f-a6d3-9a7cc631b8a5
+		sourceColumn: Status
+
+	column 'Aberto por'
+		dataType: string
+		lineageTag: f35ad179-d24f-4b96-96e1-f5019ca99d24
+		sourceColumn: Aberto por
+
+	column 'Código de fechamento'
+		dataType: string
+		lineageTag: b6625dd9-9897-485a-96b3-f2c3e385e251
+		sourceColumn: Código de fechamento
+
+	column 'Duração (s)'
+		dataType: int64
+		lineageTag: f23c758e-3467-48f8-80f2-3dee7ca8c1e5
+		summarizeBy: none
+		sourceColumn: Duração (s)
+
+	column 'Duração (h)'
+		dataType: double
+		formatString: #,0.0
+		lineageTag: 0109af00-723e-495d-b4e4-c83b2e393ca8
+		summarizeBy: none
+		sourceColumn: Duração (h)
+
+	column 'Limite de SLA (s)'
+		dataType: int64
+		lineageTag: 5723526a-3ded-4e8e-a8ad-9638ffec70b6
+		summarizeBy: none
+		sourceColumn: Limite de SLA (s)
+
+	column 'Entrou no KPI'
+		dataType: int64
+		lineageTag: c6a913c1-cba3-4c5c-9f0a-e43725d6c8df
+		summarizeBy: none
+		sourceColumn: Entrou no KPI
+
+	column 'KPI violado'
+		dataType: int64
+		lineageTag: dcebc851-c1d2-4fd2-9dd2-0a1e6eb8caed
+		summarizeBy: none
+		sourceColumn: KPI violado
+
+	column 'Tem incidente pai'
+		dataType: int64
+		lineageTag: a95f161c-be69-48c4-9de4-53dd8808b426
+		summarizeBy: none
+		sourceColumn: Tem incidente pai
+
+	column 'Sem intervenção'
+		dataType: int64
+		lineageTag: 107c3e40-42df-48ca-b57c-db5a1d269d22
+		summarizeBy: none
+		sourceColumn: Sem intervenção
+
+	column 'Aberto por monitoramento'
+		dataType: int64
+		lineageTag: d9721613-c13b-4b25-b2f5-214873e000ef
+		summarizeBy: none
+		sourceColumn: Aberto por monitoramento
+
+	column 'Hora de abertura'
+		dataType: int64
+		lineageTag: 02fd122d-257f-4e2e-ab03-1f373bdd2184
+		summarizeBy: none
+		sourceColumn: Hora de abertura
+
+	column 'Dia da semana (n)'
+		dataType: int64
+		isHidden
+		lineageTag: 8f09135f-def2-47cd-8449-310e5360f2b8
+		summarizeBy: none
+		sourceColumn: Dia da semana (n)
+
+	partition fIncidentes = m
+		mode: import
+		source =
+				let
+				    Fonte = Parquet.Document(File.Contents("C:\Users\cymko\Downloads\albus-hub\data\silver\locaweb_incidents.parquet")),
+				    Colunas = Table.SelectColumns(Fonte, {"incident_id","opened_at","opened_date","resolved_at","closed_at","priority_code","priority_label","product","category","subcategory","assigned_group","configuration_item","status","opened_by","closure_code","duration_seconds","duration_hours","sla_limit_seconds","entered_kpi_source","kpi_breached_source","has_parent_incident","is_no_intervention","is_monitoring_opened","opened_hour","opened_day_of_week"}),
+				    Flags = Table.TransformColumns(Colunas, {
+				        {"entered_kpi_source", each if _ = true then 1 else 0, Int64.Type},
+				        {"kpi_breached_source", each if _ = null then null else (if _ = true then 1 else 0), Int64.Type},
+				        {"has_parent_incident", each if _ = true then 1 else 0, Int64.Type},
+				        {"is_no_intervention", each if _ = true then 1 else 0, Int64.Type},
+				        {"is_monitoring_opened", each if _ = true then 1 else 0, Int64.Type}
+				    }),
+				    SemNulos = Table.ReplaceValue(Flags, null, "Sem informação", Replacer.ReplaceValue, {"product","category","subcategory","configuration_item","closure_code","priority_label"}),
+				    Tipos = Table.TransformColumnTypes(SemNulos, {
+				        {"opened_date", type date},
+				        {"opened_at", type datetime},
+				        {"resolved_at", type datetime},
+				        {"closed_at", type datetime},
+				        {"duration_hours", type number},
+				        {"incident_id", type text},
+				        {"priority_label", type text},
+				        {"product", type text},
+				        {"category", type text},
+				        {"subcategory", type text},
+				        {"assigned_group", type text},
+				        {"configuration_item", type text},
+				        {"status", type text},
+				        {"opened_by", type text},
+				        {"closure_code", type text},
+				        {"priority_code", Int64.Type},
+				        {"duration_seconds", Int64.Type},
+				        {"sla_limit_seconds", Int64.Type},
+				        {"opened_hour", Int64.Type},
+				        {"opened_day_of_week", Int64.Type}
+				    }),
+				    Renomeadas = Table.RenameColumns(Tipos, {
+				        {"incident_id","Incidente"},
+				        {"opened_at","Aberto em"},
+				        {"opened_date","Data de abertura"},
+				        {"resolved_at","Resolvido em"},
+				        {"closed_at","Encerrado em"},
+				        {"priority_code","Código de prioridade"},
+				        {"priority_label","Prioridade"},
+				        {"product","Produto"},
+				        {"category","Categoria"},
+				        {"subcategory","Subcategoria"},
+				        {"assigned_group","Grupo designado"},
+				        {"configuration_item","Item de configuração"},
+				        {"status","Status"},
+				        {"opened_by","Aberto por"},
+				        {"closure_code","Código de fechamento"},
+				        {"duration_seconds","Duração (s)"},
+				        {"duration_hours","Duração (h)"},
+				        {"sla_limit_seconds","Limite de SLA (s)"},
+				        {"entered_kpi_source","Entrou no KPI"},
+				        {"kpi_breached_source","KPI violado"},
+				        {"has_parent_incident","Tem incidente pai"},
+				        {"is_no_intervention","Sem intervenção"},
+				        {"is_monitoring_opened","Aberto por monitoramento"},
+				        {"opened_hour","Hora de abertura"},
+				        {"opened_day_of_week","Dia da semana (n)"}
+				    })
+				in
+				    Renomeadas
+

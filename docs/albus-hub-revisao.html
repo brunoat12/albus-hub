@@ -1,0 +1,866 @@
+<title>Albus-Hub Operações</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap">
+
+<style>
+:root{
+  --ground:#0a0a0c; --rail:#060608; --panel:#16151b; --panel-2:#1d1c23;
+  --line:#2a2932; --grid:#232229;
+  --brand:#e30613;
+  --ink:#f5f5f7; --ink-2:#a8a7b0; --ink-3:#6e6d78;
+  --series:#3987e5;
+  --good:#1eae72; --warn:#f2b705; --serious:#f5803e; --critical:#f2434f;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",monospace;
+  --serif:"Newsreader",Georgia,"Times New Roman",serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.eyebrow{
+  font-family:var(--mono); font-size:10px; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+.shell{display:flex; min-height:100vh}
+
+/* ---------- rail ---------- */
+.rail{
+  width:216px; flex:0 0 216px; background:var(--rail);
+  border-right:1px solid var(--line); padding:22px 0 18px;
+  display:flex; flex-direction:column; position:sticky; top:0; height:100vh;
+}
+.mark{display:flex; align-items:center; gap:10px; padding:0 18px 18px; border-bottom:1px solid var(--line)}
+.mark-badge{
+  background:var(--brand); color:#fff; font-weight:600; font-size:12px;
+  padding:4px 8px; border-radius:3px; line-height:1.2; letter-spacing:0;
+}
+.mark-name{font-size:16px; font-weight:600; line-height:1.1}
+.mark-sub{font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink-3)}
+.nav{padding:16px 0; display:flex; flex-direction:column; gap:1px}
+.nav-group{padding:14px 18px 6px}
+.nav-btn{
+  display:flex; align-items:center; gap:10px; width:100%;
+  background:none; border:0; border-left:2px solid transparent;
+  color:var(--ink-2); font-family:var(--sans); font-size:13.5px;
+  padding:8px 18px; cursor:pointer; text-align:left;
+}
+.nav-btn:hover{color:var(--ink); background:#0d0d10}
+.nav-btn[aria-selected="true"]{color:var(--ink); border-left-color:var(--brand); background:#101014}
+.nav-btn:focus-visible{outline:2px solid var(--series); outline-offset:-2px}
+.rail-foot{margin-top:auto; padding:14px 18px 0; border-top:1px solid var(--line); font-family:var(--mono); font-size:10px; color:var(--ink-3); line-height:1.7}
+
+/* ---------- main ---------- */
+.main{flex:1; min-width:0; padding:26px 32px 56px; max-width:1420px}
+.topbar{display:flex; align-items:flex-end; justify-content:space-between; gap:24px; flex-wrap:wrap; margin-bottom:22px}
+h1{font-family:var(--serif); font-size:38px; font-weight:400; letter-spacing:-.01em; margin:4px 0 0; line-height:1.05; text-wrap:balance}
+h1 em{font-style:italic}
+.topbar-meta{font-family:var(--mono); font-size:10.5px; color:var(--ink-3); text-align:right; line-height:1.8}
+.dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--good); margin-right:6px; vertical-align:middle}
+
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:6px}
+.panel-head{
+  display:flex; align-items:baseline; justify-content:space-between; gap:16px;
+  padding:13px 18px; border-bottom:1px solid var(--line);
+}
+.panel-title{font-family:var(--mono); font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--ink)}
+.panel-note{font-family:var(--mono); font-size:10px; color:var(--ink-3)}
+.panel-body{padding:16px 18px}
+
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:22px}
+.kpi{background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:15px 17px}
+.kpi.lead{border-top:2px solid var(--brand)}
+.kpi-label{font-family:var(--mono); font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; color:var(--ink-3); margin-bottom:9px}
+.kpi-value{font-size:34px; font-weight:300; line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums}
+.kpi-value.alert{color:var(--critical)}
+.kpi-unit{font-size:16px; color:var(--ink-2); margin-left:2px}
+.kpi-foot{margin-top:9px; font-family:var(--mono); font-size:10.5px; color:var(--ink-3)}
+.up{color:var(--critical)} .down{color:var(--good)}
+
+.grid-2{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+.grid-3{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+.stack{display:flex; flex-direction:column; gap:14px}
+@media (max-width:1040px){ .grid-2,.grid-3{grid-template-columns:1fr} .rail{display:none} .main{padding:20px} }
+
+.note{
+  background:var(--panel); border:1px solid var(--line); border-left:2px solid var(--warn);
+  border-radius:4px; padding:13px 16px; color:var(--ink-2); font-size:13px; line-height:1.6;
+}
+.note strong{color:var(--ink)}
+
+.seg{display:flex; gap:2px; background:var(--panel-2); border:1px solid var(--line); border-radius:4px; padding:2px}
+.seg button{
+  background:none; border:0; color:var(--ink-3); font-family:var(--mono);
+  font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+  padding:5px 11px; border-radius:3px; cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:var(--panel); color:var(--ink)}
+.seg button:focus-visible{outline:2px solid var(--series); outline-offset:1px}
+
+table{width:100%; border-collapse:collapse; font-size:13px}
+.tablewrap{overflow-x:auto}
+th{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-3); text-align:left; font-weight:400;
+  padding:9px 12px; border-bottom:1px solid var(--line); white-space:nowrap;
+}
+td{padding:9px 12px; border-bottom:1px solid var(--grid); color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td.num{text-align:right; font-variant-numeric:tabular-nums; color:var(--ink)}
+td.name{color:var(--ink)}
+
+.pill{
+  display:inline-flex; align-items:center; gap:5px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.06em;
+  padding:2px 8px; border-radius:999px; border:1px solid currentColor;
+}
+.pill::before{content:""; width:5px; height:5px; border-radius:50%; background:currentColor}
+.pill.ok{color:var(--good)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--critical)}
+
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-family:var(--mono); font-size:10px; color:var(--ink-2)}
+.legend span{display:inline-flex; align-items:center; gap:6px}
+.swatch{width:12px; height:2px; border-radius:1px}
+.swatch.dash{background:none; border-top:2px dashed currentColor}
+
+.chart{width:100%; display:block; overflow:visible}
+.chart text{font-family:var(--mono); font-size:9.5px; fill:var(--ink-3)}
+.chart .vlabel{font-family:var(--sans); font-size:11px; fill:var(--ink-2)}
+.gridline{stroke:var(--grid); stroke-width:1}
+.axis{stroke:var(--line); stroke-width:1}
+
+.tip{
+  position:fixed; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:var(--panel-2); border:1px solid var(--line); border-radius:4px;
+  padding:7px 10px; font-family:var(--mono); font-size:10.5px; color:var(--ink);
+  z-index:50; white-space:nowrap; line-height:1.6;
+}
+.tip b{color:var(--ink); font-weight:500}
+.tip i{color:var(--ink-3); font-style:normal}
+
+.view[hidden]{display:none}
+.footer{margin-top:34px; padding-top:14px; border-top:1px solid var(--line); font-family:var(--mono); font-size:10px; color:var(--ink-3); line-height:1.8}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important} }
+</style>
+
+<div class="shell">
+  <nav class="rail" aria-label="Seções">
+    <div class="mark">
+      <span class="mark-badge">locaweb</span>
+      <span><span class="mark-name">AlbusHub</span><br><span class="mark-sub">AIOps · v0.4</span></span>
+    </div>
+    <div class="nav" role="tablist" aria-orientation="vertical">
+      <div class="nav-group eyebrow">Operação</div>
+      <button class="nav-btn" role="tab" aria-selected="true" data-view="geral">Visão Geral</button>
+      <button class="nav-btn" role="tab" aria-selected="false" data-view="operacao">Operação</button>
+      <div class="nav-group eyebrow">Inteligência</div>
+      <button class="nav-btn" role="tab" aria-selected="false" data-view="previsoes">Previsões</button>
+      <button class="nav-btn" role="tab" aria-selected="false" data-view="risco">Risco</button>
+      <div class="nav-group eyebrow">Sistema</div>
+      <button class="nav-btn" role="tab" aria-selected="false" data-view="qualidade">Qualidade</button>
+    </div>
+    <div class="rail-foot" id="railFoot"></div>
+  </nav>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="eyebrow">Operação · Locaweb</div>
+        <h1 id="viewTitle">Visão <em>Geral</em></h1>
+      </div>
+      <div class="topbar-meta">
+        <span class="dot"></span><span id="metaRecorte"></span><br>
+        <span id="metaBase"></span>
+      </div>
+    </div>
+
+    <!-- ================= VISÃO GERAL ================= -->
+    <section class="view" id="view-geral">
+      <div class="kpis" id="kpiStrip"></div>
+
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Evolução diária</span>
+            <div class="seg" id="scopeSeg" role="group" aria-label="Escopo de prioridade">
+              <button data-scope="ALL" aria-pressed="true">Todas</button>
+              <button data-scope="P2" aria-pressed="false">P2</button>
+              <button data-scope="P3" aria-pressed="false">P3</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="legend" style="margin-bottom:12px">
+              <span><i class="swatch" style="background:var(--series)"></i>Incidentes por dia</span>
+              <span><i class="swatch" style="background:var(--brand)"></i>Média móvel de 7 dias</span>
+            </div>
+            <div id="chartSerie"></div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Composição por prioridade</span></div>
+            <div class="panel-body"><div id="chartComposicao"></div>
+              <p class="panel-note" style="margin:12px 0 0">As três parcelas somam o total do período. A Gold acompanha P2 e P3 separadamente porque são os escopos que entram no KPI.</p>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Perfil por dia da semana</span></div>
+            <div class="panel-body"><div id="chartDiaSemana"></div>
+              <p class="panel-note" style="margin:12px 0 0">Média de incidentes abertos por dia da semana no recorte.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Patamares de volume da base</span><span class="panel-note">contexto</span></div>
+          <div class="panel-body">
+            <div class="tablewrap"><table id="tabRegimes"></table></div>
+            <p class="note" style="margin-top:14px">
+              <strong>A base tem três patamares de volume, não um.</strong> O salto de set/2025 vem acompanhado de
+              queda da duração mediana de horas para minutos e de alta do percentual aberto por monitoramento —
+              é ampliação de cobertura automática, não piora da operação. O dashboard usa o regime atual como
+              recorte padrão, e um modelo de previsão treinado na série inteira herda essa quebra estrutural.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= OPERAÇÃO ================= -->
+    <section class="view" id="view-operacao" hidden>
+      <div class="kpis" id="kpiOperacao"></div>
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Concentração por dimensão</span>
+            <div class="seg" id="dimSeg" role="group" aria-label="Dimensão"></div>
+          </div>
+          <div class="panel-body">
+            <div class="legend" style="margin-bottom:12px">
+              <span><i class="swatch" style="background:var(--series)"></i>Participação no total</span>
+              <span><i class="swatch" style="background:var(--brand)"></i>Acumulado</span>
+            </div>
+            <div id="chartPareto"></div>
+            <p class="panel-note" id="notaConcentracao" style="margin:12px 0 0"></p>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Taxa de violação de KPI</span><span class="panel-note">mín. 30 no KPI</span></div>
+            <div class="panel-body"><div id="chartViolacao"></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Abertura por dia e hora</span></div>
+            <div class="panel-body"><div id="chartHeatmap"></div>
+              <p class="panel-note" style="margin:12px 0 0">A escala vai do mínimo ao máximo da grade para revelar a variação. O volume é quase uniforme ao longo da semana e do dia — coerente com 95% das aberturas vindo de monitoramento automático, que não tem horário comercial.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= PREVISÕES ================= -->
+    <section class="view" id="view-previsoes" hidden>
+      <div class="kpis" id="kpiPrevisao"></div>
+      <div class="stack">
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Realizado contra previsto</span>
+            <div class="seg" id="horizonteSeg" role="group" aria-label="Horizonte">
+              <button data-h="D+1" aria-pressed="true">D+1</button>
+              <button data-h="D+7" aria-pressed="false">D+7</button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="legend" style="margin-bottom:12px">
+              <span><i class="swatch" style="background:var(--series)"></i>Realizado</span>
+              <span><i class="swatch" style="background:var(--brand)"></i>Previsto</span>
+              <span><i class="swatch" style="background:rgba(227,6,19,.28);height:8px;border-radius:2px"></i>Faixa de confiança</span>
+            </div>
+            <div id="chartPrevisao"></div>
+            <p class="panel-note" style="margin:12px 0 0">Escopo de todas as prioridades. A faixa é o intervalo conformal do modelo, calibrado para cobrir 80% dos casos.</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Previsões em aberto</span><span class="panel-note">sem valor realizado ainda</span></div>
+          <div class="panel-body" style="padding:0"><div class="tablewrap"><table id="tabPrevisao"></table></div></div>
+        </div>
+        <p class="note">
+          <strong>O modelo vence em D+7, empata em D+1.</strong> Nos testes da frente de modelagem, o vencedor para
+          D+1 no escopo total foi um baseline ingênuo — repetir o último valor — que ficou 4% melhor que a melhor
+          régua simples. Em D+7 o gradient boosting ganha de verdade, com 13% de vantagem. Vale dizer isso na
+          apresentação antes que perguntem.
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= RISCO ================= -->
+    <section class="view" id="view-risco" hidden>
+      <div class="kpis" id="kpiRisco"></div>
+      <div class="stack">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Distribuição por nível</span></div>
+            <div class="panel-body"><div id="chartNivel"></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Distribuição do score</span><span class="panel-note">escala 0 a 100</span></div>
+            <div class="panel-body"><div id="chartScore"></div></div>
+          </div>
+        </div>
+        <p class="note" id="notaRisco"></p>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Fila priorizada</span><span class="panel-note">12 maiores scores</span></div>
+          <div class="panel-body" style="padding:0"><div class="tablewrap"><table id="tabRisco"></table></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= QUALIDADE ================= -->
+    <section class="view" id="view-qualidade" hidden>
+      <div class="kpis" id="kpiQualidade"></div>
+      <div class="stack">
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Checagens bloqueantes</span><span class="panel-note">ingestão</span></div>
+            <div class="panel-body" style="padding:0"><div class="tablewrap"><table id="tabBloqueantes"></table></div></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><span class="panel-title">Alertas</span><span class="panel-note">ingestão</span></div>
+            <div class="panel-body" style="padding:0"><div class="tablewrap"><table id="tabAlertas"></table></div></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><span class="panel-title">Reconciliação Silver → Gold</span></div>
+          <div class="panel-body" style="padding:0"><div class="tablewrap"><table id="tabReconciliacao"></table></div></div>
+        </div>
+        <p class="note" id="notaKpi"></p>
+      </div>
+    </section>
+
+    <div class="footer">
+      Albus-Hub · Projeto acadêmico FIAP / Locaweb Challenge 2026 · dados processados pelo pipeline Bronze → Silver → Gold<br>
+      Versão estática para revisão do time — os números são um retrato do recorte indicado, sem atualização automática.
+    </div>
+  </main>
+</div>
+
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+
+<script>
+const D = {"recorte": {"inicio": "01/09/2025", "fim": "31/12/2025", "dias": 122, "anteriorInicio": "02/05/2025", "anteriorFim": "31/08/2025", "baseInicio": "02/01/2023", "baseFim": "31/12/2025"}, "kpis": {"incidentes": 93423, "incidentesAnterior": 14238, "mediaDiaria": 765.7622950819672, "p2": 10005, "p2Anterior": 2691, "p3": 24598, "demais": 58820, "entraramKpi": 7507, "violados": 61, "violadosAnterior": 98, "taxaViolacao": 0.8125749300652724, "taxaViolacaoAnterior": 1.119232526267702, "percMonitoramento": 94.7550389090481}, "serie": {"ALL": {"datas": ["2025-09-01", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-05", "2025-09-06", "2025-09-07", "2025-09-08", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-12", "2025-09-13", "2025-09-14", "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19", "2025-09-20", "2025-09-21", "2025-09-22", "2025-09-23", "2025-09-24", "2025-09-25", "2025-09-26", "2025-09-27", "2025-09-28", "2025-09-29", "2025-09-30", "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-10-10", "2025-10-11", "2025-10-12", "2025-10-13", "2025-10-14", "2025-10-15", "2025-10-16", "2025-10-17", "2025-10-18", "2025-10-19", "2025-10-20", "2025-10-21", "2025-10-22", "2025-10-23", "2025-10-24", "2025-10-25", "2025-10-26", "2025-10-27", "2025-10-28", "2025-10-29", "2025-10-30", "2025-10-31", "2025-11-01", "2025-11-02", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-07", "2025-11-08", "2025-11-09", "2025-11-10", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-15", "2025-11-16", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-21", "2025-11-22", "2025-11-23", "2025-11-24", "2025-11-25", "2025-11-26", "2025-11-27", "2025-11-28", "2025-11-29", "2025-11-30", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-06", "2025-12-07", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-13", "2025-12-14", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-27", "2025-12-28", "2025-12-29", "2025-12-30", "2025-12-31"], "valores": [874, 1153, 1073, 1280, 1030, 455, 369, 511, 602, 678, 522, 635, 566, 492, 673, 597, 593, 600, 679, 717, 681, 1431, 893, 674, 628, 654, 564, 505, 659, 773, 733, 885, 1063, 740, 553, 723, 1098, 999, 1074, 1049, 540, 499, 627, 777, 709, 936, 533, 615, 531, 592, 711, 857, 756, 1022, 599, 546, 568, 678, 616, 624, 764, 574, 556, 564, 546, 1273, 529, 630, 590, 519, 665, 627, 692, 621, 583, 546, 538, 764, 774, 713, 816, 920, 892, 874, 934, 756, 905, 771, 824, 721, 807, 998, 782, 729, 744, 872, 751, 738, 772, 881, 801, 741, 727, 761, 695, 863, 1076, 1025, 1005, 839, 984, 1104, 1370, 1122, 929, 704, 910, 1027, 829, 921, 866, 755], "mm7": [874.0, 1013.5, 1033.3, 1095.0, 1082.0, 977.5, 890.6, 838.7, 760.0, 703.6, 595.3, 538.9, 554.7, 572.3, 595.4, 594.7, 582.6, 593.7, 600.0, 621.6, 648.6, 756.9, 799.1, 810.7, 814.7, 811.1, 789.3, 764.1, 653.9, 636.7, 645.1, 681.9, 740.3, 765.4, 772.3, 781.4, 827.9, 865.9, 892.9, 890.9, 862.3, 854.6, 840.9, 795.0, 753.6, 733.9, 660.1, 670.9, 675.4, 670.4, 661.0, 682.1, 656.4, 726.3, 724.0, 726.1, 722.7, 718.0, 683.6, 664.7, 627.9, 624.3, 625.7, 625.1, 606.3, 700.1, 686.6, 667.4, 669.7, 664.4, 678.9, 690.4, 607.4, 620.6, 613.9, 607.6, 610.3, 624.4, 645.4, 648.4, 676.3, 724.4, 773.9, 821.9, 846.1, 843.6, 871.0, 864.6, 850.9, 826.4, 816.9, 826.0, 829.7, 804.6, 800.7, 807.6, 811.9, 802.0, 769.7, 783.9, 794.1, 793.7, 773.0, 774.4, 768.3, 781.3, 809.1, 841.1, 878.9, 894.9, 926.7, 985.1, 1057.6, 1064.1, 1050.4, 1007.4, 1017.6, 1023.7, 984.4, 920.3, 883.7, 858.9]}, "P2": {"datas": ["2025-09-01", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-05", "2025-09-06", "2025-09-07", "2025-09-08", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-12", "2025-09-13", "2025-09-14", "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19", "2025-09-20", "2025-09-21", "2025-09-22", "2025-09-23", "2025-09-24", "2025-09-25", "2025-09-26", "2025-09-27", "2025-09-28", "2025-09-29", "2025-09-30", "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-10-10", "2025-10-11", "2025-10-12", "2025-10-13", "2025-10-14", "2025-10-15", "2025-10-16", "2025-10-17", "2025-10-18", "2025-10-19", "2025-10-20", "2025-10-21", "2025-10-22", "2025-10-23", "2025-10-24", "2025-10-25", "2025-10-26", "2025-10-27", "2025-10-28", "2025-10-29", "2025-10-30", "2025-10-31", "2025-11-01", "2025-11-02", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-07", "2025-11-08", "2025-11-09", "2025-11-10", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-15", "2025-11-16", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-21", "2025-11-22", "2025-11-23", "2025-11-24", "2025-11-25", "2025-11-26", "2025-11-27", "2025-11-28", "2025-11-29", "2025-11-30", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-06", "2025-12-07", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-13", "2025-12-14", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-27", "2025-12-28", "2025-12-29", "2025-12-30", "2025-12-31"], "valores": [39, 296, 41, 187, 56, 42, 34, 55, 57, 79, 42, 58, 23, 21, 96, 42, 52, 66, 70, 73, 46, 85, 250, 180, 66, 30, 22, 20, 39, 62, 47, 110, 109, 37, 13, 27, 272, 67, 93, 140, 12, 18, 72, 100, 117, 386, 50, 42, 31, 73, 77, 143, 130, 209, 24, 31, 48, 68, 35, 43, 79, 58, 44, 84, 69, 684, 58, 93, 50, 35, 64, 64, 107, 67, 58, 47, 23, 138, 89, 52, 243, 246, 148, 55, 112, 48, 85, 56, 62, 39, 91, 198, 67, 70, 45, 47, 22, 54, 74, 78, 73, 46, 45, 72, 54, 175, 54, 46, 101, 34, 64, 32, 181, 83, 35, 20, 34, 53, 46, 57, 29, 15], "mm7": [39.0, 167.5, 125.3, 140.8, 123.8, 110.2, 99.3, 101.6, 67.4, 72.9, 52.1, 52.4, 49.7, 47.9, 53.7, 51.6, 47.7, 51.1, 52.9, 60.0, 63.6, 62.0, 91.7, 110.0, 110.0, 104.3, 97.0, 93.3, 86.7, 59.9, 40.9, 47.1, 58.4, 60.6, 59.6, 57.9, 87.9, 90.7, 88.3, 92.7, 89.1, 89.9, 96.3, 71.7, 78.9, 120.7, 107.9, 112.1, 114.0, 114.1, 110.9, 114.6, 78.0, 100.7, 98.1, 98.1, 94.6, 93.3, 77.9, 65.4, 46.9, 51.7, 53.6, 58.7, 58.9, 151.6, 153.7, 155.7, 154.6, 153.3, 150.4, 149.7, 67.3, 68.6, 63.6, 63.1, 61.4, 72.0, 75.6, 67.7, 92.9, 119.7, 134.1, 138.7, 135.0, 129.1, 133.9, 107.1, 80.9, 65.3, 70.4, 82.7, 85.4, 83.3, 81.7, 79.6, 77.1, 71.9, 54.1, 55.7, 56.1, 56.3, 56.0, 63.1, 63.1, 77.6, 74.1, 70.3, 78.1, 76.6, 75.4, 72.3, 73.1, 77.3, 75.7, 64.1, 64.1, 62.6, 64.6, 46.9, 39.1, 36.3]}, "P3": {"datas": ["2025-09-01", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-05", "2025-09-06", "2025-09-07", "2025-09-08", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-12", "2025-09-13", "2025-09-14", "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19", "2025-09-20", "2025-09-21", "2025-09-22", "2025-09-23", "2025-09-24", "2025-09-25", "2025-09-26", "2025-09-27", "2025-09-28", "2025-09-29", "2025-09-30", "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-10-10", "2025-10-11", "2025-10-12", "2025-10-13", "2025-10-14", "2025-10-15", "2025-10-16", "2025-10-17", "2025-10-18", "2025-10-19", "2025-10-20", "2025-10-21", "2025-10-22", "2025-10-23", "2025-10-24", "2025-10-25", "2025-10-26", "2025-10-27", "2025-10-28", "2025-10-29", "2025-10-30", "2025-10-31", "2025-11-01", "2025-11-02", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-07", "2025-11-08", "2025-11-09", "2025-11-10", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-15", "2025-11-16", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-21", "2025-11-22", "2025-11-23", "2025-11-24", "2025-11-25", "2025-11-26", "2025-11-27", "2025-11-28", "2025-11-29", "2025-11-30", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-06", "2025-12-07", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-13", "2025-12-14", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-27", "2025-12-28", "2025-12-29", "2025-12-30", "2025-12-31"], "valores": [125, 171, 114, 151, 149, 63, 62, 167, 154, 276, 174, 259, 110, 72, 198, 174, 187, 165, 164, 168, 105, 849, 240, 182, 155, 243, 109, 72, 160, 191, 141, 223, 323, 130, 103, 236, 162, 204, 174, 219, 98, 72, 100, 137, 153, 149, 121, 99, 101, 129, 190, 182, 182, 299, 74, 123, 120, 181, 185, 186, 298, 99, 95, 119, 133, 225, 140, 165, 128, 69, 209, 131, 206, 182, 105, 71, 69, 104, 111, 87, 56, 155, 212, 193, 269, 203, 282, 188, 237, 124, 100, 267, 220, 206, 188, 252, 130, 111, 170, 223, 178, 116, 141, 193, 173, 278, 356, 243, 300, 358, 339, 434, 624, 565, 516, 379, 420, 502, 391, 515, 468, 372], "mm7": [125.0, 148.0, 136.7, 140.2, 142.0, 128.8, 119.3, 125.3, 122.9, 146.0, 149.3, 165.0, 171.7, 173.1, 177.6, 180.4, 167.7, 166.4, 152.9, 161.1, 165.9, 258.9, 268.3, 267.6, 266.1, 277.4, 269.0, 264.3, 165.9, 158.9, 153.0, 162.7, 174.1, 177.1, 181.6, 192.4, 188.3, 197.3, 190.3, 175.4, 170.9, 166.4, 147.0, 143.4, 136.1, 132.6, 118.6, 118.7, 122.9, 127.0, 134.6, 138.7, 143.4, 168.9, 165.3, 168.4, 167.1, 165.9, 166.3, 166.9, 166.7, 170.3, 166.3, 166.1, 159.3, 165.0, 158.4, 139.4, 143.6, 139.9, 152.7, 152.4, 149.7, 155.7, 147.1, 139.0, 139.0, 124.0, 121.1, 104.1, 86.1, 93.3, 113.4, 131.1, 154.7, 167.9, 195.7, 214.6, 226.3, 213.7, 200.4, 200.1, 202.6, 191.7, 191.7, 193.9, 194.7, 196.3, 182.4, 182.9, 178.9, 168.6, 152.7, 161.7, 170.6, 186.0, 205.0, 214.3, 240.6, 271.6, 292.4, 329.7, 379.1, 409.0, 448.0, 459.3, 468.1, 491.4, 485.3, 469.7, 455.9, 435.3]}}, "diaSemana": {"ALL": [806.1, 817.3, 819.7, 778.6, 807.9, 684.8, 637.4], "P2": [89.8, 100.3, 107.1, 103.5, 83.5, 48.7, 38.1], "P3": [257.7, 222.8, 218.8, 182.8, 229.9, 155.8, 137.9]}, "dimensoes": {"assigned_group": {"label": "Grupo designado", "total": 17, "concentracao": 1, "pareto": [{"nome": "Team14", "share": 87.47, "cum": 87.47, "inc": 81717}, {"nome": "Team05", "share": 4.19, "cum": 91.66, "inc": 3910}, {"nome": "Team11", "share": 2.57, "cum": 94.22, "inc": 2398}, {"nome": "Team12", "share": 1.6, "cum": 95.82, "inc": 1494}, {"nome": "Team09", "share": 1.23, "cum": 97.05, "inc": 1152}, {"nome": "Team10", "share": 1.12, "cum": 98.17, "inc": 1044}, {"nome": "Team03", "share": 0.81, "cum": 98.98, "inc": 759}, {"nome": "Team02", "share": 0.28, "cum": 99.27, "inc": 264}, {"nome": "Team17", "share": 0.26, "cum": 99.53, "inc": 243}, {"nome": "Team01", "share": 0.12, "cum": 99.65, "inc": 116}, {"nome": "Team16", "share": 0.12, "cum": 99.77, "inc": 112}, {"nome": "Team07", "share": 0.09, "cum": 99.86, "inc": 86}], "violacao": [{"nome": "Team07", "taxa": 11.27, "ent": 71}, {"nome": "Team02", "taxa": 3.33, "ent": 60}, {"nome": "Team09", "taxa": 2.22, "ent": 586}, {"nome": "Team03", "taxa": 1.82, "ent": 110}, {"nome": "Team12", "taxa": 1.67, "ent": 120}, {"nome": "Team11", "taxa": 1.34, "ent": 2092}, {"nome": "Team17", "taxa": 0.65, "ent": 154}, {"nome": "Team05", "taxa": 0.31, "ent": 983}, {"nome": "Team14", "taxa": 0.03, "ent": 3160}, {"nome": "Team10", "taxa": 0.0, "ent": 67}]}, "product": {"label": "Produto", "total": 44, "concentracao": 1, "pareto": [{"nome": "Sem informação", "share": 82.22, "cum": 82.22, "inc": 76808}, {"nome": "lhco", "share": 5.16, "cum": 87.37, "inc": 4818}, {"nome": "lsin", "share": 3.62, "cum": 90.99, "inc": 3384}, {"nome": "lcem", "share": 1.98, "cum": 92.98, "inc": 1851}, {"nome": "lhvp", "share": 1.96, "cum": 94.93, "inc": 1827}, {"nome": "lrev", "share": 1.56, "cum": 96.49, "inc": 1457}, {"nome": "lcho", "share": 0.61, "cum": 97.1, "inc": 570}, {"nome": "lrel", "share": 0.42, "cum": 97.52, "inc": 390}, {"nome": "lsaa", "share": 0.39, "cum": 97.9, "inc": 360}, {"nome": "lcsi", "share": 0.29, "cum": 98.2, "inc": 275}, {"nome": "lemn", "share": 0.25, "cum": 98.45, "inc": 231}, {"nome": "lvps", "share": 0.23, "cum": 98.67, "inc": 211}], "violacao": [{"nome": "lexc", "taxa": 12.5, "ent": 64}, {"nome": "lrdo", "taxa": 2.94, "ent": 136}, {"nome": "lsaa", "taxa": 2.91, "ent": 172}, {"nome": "lssl", "taxa": 2.9, "ent": 138}, {"nome": "lsmt", "taxa": 2.56, "ent": 39}, {"nome": "lemg", "taxa": 1.94, "ent": 103}, {"nome": "lsin", "taxa": 1.67, "ent": 1135}, {"nome": "lcsp", "taxa": 1.56, "ent": 64}, {"nome": "lgoa", "taxa": 1.06, "ent": 94}, {"nome": "lvps", "taxa": 0.74, "ent": 136}]}, "category": {"label": "Categoria", "total": 114, "concentracao": 1, "pareto": [{"nome": "Sem informação", "share": 82.13, "cum": 82.13, "inc": 76724}, {"nome": "cat71", "share": 3.51, "cum": 85.64, "inc": 3280}, {"nome": "cat77", "share": 2.5, "cum": 88.14, "inc": 2339}, {"nome": "cat76", "share": 1.63, "cum": 89.77, "inc": 1521}, {"nome": "cat73", "share": 1.39, "cum": 91.16, "inc": 1296}, {"nome": "cat85", "share": 1.13, "cum": 92.29, "inc": 1059}, {"nome": "cat31", "share": 0.79, "cum": 93.08, "inc": 737}, {"nome": "cat137", "share": 0.64, "cum": 93.72, "inc": 600}, {"nome": "cat36", "share": 0.6, "cum": 94.32, "inc": 560}, {"nome": "cat141", "share": 0.56, "cum": 94.88, "inc": 523}, {"nome": "cat18", "share": 0.4, "cum": 95.28, "inc": 371}, {"nome": "cat138", "share": 0.38, "cum": 95.66, "inc": 357}], "violacao": [{"nome": "cat48", "taxa": 20.0, "ent": 30}, {"nome": "cat88", "taxa": 9.68, "ent": 31}, {"nome": "cat102", "taxa": 3.39, "ent": 118}, {"nome": "cat111", "taxa": 3.03, "ent": 33}, {"nome": "cat24", "taxa": 2.9, "ent": 69}, {"nome": "cat36", "taxa": 2.67, "ent": 75}, {"nome": "cat112", "taxa": 2.6, "ent": 77}, {"nome": "cat31", "taxa": 2.5, "ent": 680}, {"nome": "cat74", "taxa": 1.3, "ent": 77}, {"nome": "cat35", "taxa": 1.2, "ent": 83}]}, "configuration_item": {"label": "Item de configuração", "total": 6393, "concentracao": 497, "pareto": [{"nome": "IC00014", "share": 6.5, "cum": 6.5, "inc": 6069}, {"nome": "IC00019", "share": 4.75, "cum": 11.24, "inc": 4435}, {"nome": "IC00008", "share": 4.49, "cum": 15.73, "inc": 4194}, {"nome": "IC00002", "share": 3.34, "cum": 19.07, "inc": 3119}, {"nome": "Sem informação", "share": 1.78, "cum": 20.85, "inc": 1663}, {"nome": "IC00325", "share": 1.71, "cum": 22.56, "inc": 1600}, {"nome": "IC00004", "share": 1.23, "cum": 23.79, "inc": 1149}, {"nome": "IC02448", "share": 1.04, "cum": 24.84, "inc": 976}, {"nome": "IC02447", "share": 1.04, "cum": 25.88, "inc": 974}, {"nome": "IC02761", "share": 1.04, "cum": 26.92, "inc": 967}, {"nome": "IC00367", "share": 1.0, "cum": 27.91, "inc": 933}, {"nome": "IC00511", "share": 0.94, "cum": 28.85, "inc": 878}], "violacao": [{"nome": "IC00840", "taxa": 42.42, "ent": 33}, {"nome": "IC00251", "taxa": 3.53, "ent": 85}, {"nome": "IC00655", "taxa": 3.03, "ent": 33}, {"nome": "IC01012", "taxa": 2.86, "ent": 70}, {"nome": "IC00733", "taxa": 2.0, "ent": 50}, {"nome": "IC00737", "taxa": 1.45, "ent": 69}, {"nome": "IC00677", "taxa": 1.41, "ent": 71}, {"nome": "IC00629", "taxa": 1.25, "ent": 80}, {"nome": "IC00349", "taxa": 0.51, "ent": 586}, {"nome": "Sem informação", "taxa": 0.0, "ent": 36}]}}, "atendimento": {"medianaH": 0.16194444444444445, "p90H": 2.0435555555555567, "aderenciaSla": 99.18742506993473, "percMonitoramento": 94.7550389090481}, "heatmap": [[597, 540, 392, 609, 753, 646, 627, 447, 554, 693, 916, 706, 608, 608, 598, 657, 631, 617, 513, 466, 486, 511, 637, 697], [657, 538, 459, 685, 558, 426, 622, 436, 590, 1007, 982, 651, 684, 608, 667, 689, 624, 748, 595, 514, 522, 465, 527, 458], [595, 550, 459, 604, 518, 414, 820, 984, 606, 729, 717, 728, 636, 491, 609, 709, 711, 577, 599, 557, 561, 598, 503, 479], [584, 496, 467, 602, 488, 398, 533, 378, 486, 737, 554, 539, 565, 476, 588, 663, 584, 787, 795, 479, 525, 497, 484, 531], [620, 494, 425, 541, 495, 451, 551, 565, 644, 707, 514, 886, 603, 666, 689, 656, 558, 508, 554, 480, 530, 516, 529, 552], [715, 595, 463, 657, 681, 473, 535, 405, 393, 419, 349, 369, 366, 351, 423, 336, 353, 344, 549, 427, 482, 756, 597, 604], [611, 602, 542, 662, 557, 437, 608, 430, 478, 398, 376, 395, 358, 359, 362, 351, 345, 381, 395, 428, 423, 398, 448, 492]], "regimes": [{"nome": "Até dez/2024", "incidentes": 732, "mediaDiaria": 1.0, "medianaH": 4186.91, "percMon": 26.4}, {"nome": "Jan–ago/2025", "incidentes": 28388, "mediaDiaria": 116.8, "medianaH": 1.55, "percMon": 54.9}, {"nome": "Set/2025 em diante", "incidentes": 93423, "mediaDiaria": 765.8, "medianaH": 0.16, "percMon": 94.8}], "qualidade": {"ingestao": {"generated_at_utc": "2026-08-22T15:16:31.311456+00:00", "quality_status": "passed_with_warnings", "row_count": 122543, "opened_at_min": "2023-01-02T20:19:58", "opened_at_max": "2025-12-31T23:45:18", "blocking_checks": {"mandatory_nulls": 0, "duplicate_incident_ids": 0, "invalid_incident_ids": 0, "closed_before_opened": 0, "negative_duration": 0}, "warning_checks": {"resolved_after_closed": 32, "duration_mismatch": 475, "subcategory_without_category": 2, "entered_kpi_rule_mismatch": 151, "kpi_breached_rule_mismatch": 3550}, "null_percentage": {"incident_id": 0.0, "priority_raw": 0.0, "product": 63.598, "category": 63.423, "subcategory": 63.423, "assigned_group": 0.0, "configuration_item": 1.453, "opened_at": 0.0, "resolved_at": 67.162, "closed_at": 0.0, "duration_seconds": 0.0, "closure_code": 66.702, "short_description": 0.0, "solution_type": 87.515, "opened_by": 0.0, "parent_incident_id": 87.656, "status": 0.0, "entered_kpi_raw": 0.0, "kpi_breached_raw": 0.0}, "priority_distribution": {"4 - Baixa": 64828, "3 - Média": 41732, "2 - Alta": 15649, "5 - Muito Baixa": 333, "1 - Crítica": 1}, "status_distribution": {"Sem Intervenção": 80373, "Encerrado Automaticamente": 26830, "Encerrado": 15339, "Aguardando Problema": 1}, "entered_kpi_distribution": {"NAO": 96943, "SIM": 25600}, "kpi_breached_distribution": {"N/A": 96943, "NAO": 25352, "SIM": 248}, "monthly_volume": {"2023-01": 12, "2023-02": 7, "2023-03": 8, "2023-04": 6, "2023-05": 7, "2023-06": 2, "2023-07": 6, "2023-08": 6, "2023-09": 14, "2023-10": 21, "2023-11": 13, "2023-12": 8, "2024-01": 7, "2024-02": 12, "2024-03": 32, "2024-04": 26, "2024-05": 16, "2024-06": 16, "2024-07": 44, "2024-08": 39, "2024-09": 34, "2024-10": 50, "2024-11": 75, "2024-12": 271, "2025-01": 3714, "2025-02": 3553, "2025-03": 3588, "2025-04": 3202, "2025-05": 3329, "2025-06": 3558, "2025-07": 3448, "2025-08": 3996, "2025-09": 21561, "2025-10": 23017, "2025-11": 21524, "2025-12": 27321}}, "gold": {"generated_at_utc": "2026-08-22T15:16:32.394160+00:00", "quality_status": "passed", "silver_rows_with_valid_opened_at": 122543, "daily_volume_rows": 3285, "daily_breakdown_rows": 130449, "reference_date_min": "2023-01-02T00:00:00", "reference_date_max": "2025-12-31T00:00:00", "checks": {"daily_duplicate_keys": 0, "breakdown_duplicate_keys": 0, "daily_null_values": 0, "breakdown_null_values": 0, "negative_counts": 0, "reconciliation_failed": 0}, "reconciliation": {"ALL": {"source_count": 122543, "gold_count": 122543, "matches": true}, "P2": {"source_count": 15649, "gold_count": 15649, "matches": true}, "P3": {"source_count": 41732, "gold_count": 41732, "matches": true}}}}, "previsoes": {"serie": {"D+1": {"datas": ["2025-09-01", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-05", "2025-09-06", "2025-09-07", "2025-09-08", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-12", "2025-09-13", "2025-09-14", "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19", "2025-09-20", "2025-09-21", "2025-09-22", "2025-09-23", "2025-09-24", "2025-09-25", "2025-09-26", "2025-09-27", "2025-09-28", "2025-09-29", "2025-09-30", "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-10-10", "2025-10-11", "2025-10-12", "2025-10-13", "2025-10-14", "2025-10-15", "2025-10-16", "2025-10-17", "2025-10-18", "2025-10-19", "2025-10-20", "2025-10-21", "2025-10-22", "2025-10-23", "2025-10-24", "2025-10-25", "2025-10-26", "2025-10-27", "2025-10-28", "2025-10-29", "2025-10-30", "2025-10-31", "2025-11-01", "2025-11-02", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-07", "2025-11-08", "2025-11-09", "2025-11-10", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-15", "2025-11-16", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-21", "2025-11-22", "2025-11-23", "2025-11-24", "2025-11-25", "2025-11-26", "2025-11-27", "2025-11-28", "2025-11-29", "2025-11-30", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-06", "2025-12-07", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-13", "2025-12-14", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-27", "2025-12-28", "2025-12-29", "2025-12-30", "2025-12-31", "2026-01-01"], "previsto": [52, 853, 878, 1026, 1115, 964, 390, 350, 472, 571, 612, 481, 568, 552, 456, 596, 575, 550, 577, 600, 644, 628, 765, 695, 520, 588, 634, 539, 493, 637, 730, 703, 836, 977, 697, 545, 712, 838, 945, 999, 863, 534, 490, 573, 695, 614, 581, 504, 582, 508, 555, 670, 710, 661, 827, 590, 516, 558, 638, 592, 602, 672, 548, 536, 524, 517, 624, 468, 539, 519, 495, 629, 606, 530, 563, 536, 527, 526, 605, 733, 679, 579, 682, 727, 799, 819, 715, 769, 718, 768, 705, 727, 800, 758, 692, 718, 808, 697, 677, 732, 830, 724, 687, 670, 670, 640, 707, 1029, 987, 933, 819, 901, 956, 1202, 1060, 808, 687, 860, 918, 787, 901, 859, 752], "realizado": [853, 878, 1026, 1115, 964, 390, 350, 472, 571, 612, 481, 568, 552, 456, 596, 575, 550, 577, 600, 644, 628, 765, 695, 520, 588, 634, 539, 493, 637, 730, 703, 836, 977, 697, 545, 712, 838, 945, 999, 863, 534, 490, 573, 695, 614, 581, 504, 582, 508, 555, 670, 710, 661, 827, 590, 516, 558, 638, 592, 602, 672, 548, 536, 524, 517, 624, 468, 539, 519, 495, 629, 606, 530, 563, 536, 527, 526, 605, 733, 679, 579, 682, 727, 799, 819, 715, 769, 718, 768, 705, 727, 800, 758, 692, 718, 808, 697, 677, 732, 830, 724, 687, 670, 670, 640, 707, 1029, 987, 933, 819, 901, 956, 1202, 1060, 808, 687, 860, 918, 787, 901, 859, 752, null], "inf": [387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 387, 512, 600, 579, 705, 838, 554, 402, 541, 656, 757, 811, 693, 357, 330, 411, 523, 457, 433, 370, 443, 381, 424, 529, 568, 529, 670, 431, 372, 414, 489, 453, 465, 529, 421, 412, 404, 400, 510, 351, 415, 399, 380, 498, 482, 418, 450, 428, 422, 423, 497, 604, 558, 469, 565, 608, 690, 709, 613, 665, 619, 666, 609, 631, 702, 665, 610, 636, 721, 614, 595, 648, 741, 639, 605, 589, 590, 562, 625, 930, 890, 840, 717, 797, 852, 1076, 939, 700, 583, 740, 795, 666, 772, 734, 635], "sup": [621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 621, 801, 906, 875, 1023, 1173, 868, 697, 887, 1027, 1146, 1205, 1055, 685, 635, 729, 867, 775, 738, 650, 738, 649, 697, 819, 857, 800, 1013, 747, 663, 711, 801, 747, 751, 808, 670, 655, 641, 632, 750, 580, 656, 633, 606, 761, 734, 648, 684, 651, 641, 639, 726, 871, 811, 701, 811, 859, 937, 959, 845, 904, 849, 900, 830, 854, 929, 868, 794, 820, 913, 792, 767, 825, 934, 824, 784, 761, 759, 727, 798, 1143, 1097, 1039, 922, 1004, 1062, 1332, 1177, 923, 803, 1014, 1074, 946, 1067, 1017, 900]}, "D+7": {"datas": ["2025-09-01", "2025-09-02", "2025-09-03", "2025-09-04", "2025-09-05", "2025-09-06", "2025-09-07", "2025-09-08", "2025-09-09", "2025-09-10", "2025-09-11", "2025-09-12", "2025-09-13", "2025-09-14", "2025-09-15", "2025-09-16", "2025-09-17", "2025-09-18", "2025-09-19", "2025-09-20", "2025-09-21", "2025-09-22", "2025-09-23", "2025-09-24", "2025-09-25", "2025-09-26", "2025-09-27", "2025-09-28", "2025-09-29", "2025-09-30", "2025-10-01", "2025-10-02", "2025-10-03", "2025-10-04", "2025-10-05", "2025-10-06", "2025-10-07", "2025-10-08", "2025-10-09", "2025-10-10", "2025-10-11", "2025-10-12", "2025-10-13", "2025-10-14", "2025-10-15", "2025-10-16", "2025-10-17", "2025-10-18", "2025-10-19", "2025-10-20", "2025-10-21", "2025-10-22", "2025-10-23", "2025-10-24", "2025-10-25", "2025-10-26", "2025-10-27", "2025-10-28", "2025-10-29", "2025-10-30", "2025-10-31", "2025-11-01", "2025-11-02", "2025-11-03", "2025-11-04", "2025-11-05", "2025-11-06", "2025-11-07", "2025-11-08", "2025-11-09", "2025-11-10", "2025-11-11", "2025-11-12", "2025-11-13", "2025-11-14", "2025-11-15", "2025-11-16", "2025-11-17", "2025-11-18", "2025-11-19", "2025-11-20", "2025-11-21", "2025-11-22", "2025-11-23", "2025-11-24", "2025-11-25", "2025-11-26", "2025-11-27", "2025-11-28", "2025-11-29", "2025-11-30", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-06", "2025-12-07", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-13", "2025-12-14", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-20", "2025-12-21", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-27", "2025-12-28", "2025-12-29", "2025-12-30", "2025-12-31", "2026-01-07"], "previsto": [113, 145, 263, 791, 276, 443, 252, 367, 424, 518, 577, 512, 506, 462, 504, 563, 594, 556, 561, 571, 569, 571, 600, 721, 563, 573, 618, 603, 580, 591, 566, 613, 647, 663, 607, 761, 726, 597, 629, 744, 725, 577, 661, 626, 664, 654, 676, 577, 508, 589, 598, 622, 671, 740, 691, 579, 789, 731, 656, 806, 704, 606, 552, 665, 721, 675, 659, 624, 461, 452, 599, 665, 683, 633, 515, 481, 485, 595, 610, 581, 645, 604, 529, 551, 625, 672, 680, 705, 725, 676, 682, 687, 782, 703, 651, 690, 653, 667, 762, 660, 762, 770, 664, 615, 619, 694, 721, 796, 802, 781, 870, 773, 805, 860, 905, 803, 744, 766, 829, 887, 915, 921, 889], "realizado": [853, 878, 1026, 1115, 964, 390, 350, 472, 571, 612, 481, 568, 552, 456, 596, 575, 550, 577, 600, 644, 628, 765, 695, 520, 588, 634, 539, 493, 637, 730, 703, 836, 977, 697, 545, 712, 838, 945, 999, 863, 534, 490, 573, 695, 614, 581, 504, 582, 508, 555, 670, 710, 661, 827, 590, 516, 558, 638, 592, 602, 672, 548, 536, 524, 517, 624, 468, 539, 519, 495, 629, 606, 530, 563, 536, 527, 526, 605, 733, 679, 579, 682, 727, 799, 819, 715, 769, 718, 768, 705, 727, 800, 758, 692, 718, 808, 697, 677, 732, 830, 724, 687, 670, 670, 640, 707, 1029, 987, 933, 819, 901, 956, 1202, 1060, 808, 687, 860, 918, 787, 901, 859, 752, null], "inf": [497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 497, 511, 491, 539, 574, 592, 543, 692, 658, 536, 566, 674, 657, 495, 562, 532, 569, 562, 583, 478, 418, 495, 505, 529, 577, 643, 598, 486, 682, 618, 551, 692, 556, 478, 439, 549, 553, 490, 476, 439, 303, 297, 421, 478, 495, 453, 353, 325, 328, 422, 435, 412, 469, 437, 374, 385, 451, 494, 504, 528, 548, 508, 517, 525, 612, 546, 502, 539, 495, 511, 598, 511, 587, 614, 520, 479, 486, 561, 593, 675, 648, 637, 727, 646, 648, 690, 732, 642, 591, 646, 711, 769, 814, 821, 790], "sup": [1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1618, 1614, 1499, 1439, 1342, 1231, 1000, 1114, 1062, 894, 977, 1210, 1121, 1085, 1478, 1282, 1193, 1032, 1056, 1077, 843, 945, 953, 981, 1040, 1120, 1050, 922, 1183, 1122, 1022, 1205, 1089, 936, 829, 896, 955, 895, 872, 847, 650, 636, 807, 880, 897, 830, 683, 634, 629, 745, 752, 719, 790, 745, 648, 686, 846, 900, 908, 936, 957, 895, 899, 901, 942, 820, 761, 804, 773, 787, 882, 770, 883, 892, 776, 722, 726, 806, 834, 926, 988, 957, 1047, 932, 994, 1084, 1130, 1010, 938, 959, 1025, 1090, 1121, 1127, 1092]}}, "versao": "volume_v3.2_2026-08-21", "mae": 106.22950819672131, "diasAvaliados": 244, "cartoes": [{"escopo": "ALL", "horizonte": "D+1", "valor": 752, "data": "01/01/2026", "inf": 635, "sup": 900, "modelo": "ultimo"}, {"escopo": "ALL", "horizonte": "D+7", "valor": 889, "data": "07/01/2026", "inf": 790, "sup": 1092, "modelo": "gbr"}, {"escopo": "P2", "horizonte": "D+1", "valor": 29, "data": "01/01/2026", "inf": 16, "sup": 43, "modelo": "ridge"}, {"escopo": "P2", "horizonte": "D+7", "valor": 41, "data": "07/01/2026", "inf": 25, "sup": 60, "modelo": "gbr"}, {"escopo": "P3", "horizonte": "D+1", "valor": 395, "data": "01/01/2026", "inf": 302, "sup": 605, "modelo": "gbr"}, {"escopo": "P3", "horizonte": "D+7", "valor": 297, "data": "07/01/2026", "inf": 207, "sup": 528, "modelo": "gbr"}]}, "risco": {"total": 5120, "scoreMedio": 19.509375, "scoreMax": 37, "scoreMin": 12, "probMedia": 0.009818534226128937, "distribuicao": [{"nivel": "baixo", "n": 4335}, {"nivel": "moderado", "n": 785}, {"nivel": "alto", "n": 0}, {"nivel": "crítico", "n": 0}], "histograma": [{"score": 12, "n": 42}, {"score": 13, "n": 244}, {"score": 14, "n": 310}, {"score": 15, "n": 346}, {"score": 16, "n": 444}, {"score": 17, "n": 586}, {"score": 18, "n": 453}, {"score": 19, "n": 264}, {"score": 20, "n": 119}, {"score": 21, "n": 68}, {"score": 22, "n": 1413}, {"score": 23, "n": 33}, {"score": 24, "n": 13}, {"score": 25, "n": 13}, {"score": 26, "n": 750}, {"score": 27, "n": 5}, {"score": 28, "n": 3}, {"score": 29, "n": 5}, {"score": 30, "n": 2}, {"score": 31, "n": 2}, {"score": 32, "n": 2}, {"score": 34, "n": 1}, {"score": 35, "n": 1}, {"score": 37, "n": 1}], "cortes": {"baixo": 24, "moderado": 49, "alto": 74}, "versao": "risk-ann-v1-20260820", "fila": [{"id": "INC8650448", "score": 37, "nivel": "moderado", "prob": 0.355910743214029, "fatores": "item de configuração: IC00433; dia da semana: 6; categoria: cat71"}, {"id": "INC8649414", "score": 35, "nivel": "moderado", "prob": 0.3140690904524556, "fatores": "item de configuração: IC00508; volume do produto nos 7 dias anteriores: 5; categoria: cat1"}, {"id": "INC8641960", "score": 34, "nivel": "moderado", "prob": 0.16605726815497196, "fatores": "carga da equipe nas 24h anteriores: 125; dia da semana: 6; categoria: cat73"}, {"id": "INC8646934", "score": 32, "nivel": "moderado", "prob": 0.2769047838403594, "fatores": "item de configuração: IC00105; categoria: cat71; volume da categoria nos 7 dias anteriores"}, {"id": "INC8649768", "score": 32, "nivel": "moderado", "prob": 0.2843713195859728, "fatores": "item de configuração: IC00251; hora de abertura: 21; volume do produto nos 7 dias anterior"}, {"id": "INC8646280", "score": 31, "nivel": "moderado", "prob": 0.24101082217135195, "fatores": "item de configuração: IC00683; produto: lvps"}, {"id": "INC8651433", "score": 31, "nivel": "moderado", "prob": 0.2737616601752978, "fatores": "item de configuração: IC00251"}, {"id": "INC8647636", "score": 30, "nivel": "moderado", "prob": 0.2598345142905581, "fatores": "item de configuração: IC00638"}, {"id": "INC8649800", "score": 30, "nivel": "moderado", "prob": 0.2513596347076584, "fatores": "hora de abertura: 22; dia da semana: 5"}, {"id": "INC8645772", "score": 29, "nivel": "moderado", "prob": 0.21219717202266136, "fatores": "item de configuração: IC00638"}, {"id": "INC8646355", "score": 29, "nivel": "moderado", "prob": 0.20704917103649723, "fatores": "categoria: cat103; volume do produto nos 7 dias anteriores: 0; item de configuração: IC006"}, {"id": "INC8648127", "score": 29, "nivel": "moderado", "prob": 0.22641640523127712, "fatores": "item de configuração: IC00620; categoria: cat31"}]}};
+
+/* ---------------- helpers ---------------- */
+const NS = "http://www.w3.org/2000/svg";
+const int = n => Math.round(n).toLocaleString("pt-BR");
+const dec = (n, c = 1) => n.toLocaleString("pt-BR", {minimumFractionDigits: c, maximumFractionDigits: c});
+const pct = (n, c = 1) => dec(n, c) + "%";
+const el = (t, a = {}, p) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; };
+function niceStep(x) {
+  if (x <= 0) return 1;
+  const e = Math.pow(10, Math.floor(Math.log10(x)));
+  const f = x / e;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e;
+}
+const fmtDate = s => { const [y, m, d] = s.split("-"); return `${d}/${m}/${y}`; };
+
+const tip = document.getElementById("tip");
+function showTip(evt, html) {
+  tip.innerHTML = html;
+  tip.style.opacity = 1;
+  const r = tip.getBoundingClientRect();
+  let x = evt.clientX + 14, y = evt.clientY - r.height - 10;
+  if (x + r.width > innerWidth - 8) x = evt.clientX - r.width - 14;
+  if (y < 8) y = evt.clientY + 16;
+  tip.style.left = x + "px"; tip.style.top = y + "px";
+}
+const hideTip = () => { tip.style.opacity = 0; };
+
+function svg(host, h) {
+  host.innerHTML = "";
+  const w = host.clientWidth || 720;
+  const s = el("svg", {class: "chart", viewBox: `0 0 ${w} ${h}`, width: "100%", height: h,
+                       preserveAspectRatio: "none", role: "img"}, host);
+  return {s, w, h};
+}
+
+/* ---------------- linha + média móvel ---------------- */
+function lineChart(host, data) {
+  const {s, w, h} = svg(host, 300);
+  const L = 46, R = 12, T = 14, B = 30;
+  const iw = w - L - R, ih = h - T - B;
+  const raw = Math.max(...data.valores) * 1.06;
+  const step = niceStep(raw / 4);
+  const max = Math.ceil(raw / step) * step;
+  const n = data.valores.length;
+  const X = i => L + (n === 1 ? iw / 2 : i * iw / (n - 1));
+  const Y = v => T + ih - (v / max) * ih;
+
+  for (let v = 0; v <= max + 1e-9; v += step) {
+    const y = Y(v);
+    el("line", {class: "gridline", x1: L, x2: w - R, y1: y, y2: y}, s);
+    const t = el("text", {x: L - 8, y: y + 3, "text-anchor": "end"}, s);
+    t.textContent = int(v);
+  }
+  el("line", {class: "axis", x1: L, x2: w - R, y1: T + ih, y2: T + ih}, s);
+
+  const area = data.valores.map((v, i) => `${X(i)},${Y(v)}`).join(" ");
+  el("polygon", {points: `${L},${T + ih} ${area} ${X(n - 1)},${T + ih}`,
+                 fill: "var(--series)", opacity: ".10"}, s);
+  el("polyline", {points: area, fill: "none", stroke: "var(--series)",
+                  "stroke-width": "1", opacity: ".65"}, s);
+  el("polyline", {points: data.mm7.map((v, i) => `${X(i)},${Y(v)}`).join(" "),
+                  fill: "none", stroke: "var(--brand)", "stroke-width": "2",
+                  "stroke-linejoin": "round", "stroke-linecap": "round"}, s);
+
+  const xStep = Math.max(1, Math.floor(n / 7));
+  for (let i = 0; i < n; i += xStep) {
+    const t = el("text", {x: X(i), y: h - 10, "text-anchor": "middle"}, s);
+    t.textContent = fmtDate(data.datas[i]).slice(0, 5);
+  }
+
+  const cross = el("line", {class: "axis", y1: T, y2: T + ih, opacity: "0",
+                            stroke: "var(--ink-3)", "stroke-dasharray": "3 3"}, s);
+  const dotA = el("circle", {r: 3.5, fill: "var(--brand)", opacity: "0"}, s);
+  const hit = el("rect", {x: L, y: T, width: iw, height: ih, fill: "transparent"}, s);
+
+  hit.addEventListener("pointermove", e => {
+    const bb = s.getBoundingClientRect();
+    const rel = (e.clientX - bb.left) / bb.width * w;
+    let i = Math.round((rel - L) / (iw / Math.max(1, n - 1)));
+    i = Math.max(0, Math.min(n - 1, i));
+    cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("opacity", ".7");
+    dotA.setAttribute("cx", X(i)); dotA.setAttribute("cy", Y(data.mm7[i])); dotA.setAttribute("opacity", "1");
+    showTip(e, `<b>${fmtDate(data.datas[i])}</b><br><i>dia</i> ${int(data.valores[i])}<br><i>média 7d</i> ${dec(data.mm7[i], 0)}`);
+  });
+  hit.addEventListener("pointerleave", () => {
+    hideTip(); cross.setAttribute("opacity", "0"); dotA.setAttribute("opacity", "0");
+  });
+}
+
+/* ---------------- barras verticais ---------------- */
+function barChart(host, labels, values, colors, unit) {
+  const {s, w, h} = svg(host, 250);
+  const L = 8, R = 8, T = 26, B = 28;
+  const iw = w - L - R, ih = h - T - B;
+  const max = Math.max(...values) * 1.16;
+  const bw = iw / values.length;
+
+  values.forEach((v, i) => {
+    const bh = (v / max) * ih;
+    const x = L + i * bw + bw * 0.18, bwid = bw * 0.64;
+    const g = el("g", {}, s);
+    el("rect", {x, y: T + ih - bh, width: bwid, height: bh, rx: 3,
+                fill: colors[i] || "var(--series)"}, g);
+    const t = el("text", {class: "vlabel", x: x + bwid / 2, y: T + ih - bh - 8, "text-anchor": "middle"}, g);
+    t.textContent = unit === "dec" ? dec(v, 0) : int(v);
+    const lb = el("text", {x: x + bwid / 2, y: h - 9, "text-anchor": "middle"}, g);
+    lb.textContent = labels[i];
+    const hit = el("rect", {x: L + i * bw, y: T, width: bw, height: ih, fill: "transparent"}, g);
+    hit.addEventListener("pointermove", e => showTip(e, `<b>${labels[i]}</b><br>${unit === "dec" ? dec(v, 1) + " por dia" : int(v) + " incidentes"}`));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+}
+
+/* ---------------- pareto ---------------- */
+function paretoChart(host, items) {
+  const {s, w, h} = svg(host, 320);
+  const L = 44, R = 12, T = 14, B = 44;
+  const iw = w - L - R, ih = h - T - B;
+  const Y = v => T + ih - (v / 100) * ih;
+  const bw = iw / items.length;
+
+  for (let v = 0; v <= 100; v += 20) {
+    el("line", {class: "gridline", x1: L, x2: w - R, y1: Y(v), y2: Y(v)}, s);
+    const t = el("text", {x: L - 8, y: Y(v) + 3, "text-anchor": "end"}, s);
+    t.textContent = v + "%";
+  }
+  el("line", {class: "axis", x1: L, x2: w - R, y1: T + ih, y2: T + ih}, s);
+
+  items.forEach((d, i) => {
+    const bh = (d.share / 100) * ih;
+    const x = L + i * bw + bw * 0.22;
+    el("rect", {x, y: T + ih - bh, width: bw * 0.56, height: Math.max(bh, 1.5), rx: 3, fill: "var(--series)"}, s);
+    const lb = el("text", {x: L + i * bw + bw / 2, y: h - 24, "text-anchor": "middle"}, s);
+    lb.textContent = d.nome.length > 11 ? d.nome.slice(0, 10) + "…" : d.nome;
+  });
+
+  el("polyline", {points: items.map((d, i) => `${L + i * bw + bw / 2},${Y(d.cum)}`).join(" "),
+                  fill: "none", stroke: "var(--brand)", "stroke-width": "2", "stroke-linejoin": "round"}, s);
+  items.forEach((d, i) => {
+    el("circle", {cx: L + i * bw + bw / 2, cy: Y(d.cum), r: 3.5, fill: "var(--brand)",
+                  stroke: "var(--panel)", "stroke-width": "2"}, s);
+    const hit = el("rect", {x: L + i * bw, y: T, width: bw, height: ih, fill: "transparent"}, s);
+    hit.addEventListener("pointermove", e => showTip(e,
+      `<b>${d.nome}</b><br><i>incidentes</i> ${int(d.inc)}<br><i>participação</i> ${pct(d.share)}<br><i>acumulado</i> ${pct(d.cum)}`));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+}
+
+/* ---------------- barras horizontais ---------------- */
+function hbarChart(host, items) {
+  const rowH = 26, T = 8, B = 22, L = 76, R = 52;
+  const {s, w, h} = svg(host, T + B + items.length * rowH);
+  const iw = w - L - R;
+  const max = Math.max(...items.map(d => d.taxa)) * 1.12 || 1;
+
+  items.forEach((d, i) => {
+    const y = T + i * rowH;
+    const bw = (d.taxa / max) * iw;
+    const lb = el("text", {x: L - 10, y: y + rowH / 2 + 3, "text-anchor": "end"}, s);
+    lb.textContent = d.nome.length > 12 ? d.nome.slice(0, 11) + "…" : d.nome;
+    el("rect", {x: L, y: y + 5, width: Math.max(bw, 1.5), height: rowH - 12, rx: 3, fill: "var(--critical)"}, s);
+    const vl = el("text", {class: "vlabel", x: L + Math.max(bw, 1.5) + 8, y: y + rowH / 2 + 4}, s);
+    vl.textContent = pct(d.taxa, 2);
+    const hit = el("rect", {x: 0, y, width: w, height: rowH, fill: "transparent"}, s);
+    hit.addEventListener("pointermove", e => showTip(e,
+      `<b>${d.nome}</b><br><i>taxa de violação</i> ${pct(d.taxa, 2)}<br><i>no KPI</i> ${int(d.ent)}`));
+    hit.addEventListener("pointerleave", hideTip);
+  });
+}
+
+/* ---------------- heatmap ---------------- */
+const DIAS = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+function heatmap(host, matrix) {
+  const L = 58, T = 8, B = 40, R = 6;
+  const {s, w, h} = svg(host, T + B + 7 * 26);
+  const iw = w - L - R, cw = iw / 24, ch = 26;
+  const flat = matrix.flat();
+  const max = Math.max(...flat), min = Math.min(...flat);
+  const span = Math.max(max - min, 1);
+  const ramp = [[29,28,35],[74,18,24],[140,17,25],[196,18,29],[242,67,79]];
+  const color = v => {
+    const t = Math.max(0, Math.min(1, (v - min) / span)) * (ramp.length - 1);
+    const i = Math.min(ramp.length - 2, Math.floor(t)), f = t - i;
+    const c = ramp[i].map((a, j) => Math.round(a + (ramp[i + 1][j] - a) * f));
+    return `rgb(${c[0]},${c[1]},${c[2]})`;
+  };
+
+  matrix.forEach((row, d) => {
+    const lb = el("text", {x: L - 10, y: T + d * ch + ch / 2 + 3, "text-anchor": "end"}, s);
+    lb.textContent = DIAS[d].slice(0, 3);
+    row.forEach((v, hh) => {
+      const r = el("rect", {x: L + hh * cw + 1, y: T + d * ch + 2, width: cw - 2, height: ch - 4,
+                            rx: 2, fill: color(v)}, s);
+      r.addEventListener("pointermove", e => showTip(e,
+        `<b>${DIAS[d]}, ${String(hh).padStart(2, "0")}h</b><br>${int(v)} incidentes`));
+      r.addEventListener("pointerleave", hideTip);
+    });
+  });
+  for (let hh = 0; hh < 24; hh += 3) {
+    const t = el("text", {x: L + hh * cw + cw / 2, y: T + 7 * ch + 16, "text-anchor": "middle"}, s);
+    t.textContent = String(hh).padStart(2, "0") + "h";
+  }
+
+  const ly = T + 7 * ch + 32, lw = 96;
+  const gid = "hmgrad";
+  const defs = el("defs", {}, s);
+  const g = el("linearGradient", {id: gid, x1: "0", x2: "1"}, defs);
+  ramp.forEach((c, i) => el("stop", {offset: i / (ramp.length - 1), "stop-color": `rgb(${c[0]},${c[1]},${c[2]})`}, g));
+  const t0 = el("text", {x: L, y: ly + 4, "text-anchor": "start"}, s);
+  t0.textContent = int(min);
+  el("rect", {x: L + 34, y: ly - 5, width: lw, height: 7, rx: 2, fill: `url(#${gid})`}, s);
+  const t1 = el("text", {x: L + 34 + lw + 8, y: ly + 4}, s);
+  t1.textContent = int(max) + " incidentes";
+}
+
+/* ---------------- montagem ---------------- */
+function kpi(label, value, opts = {}) {
+  const cls = ["kpi", opts.lead ? "lead" : ""].join(" ");
+  const vcls = ["kpi-value", opts.alert ? "alert" : ""].join(" ");
+  const unit = opts.unit ? `<span class="kpi-unit">${opts.unit}</span>` : "";
+  const foot = opts.foot ? `<div class="kpi-foot">${opts.foot}</div>` : "";
+  return `<div class="${cls}"><div class="kpi-label">${label}</div><div class="${vcls}">${value}${unit}</div>${foot}</div>`;
+}
+function delta(cur, prev, suffix = "vs anterior") {
+  if (!prev) return "sem base de comparação";
+  const v = 100 * (cur - prev) / prev;
+  return `<span class="${v >= 0 ? "up" : "down"}">${v >= 0 ? "↑" : "↓"} ${dec(Math.abs(v))}%</span> ${suffix}`;
+}
+
+const k = D.kpis, r = D.recorte, a = D.atendimento;
+
+document.getElementById("metaRecorte").textContent = `recorte ${r.inicio} — ${r.fim} · ${r.dias} dias`;
+document.getElementById("metaBase").textContent = `base ${r.baseInicio} — ${r.baseFim}`;
+document.getElementById("railFoot").innerHTML =
+  `base ${r.baseInicio}<br>${r.baseFim}<br><br>${int(122543)} incidentes<br>pipeline v0.4`;
+
+document.getElementById("kpiStrip").innerHTML =
+  kpi("Incidentes", int(k.incidentes), {lead: true, foot: delta(k.incidentes, k.incidentesAnterior)}) +
+  kpi("Média diária", int(k.mediaDiaria), {foot: "incidentes por dia"}) +
+  kpi("P2 — Alta", int(k.p2), {foot: delta(k.p2, k.p2Anterior)}) +
+  kpi("KPI violado", int(k.violados), {alert: k.violados > 0, foot: `de ${int(k.entraramKpi)} no KPI`}) +
+  kpi("Taxa de violação", dec(k.taxaViolacao, 2), {unit: "%", alert: k.taxaViolacao > 1,
+      foot: `<span class="${k.taxaViolacao >= k.taxaViolacaoAnterior ? "up" : "down"}">${(k.taxaViolacao - k.taxaViolacaoAnterior >= 0 ? "+" : "−") + dec(Math.abs(k.taxaViolacao - k.taxaViolacaoAnterior), 2)} p.p.</span> vs anterior`});
+
+document.getElementById("kpiOperacao").innerHTML =
+  kpi("Duração mediana", a.medianaH < 1 ? dec(a.medianaH * 60, 0) : dec(a.medianaH), {lead: true, unit: a.medianaH < 1 ? " min" : " h", foot: "metade resolvida até aqui"}) +
+  kpi("Duração P90", a.p90H < 1 ? dec(a.p90H * 60, 0) : dec(a.p90H), {unit: a.p90H < 1 ? " min" : " h", foot: "90% resolvidos até aqui"}) +
+  kpi("Aderência a SLA", dec(a.aderenciaSla, 2), {unit: "%", foot: "entre os que entraram no KPI"}) +
+  kpi("Aberto por monitoramento", dec(a.percMonitoramento, 1), {unit: "%", foot: "restante é abertura manual"});
+
+const tabRegimes = document.getElementById("tabRegimes");
+tabRegimes.innerHTML =
+  `<thead><tr><th>Patamar</th><th style="text-align:right">Incidentes</th><th style="text-align:right">Média diária</th><th style="text-align:right">Duração mediana</th><th style="text-align:right">% monitoramento</th></tr></thead><tbody>` +
+  D.regimes.map(g => `<tr><td class="name">${g.nome}</td><td class="num">${int(g.incidentes)}</td><td class="num">${dec(g.mediaDiaria)}</td><td class="num">${g.medianaH >= 1 ? dec(g.medianaH) + " h" : dec(g.medianaH * 60, 0) + " min"}</td><td class="num">${dec(g.percMon)}%</td></tr>`).join("") +
+  `</tbody>`;
+
+/* escopo */
+let scope = "ALL";
+function renderGeral() {
+  lineChart(document.getElementById("chartSerie"), D.serie[scope]);
+  barChart(document.getElementById("chartComposicao"),
+    ["P2 — Alta", "P3 — Média", "Demais"],
+    [k.p2, k.p3, k.demais],
+    ["#f5803e", "#f2b705", "#4a9fe8"]);
+  barChart(document.getElementById("chartDiaSemana"),
+    DIAS.map(d => d.slice(0, 3)), D.diaSemana[scope],
+    DIAS.map(() => "var(--series)"), "dec");
+}
+document.querySelectorAll("#scopeSeg button").forEach(b => {
+  b.addEventListener("click", () => {
+    scope = b.dataset.scope;
+    document.querySelectorAll("#scopeSeg button").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+    renderGeral();
+  });
+});
+
+/* dimensões */
+const dimSeg = document.getElementById("dimSeg");
+let dimKey = "assigned_group";
+Object.entries(D.dimensoes).forEach(([key, d]) => {
+  const b = document.createElement("button");
+  b.textContent = d.label; b.setAttribute("aria-pressed", String(key === dimKey));
+  b.addEventListener("click", () => {
+    dimKey = key;
+    [...dimSeg.children].forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+    renderOperacao();
+  });
+  dimSeg.appendChild(b);
+});
+function renderOperacao() {
+  const d = D.dimensoes[dimKey];
+  paretoChart(document.getElementById("chartPareto"), d.pareto);
+  const um = d.concentracao === 1;
+  document.getElementById("notaConcentracao").textContent =
+    `${int(d.concentracao)} ${um ? d.label.toLowerCase() : "valores de " + d.label.toLowerCase()} ${um ? "concentra" : "concentram"} 80% dos incidentes, de ${int(d.total)} no total · participação e acumulado na mesma escala percentual, sem eixo secundário`;
+  hbarChart(document.getElementById("chartViolacao"), d.violacao);
+  heatmap(document.getElementById("chartHeatmap"), D.heatmap);
+}
+
+/* qualidade */
+const LBL = {
+  mandatory_nulls: "Nulos em campos obrigatórios", duplicate_incident_ids: "Números duplicados",
+  invalid_incident_ids: "Números fora do padrão", closed_before_opened: "Encerramento antes da abertura",
+  negative_duration: "Duração negativa", resolved_after_closed: "Resolução após encerramento",
+  duration_mismatch: "Duração informada diverge da calculada", subcategory_without_category: "Subcategoria sem categoria",
+  entered_kpi_rule_mismatch: "Entrada no KPI diverge da regra", kpi_breached_rule_mismatch: "Violação de SLA diverge da regra"
+};
+const q = D.qualidade;
+const statusPill = s => s === "passed" ? '<span class="pill ok">aprovado</span>'
+  : s === "passed_with_warnings" ? '<span class="pill warn">aprovado com alertas</span>'
+  : '<span class="pill bad">reprovado</span>';
+
+document.getElementById("kpiQualidade").innerHTML =
+  kpi("Ingestão · Bronze e Silver", statusPill(q.ingestao.quality_status),
+      {foot: `${int(q.ingestao.row_count)} incidentes · ${q.ingestao.opened_at_min.slice(0, 10)} a ${q.ingestao.opened_at_max.slice(0, 10)}`}) +
+  kpi("Camada Gold", statusPill(q.gold.quality_status),
+      {foot: `${int(q.gold.daily_volume_rows)} linhas na série · ${int(q.gold.daily_breakdown_rows)} no breakdown`}) +
+  kpi("Reconciliação", q.gold.checks.reconciliation_failed ? '<span class="pill bad">divergente</span>' : '<span class="pill ok">confere</span>',
+      {foot: "contagens iguais em ALL, P2 e P3"});
+document.querySelectorAll("#kpiQualidade .kpi-value").forEach(e => e.style.fontSize = "15px");
+
+const rows = (obj) => Object.entries(obj).map(([kk, v]) =>
+  `<tr><td class="name">${LBL[kk] || kk}</td><td class="num">${int(v)}</td></tr>`).join("");
+document.getElementById("tabBloqueantes").innerHTML =
+  `<thead><tr><th>Checagem</th><th style="text-align:right">Ocorrências</th></tr></thead><tbody>${rows(q.ingestao.blocking_checks)}</tbody>`;
+document.getElementById("tabAlertas").innerHTML =
+  `<thead><tr><th>Alerta</th><th style="text-align:right">Ocorrências</th></tr></thead><tbody>${rows(q.ingestao.warning_checks)}</tbody>`;
+document.getElementById("tabReconciliacao").innerHTML =
+  `<thead><tr><th>Escopo</th><th style="text-align:right">Silver</th><th style="text-align:right">Gold</th><th>Confere</th></tr></thead><tbody>` +
+  Object.entries(q.gold.reconciliation).map(([sc, v]) =>
+    `<tr><td class="name">${sc}</td><td class="num">${int(v.source_count)}</td><td class="num">${int(v.gold_count)}</td><td>${v.matches ? '<span class="pill ok">sim</span>' : '<span class="pill bad">não</span>'}</td></tr>`).join("") +
+  `</tbody>`;
+document.getElementById("notaKpi").innerHTML =
+  `O pipeline recalcula as regras de KPI a partir da prioridade e do limite de SLA, e compara com o que veio na fonte. ` +
+  `Encontrou <strong>${int(q.ingestao.warning_checks.kpi_breached_rule_mismatch)}</strong> incidentes em que a marcação de violação diverge da regra. ` +
+  `Vale confirmar a regra com a Locaweb antes de tratar o campo original como verdade.`;
+
+
+/* ---------------- previsão: realizado x previsto com banda ---------------- */
+function forecastChart(host, d) {
+  const {s, w, h} = svg(host, 320);
+  const L = 50, R = 14, T = 14, B = 30;
+  const iw = w - L - R, ih = h - T - B;
+  const todos = [...d.previsto, ...d.sup, ...d.realizado.filter(v => v !== null)];
+  const raw = Math.max(...todos) * 1.06;
+  const step = niceStep(raw / 4);
+  const max = Math.ceil(raw / step) * step;
+  const n = d.datas.length;
+  const X = i => L + (n === 1 ? iw / 2 : i * iw / (n - 1));
+  const Y = v => T + ih - (v / max) * ih;
+
+  for (let v = 0; v <= max + 1e-9; v += step) {
+    el("line", {class: "gridline", x1: L, x2: w - R, y1: Y(v), y2: Y(v)}, s);
+    const t = el("text", {x: L - 8, y: Y(v) + 3, "text-anchor": "end"}, s);
+    t.textContent = int(v);
+  }
+  el("line", {class: "axis", x1: L, x2: w - R, y1: T + ih, y2: T + ih}, s);
+
+  el("polygon", {
+    points: d.sup.map((v, i) => `${X(i)},${Y(v)}`).join(" ") + " " +
+            d.inf.map((v, i) => `${X(i)},${Y(v)}`).reverse().join(" "),
+    fill: "rgba(227,6,19,0.16)", stroke: "none"}, s);
+
+  const real = [];
+  d.realizado.forEach((v, i) => { if (v !== null) real.push(`${X(i)},${Y(v)}`); });
+  el("polyline", {points: real.join(" "), fill: "none", stroke: "var(--series)",
+                  "stroke-width": "2", "stroke-linejoin": "round"}, s);
+
+  el("polyline", {points: d.previsto.map((v, i) => `${X(i)},${Y(v)}`).join(" "),
+                  fill: "none", stroke: "var(--brand)", "stroke-width": "2",
+                  "stroke-dasharray": "4 3", "stroke-linejoin": "round"}, s);
+
+  d.realizado.forEach((v, i) => {
+    if (v === null) {
+      el("circle", {cx: X(i), cy: Y(d.previsto[i]), r: 5, fill: "var(--brand)",
+                    stroke: "var(--panel)", "stroke-width": "2"}, s);
+    }
+  });
+
+  const xStep = Math.max(1, Math.floor(n / 7));
+  for (let i = 0; i < n; i += xStep) {
+    const t = el("text", {x: X(i), y: h - 10, "text-anchor": "middle"}, s);
+    t.textContent = fmtDate(d.datas[i]).slice(0, 5);
+  }
+
+  const cross = el("line", {y1: T, y2: T + ih, opacity: "0", stroke: "var(--ink-3)",
+                            "stroke-dasharray": "3 3"}, s);
+  const hit = el("rect", {x: L, y: T, width: iw, height: ih, fill: "transparent"}, s);
+  hit.addEventListener("pointermove", e => {
+    const bb = s.getBoundingClientRect();
+    const rel = (e.clientX - bb.left) / bb.width * w;
+    let i = Math.round((rel - L) / (iw / Math.max(1, n - 1)));
+    i = Math.max(0, Math.min(n - 1, i));
+    cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("opacity", ".7");
+    const r = d.realizado[i];
+    showTip(e, `<b>${fmtDate(d.datas[i])}</b><br><i>previsto</i> ${int(d.previsto[i])}` +
+               (r !== null ? `<br><i>realizado</i> ${int(r)}` : "<br><i>ainda sem realizado</i>") +
+               `<br><i>faixa</i> ${int(d.inf[i])} – ${int(d.sup[i])}`);
+  });
+  hit.addEventListener("pointerleave", () => { hideTip(); cross.setAttribute("opacity", "0"); });
+}
+
+/* ---------------- montagem: previsão ---------------- */
+const P = D.previsoes, RI = D.risco;
+let horizonte = "D+1";
+
+function renderPrevisao() {
+  const cAll = P.cartoes.filter(c => c.escopo === "ALL");
+  const d1 = cAll.find(c => c.horizonte === "D+1") || {};
+  const d7 = cAll.find(c => c.horizonte === "D+7") || {};
+  document.getElementById("kpiPrevisao").innerHTML =
+    kpi("Previsão D+1", int(d1.valor || 0), {lead: true, foot: `para ${d1.data} · faixa ${int(d1.inf)}–${int(d1.sup)}`}) +
+    kpi("Previsão D+7", int(d7.valor || 0), {foot: `para ${d7.data} · faixa ${int(d7.inf)}–${int(d7.sup)}`}) +
+    kpi("Erro médio no backtest", int(P.mae), {foot: `escopo total · ${int(P.diasAvaliados)} linhas`}) +
+    kpi("Versão do modelo", P.versao.replace("volume_", ""), {foot: "artefato publicado"});
+  document.querySelectorAll("#kpiPrevisao .kpi-value").forEach((e, i) => {
+    if (i === 3) e.style.fontSize = "17px";
+  });
+
+  forecastChart(document.getElementById("chartPrevisao"), P.serie[horizonte]);
+
+  document.getElementById("tabPrevisao").innerHTML =
+    `<thead><tr><th>Escopo</th><th>Horizonte</th><th>Data</th><th style="text-align:right">Previsto</th><th style="text-align:right">Faixa</th><th>Modelo</th></tr></thead><tbody>` +
+    P.cartoes.map(c => `<tr><td class="name">${c.escopo}</td><td>${c.horizonte}</td><td>${c.data}</td><td class="num">${int(c.valor)}</td><td class="num">${int(c.inf)} – ${int(c.sup)}</td><td>${c.modelo}</td></tr>`).join("") +
+    `</tbody>`;
+}
+
+document.querySelectorAll("#horizonteSeg button").forEach(b => {
+  b.addEventListener("click", () => {
+    horizonte = b.dataset.h;
+    document.querySelectorAll("#horizonteSeg button").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+    forecastChart(document.getElementById("chartPrevisao"), P.serie[horizonte]);
+  });
+});
+
+/* ---------------- montagem: risco ---------------- */
+const CORES_NIVEL = {baixo: "#1eae72", moderado: "#f2b705", alto: "#f5803e", "crítico": "#f2434f"};
+
+function renderRisco() {
+  document.getElementById("kpiRisco").innerHTML =
+    kpi("Incidentes pontuados", int(RI.total), {lead: true, foot: "população de teste do modelo"}) +
+    kpi("Score médio", dec(RI.scoreMedio), {foot: `observado entre ${RI.scoreMin} e ${RI.scoreMax}`}) +
+    kpi("Alto ou crítico", int(RI.distribuicao.filter(x => x.nivel === "alto" || x.nivel === "crítico").reduce((a, x) => a + x.n, 0)), {alert: false, foot: "cortes em 50 e 75"}) +
+    kpi("Probabilidade média", pct(RI.probMedia * 100, 2), {foot: "de violação de SLA"});
+
+  barChart(document.getElementById("chartNivel"),
+    RI.distribuicao.map(x => x.nivel[0].toUpperCase() + x.nivel.slice(1)),
+    RI.distribuicao.map(x => x.n),
+    RI.distribuicao.map(x => CORES_NIVEL[x.nivel]));
+
+  const hostScore = document.getElementById("chartScore");
+  const {s, w, h} = svg(hostScore, 250);
+  const L = 34, R = 8, T = 16, B = 28;
+  const iw = w - L - R, ih = h - T - B;
+  const maxN = Math.max(...RI.histograma.map(x => x.n));
+  const bw = iw / RI.histograma.length;
+  RI.histograma.forEach((x, i) => {
+    const bh = (x.n / maxN) * ih;
+    const px = L + i * bw + bw * 0.12;
+    el("rect", {x: px, y: T + ih - bh, width: bw * 0.76, height: Math.max(bh, 1),
+                rx: 2, fill: "var(--serious)"}, s);
+    const hit = el("rect", {x: L + i * bw, y: T, width: bw, height: ih, fill: "transparent"}, s);
+    hit.addEventListener("pointermove", e => showTip(e, `<b>score ${x.score}</b><br>${int(x.n)} incidentes`));
+    hit.addEventListener("pointerleave", hideTip);
+    if (i % 4 === 0) {
+      const t = el("text", {x: px + bw * 0.38, y: h - 9, "text-anchor": "middle"}, s);
+      t.textContent = x.score;
+    }
+  });
+  el("line", {class: "axis", x1: L, x2: w - R, y1: T + ih, y2: T + ih}, s);
+
+  document.getElementById("notaRisco").innerHTML =
+    `<strong>Os níveis alto e crítico não são alcançáveis com este modelo.</strong> O score observado vai de ` +
+    `${RI.scoreMin} a ${RI.scoreMax}, mas os cortes do contrato estão em 50 e 75 — por isso os dois níveis ` +
+    `superiores aparecem zerados. Não é falha de código: com a fórmula de 70% probabilidade, 20% prioridade e ` +
+    `10% pressão, e a maior probabilidade prevista sendo ${pct(Math.max(...RI.fila.map(f => f.prob)) * 100, 1)}, ` +
+    `o teto real do score fica perto de 47. Os cortes precisam ser recalibrados por percentil da distribuição ` +
+    `observada, ou a fórmula repesada.`;
+
+  document.getElementById("tabRisco").innerHTML =
+    `<thead><tr><th>Incidente</th><th style="text-align:right">Score</th><th>Nível</th><th style="text-align:right">Prob. violação</th><th>Fatores</th></tr></thead><tbody>` +
+    RI.fila.map(f => `<tr><td class="name">${f.id}</td><td class="num">${f.score}</td>` +
+      `<td><span class="pill" style="color:${CORES_NIVEL[f.nivel]}">${f.nivel}</span></td>` +
+      `<td class="num">${pct(f.prob * 100, 1)}</td><td>${f.fatores}</td></tr>`).join("") +
+    `</tbody>`;
+}
+
+/* navegação */
+const titles = {geral: "Visão <em>Geral</em>", operacao: "<em>Operação</em>", previsoes: "<em>Previsões</em>",
+                risco: "Risco <em>Operacional</em>", qualidade: "Qualidade dos <em>Dados</em>"};
+document.querySelectorAll(".nav-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    const v = b.dataset.view;
+    document.querySelectorAll(".nav-btn").forEach(o => o.setAttribute("aria-selected", String(o === b)));
+    document.querySelectorAll(".view").forEach(s => s.hidden = s.id !== "view-" + v);
+    document.getElementById("viewTitle").innerHTML = titles[v];
+    if (v === "geral") renderGeral();
+    if (v === "operacao") renderOperacao();
+    if (v === "previsoes") renderPrevisao();
+    if (v === "risco") renderRisco();
+  });
+});
+
+renderGeral();
+renderOperacao();
+renderPrevisao();
+renderRisco();
+let rt;
+addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { renderGeral(); renderOperacao(); renderPrevisao(); renderRisco(); }, 160); });
+</script>

@@ -1,0 +1,109 @@
+/// Score de risco operacional por incidente, produzido pela frente de modelagem e validado pelo contrato.
+table fRiscos
+	lineageTag: a4e83bb6-b4f3-56e5-aaaf-0bfbc63d3029
+
+	column Incidente
+		dataType: string
+		lineageTag: b2673f50-1426-5f6e-bd09-c6dea5a9079d
+		sourceColumn: Incidente
+
+	column 'Pontuado em'
+		dataType: dateTime
+		formatString: dd/mm/yyyy hh:nn
+		lineageTag: bda9913f-d680-58ba-9b0f-4f2a0aa9f872
+		summarizeBy: none
+		sourceColumn: Pontuado em
+
+	column 'Probabilidade de violação'
+		dataType: double
+		formatString: 0.0%
+		lineageTag: f3c257cc-c733-59f3-a136-11630a3ec034
+		summarizeBy: none
+		sourceColumn: Probabilidade de violação
+
+	column 'Impacto da prioridade'
+		dataType: double
+		formatString: 0.00
+		lineageTag: 5584e615-3782-518c-9d80-d1794966a0a1
+		summarizeBy: none
+		sourceColumn: Impacto da prioridade
+
+	column 'Pressão operacional'
+		dataType: double
+		formatString: 0.00
+		lineageTag: 20a491be-0ccb-56f5-aafe-f3488fbd07e2
+		summarizeBy: none
+		sourceColumn: Pressão operacional
+
+	column 'Score de risco'
+		dataType: int64
+		formatString: #,0
+		lineageTag: a3be0005-17b4-5461-9779-16bd69ac450a
+		summarizeBy: none
+		sourceColumn: Score de risco
+
+	column 'Nível de risco'
+		dataType: string
+		lineageTag: e7104d7b-d785-5718-adcd-2e5314e8c261
+		sourceColumn: Nível de risco
+		sortByColumn: 'Ordem do nível'
+
+	column 'Ordem do nível'
+		dataType: int64
+		isHidden
+		lineageTag: 03237789-c51a-57e2-8dce-d5f2f4fb2c69
+		summarizeBy: none
+		sourceColumn: Ordem do nível
+
+	column 'Fatores de risco'
+		dataType: string
+		lineageTag: e37e71c7-d8b5-5106-8fc1-8652983b5085
+		sourceColumn: Fatores de risco
+
+	column 'Ação recomendada'
+		dataType: string
+		lineageTag: aa0b6e9d-2208-5748-a95e-0742cb044c67
+		sourceColumn: Ação recomendada
+
+	column 'Versão do modelo'
+		dataType: string
+		lineageTag: 61ca74bc-35a5-55ab-96ad-55c9c7c5aaa9
+		sourceColumn: Versão do modelo
+
+	partition fRiscos = m
+		mode: import
+		source =
+				let
+				    Fonte = Parquet.Document(File.Contents("C:\Users\cymko\Downloads\albus-hub\data\gold\risk_scores.parquet")),
+				    Ordem = Table.AddColumn(Fonte, "Ordem do nível", each
+				        if [risk_level] = "baixo" then 1
+				        else if [risk_level] = "moderado" then 2
+				        else if [risk_level] = "alto" then 3
+				        else 4, Int64.Type),
+				    Tipos = Table.TransformColumnTypes(Ordem, {
+				        {"incident_id", type text},
+				        {"scored_at", type datetime},
+				        {"breach_probability", type number},
+				        {"priority_impact", type number},
+				        {"operational_pressure", type number},
+				        {"risk_score", Int64.Type},
+				        {"risk_level", type text},
+				        {"top_risk_factors", type text},
+				        {"recommended_action", type text},
+				        {"model_version", type text}
+				    }),
+				    Renomeadas = Table.RenameColumns(Tipos, {
+				        {"incident_id","Incidente"},
+				        {"scored_at","Pontuado em"},
+				        {"breach_probability","Probabilidade de violação"},
+				        {"priority_impact","Impacto da prioridade"},
+				        {"operational_pressure","Pressão operacional"},
+				        {"risk_score","Score de risco"},
+				        {"risk_level","Nível de risco"},
+				        {"top_risk_factors","Fatores de risco"},
+				        {"recommended_action","Ação recomendada"},
+				        {"model_version","Versão do modelo"}
+				    })
+				in
+				    Renomeadas
+

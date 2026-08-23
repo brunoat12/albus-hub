@@ -1,0 +1,168 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.12.0/schema.json",
+  "name": "a2c61bfa008b0bad4fc2",
+  "position": {
+    "x": 304,
+    "y": 624,
+    "z": 18000,
+    "height": 416,
+    "width": 1592,
+    "tabOrder": 18000
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fPrevisoes"
+                    }
+                  },
+                  "Property": "Data"
+                }
+              },
+              "queryRef": "fPrevisoes.Data",
+              "nativeQueryRef": "Data"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fPrevisoes"
+                    }
+                  },
+                  "Property": "Horizonte"
+                }
+              },
+              "queryRef": "fPrevisoes.Horizonte",
+              "nativeQueryRef": "Horizonte"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fPrevisoes"
+                    }
+                  },
+                  "Property": "Escopo"
+                }
+              },
+              "queryRef": "fPrevisoes.Escopo",
+              "nativeQueryRef": "Escopo"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Medidas"
+                    }
+                  },
+                  "Property": "Previsto"
+                }
+              },
+              "queryRef": "_Medidas.Previsto",
+              "nativeQueryRef": "Previsto"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "_Medidas"
+                    }
+                  },
+                  "Property": "Realizado no backtest"
+                }
+              },
+              "queryRef": "_Medidas.Realizado no backtest",
+              "nativeQueryRef": "Realizado no backtest"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "fPrevisoes"
+                    }
+                  },
+                  "Property": "Modelo"
+                }
+              },
+              "queryRef": "fPrevisoes.Modelo",
+              "nativeQueryRef": "Modelo"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Artefato publicado'"
+                }
+              }
+            },
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "11D"
+                }
+              }
+            },
+            "fontColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "Literal": {
+                      "Value": "'#A8A7B0'"
+                    }
+                  }
+                }
+              }
+            },
+            "alignment": {
+              "expr": {
+                "Literal": {
+                  "Value": "'left'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "subTitle": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

@@ -1,0 +1,85 @@
+/// Dimensão de data cobrindo todo o período da base. Inclui a coluna Regime, que separa os três patamares de volume da base Locaweb.
+table dCalendario
+	lineageTag: f545d297-3392-4106-bb61-de180861a3a0
+	dataCategory: Time
+
+	column Date
+		isUnique
+		lineageTag: 699b0c68-97c8-47c9-9c00-fef6b2e2163e
+		isNameInferred
+		sourceColumn: [Date]
+
+	column Ano
+		lineageTag: bb6f1901-6e0a-4f1e-81dc-6b883f6c7625
+		isNameInferred
+		sourceColumn: [Ano]
+
+	column 'Mês (n)'
+		lineageTag: 3fe2a4fa-2abc-4fb3-9ebc-6ea7369e077f
+		isNameInferred
+		sourceColumn: [Mês (n)]
+
+	column Mês
+		lineageTag: dd6eb99d-89ed-4e42-847a-764771f6193a
+		isNameInferred
+		sourceColumn: [Mês]
+		sortByColumn: 'Mês (n)'
+
+	column Ano-Mês
+		lineageTag: 366c983b-e5e5-41df-b200-6df823991bda
+		isNameInferred
+		sourceColumn: [Ano-Mês]
+
+	column Trimestre
+		lineageTag: d6553d39-6ea9-4843-af91-b4633f99cfde
+		isNameInferred
+		sourceColumn: [Trimestre]
+
+	column 'Dia da semana (n)'
+		lineageTag: 19a61181-0bb6-4a73-9443-a402b7489306
+		isNameInferred
+		sourceColumn: [Dia da semana (n)]
+
+	column 'Dia da semana'
+		lineageTag: 22aa8426-f72c-4cb3-9fb4-d1b4fa3a9b4b
+		isNameInferred
+		sourceColumn: [Dia da semana]
+		sortByColumn: 'Dia da semana (n)'
+
+	column 'Fim de semana'
+		lineageTag: 50256963-d717-4c1f-9c3c-6d9de90548ed
+		isNameInferred
+		sourceColumn: [Fim de semana]
+
+	column Regime
+		lineageTag: 2f2e28e8-b645-4b30-a57a-abd3668c6fa7
+		isNameInferred
+		sourceColumn: [Regime]
+
+	partition dCalendario = calculated
+		mode: import
+		source =
+				VAR MinData = MIN ( fIncidentes[Data de abertura] )
+				VAR MaxIncidente = MAX ( fIncidentes[Data de abertura] )
+				VAR MaxPrevisao = MAX ( fPrevisoes[Data] )
+				VAR MaxData = MAXX ( { MaxIncidente, MaxPrevisao }, [Value] )
+				RETURN
+				ADDCOLUMNS (
+				    CALENDAR ( MinData, MaxData ),
+				    "Ano", YEAR ( [Date] ),
+				    "Mês (n)", MONTH ( [Date] ),
+				    "Mês", FORMAT ( [Date], "mmm", "pt-BR" ),
+				    "Ano-Mês", FORMAT ( [Date], "yyyy-mm" ),
+				    "Trimestre", "T" & FORMAT ( [Date], "q" ),
+				    "Dia da semana (n)", WEEKDAY ( [Date], 2 ),
+				    "Dia da semana", FORMAT ( [Date], "ddd", "pt-BR" ),
+				    "Fim de semana", IF ( WEEKDAY ( [Date], 2 ) >= 6, "Fim de semana", "Dia útil" ),
+				    "Regime",
+				        SWITCH (
+				            TRUE (),
+				            [Date] >= DATE ( 2025, 9, 1 ), "3. Regime atual (set/2025+)",
+				            [Date] >= DATE ( 2025, 1, 1 ), "2. Transição (jan-ago/2025)",
+				            "1. Base histórica (até 2024)"
+				        )
+				)
+
