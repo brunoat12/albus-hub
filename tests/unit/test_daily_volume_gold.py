@@ -57,6 +57,12 @@ def make_sample_silver() -> pd.DataFrame:
                 pd.NA,
                 "CI-1",
             ],
+            "parent_incident_id": [
+                "INC-PARENT-1",
+                pd.NA,
+                "INC-PARENT-2",
+                "INC-PARENT-1",
+            ],
             "entered_kpi_source": pd.Series(
                 [True, True, False, True],
                 dtype="boolean",
@@ -239,6 +245,25 @@ def test_build_daily_breakdown_preserves_missing_values() -> None:
             "kpi_breach_count"
         ]
         == 1
+    )
+
+    parent_group = result.loc[
+        result["dimension_name"].eq(
+            "parent_incident_id"
+        )
+        & result["dimension_value"].eq(
+            "INC-PARENT-1"
+        )
+        & result["priority_scope"].eq(
+            "ALL"
+        )
+    ]
+
+    assert (
+        parent_group[
+            "incident_count"
+        ].sum()
+        == 2
     )
 
     assert not result["dimension_value"].isna().any()

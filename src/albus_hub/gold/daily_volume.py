@@ -18,6 +18,7 @@ BREAKDOWN_DIMENSIONS = [
     "category",
     "configuration_item",
     "critical_group",
+    "parent_incident_id",
 ]
 
 REQUIRED_COLUMNS = [
@@ -28,6 +29,7 @@ REQUIRED_COLUMNS = [
     "product",
     "category",
     "configuration_item",
+    "parent_incident_id",
     "entered_kpi_source",
     "kpi_breached_source",
     "opened_by",

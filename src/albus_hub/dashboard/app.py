@@ -637,6 +637,181 @@ with tab_operations:
                 )
 
 
+    st.divider()
+
+    st.subheader(
+        "Incidentes recorrentes / cascatas"
+    )
+
+    st.caption(
+        "Incidentes vinculados ao mesmo incidente-pai são "
+        "tratados como uma cascata operacional. Isso permite "
+        "distinguir múltiplos chamados correlacionados de "
+        "eventos independentes."
+    )
+
+    try:
+        cascade_ranking = (
+            load_breakdown_ranking_from_mysql(
+                start_date=start_date.date().isoformat(),
+                end_date=end_date.date().isoformat(),
+                priority_scope="ALL",
+                dimension_name="parent_incident_id",
+                top_n=5000,
+                ranking_metric="incident_count",
+                exclude_missing=True,
+            )
+        )
+
+    except SQLAlchemyError as exc:
+        st.error(
+            "Não foi possível consultar os "
+            "incidentes recorrentes."
+        )
+
+        st.caption(
+            f"Detalhes técnicos: {exc}"
+        )
+
+        cascade_ranking = pd.DataFrame()
+
+    if cascade_ranking.empty:
+        st.info(
+            "Não há cascatas no período selecionado."
+        )
+
+    else:
+        cascade_ranking[
+            "incident_count"
+        ] = pd.to_numeric(
+            cascade_ranking[
+                "incident_count"
+            ],
+            errors="coerce",
+        ).fillna(0)
+
+        linked_incidents = int(
+            cascade_ranking[
+                "incident_count"
+            ].sum()
+        )
+
+        distinct_cascades = int(
+            len(cascade_ranking)
+        )
+
+        large_cascades = int(
+            cascade_ranking[
+                "incident_count"
+            ].ge(50).sum()
+        )
+
+        largest_cascade = int(
+            cascade_ranking[
+                "incident_count"
+            ].max()
+        )
+
+        period_total_incidents = (
+            scope_sum(
+                daily_period,
+                "ALL",
+                "incident_count",
+            )
+        )
+
+        cascade_share = (
+            100
+            * linked_incidents
+            / period_total_incidents
+            if period_total_incidents
+            else 0.0
+        )
+
+        col1, col2, col3, col4, col5 = (
+            st.columns(5)
+        )
+
+        col1.metric(
+            "Incidentes em cascatas",
+            format_integer(
+                linked_incidents
+            ),
+        )
+
+        col2.metric(
+            "Participação no volume",
+            format_percentage(
+                cascade_share
+            ),
+        )
+
+        col3.metric(
+            "Cascatas distintas",
+            format_integer(
+                distinct_cascades
+            ),
+        )
+
+        col4.metric(
+            "Cascatas ≥ 50",
+            format_integer(
+                large_cascades
+            ),
+        )
+
+        col5.metric(
+            "Maior cascata",
+            format_integer(
+                largest_cascade
+            ),
+        )
+
+        cascade_table = (
+            cascade_ranking.head(10)[
+                [
+                    "dimension_value",
+                    "incident_count",
+                ]
+            ]
+            .rename(
+                columns={
+                    "dimension_value": (
+                        "Incidente-pai"
+                    ),
+                    "incident_count": (
+                        "Incidentes filhos"
+                    ),
+                }
+            )
+        )
+
+        st.subheader(
+            "Maiores cascatas"
+        )
+
+        st.bar_chart(
+            cascade_table,
+            x="Incidente-pai",
+            y="Incidentes filhos",
+            x_label="Incidente-pai",
+            y_label="Incidentes filhos",
+        )
+
+        st.dataframe(
+            cascade_table,
+            width="stretch",
+            hide_index=True,
+        )
+
+        st.caption(
+            "Cascatas representam chamados correlacionados "
+            "ao mesmo incidente-pai e, portanto, não devem "
+            "ser interpretadas automaticamente como riscos "
+            "operacionais independentes."
+        )
+
+
 
 
 with tab_forecast:
