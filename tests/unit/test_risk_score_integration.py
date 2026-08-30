@@ -19,8 +19,8 @@ def build_valid_risk_frame() -> pd.DataFrame:
             "breach_probability": [0.74],
             "priority_impact": [0.80],
             "operational_pressure": [0.60],
-            "risk_score": [82],
-            "risk_level": ["crítico"],
+            "risk_score": [74],
+            "risk_level": ["alto"],
             "top_risk_factors": ["prioridade; pressão operacional"],
             "recommended_action": ["Priorizar atendimento."],
         }
@@ -33,8 +33,8 @@ def test_valid_risk_score_contract() -> None:
     result = validate_risk_scores(frame)
 
     assert len(result) == 1
-    assert result.loc[0, "risk_score"] == 82
-    assert result.loc[0, "risk_level"] == "crítico"
+    assert result.loc[0, "risk_score"] == 74
+    assert result.loc[0, "risk_level"] == "alto"
 
 
 def test_risk_score_outside_range_fails() -> None:
@@ -59,6 +59,30 @@ def test_probability_outside_range_fails() -> None:
         RiskScoreContractError,
         match="0 e 1",
     ):
+        validate_risk_scores(frame)
+
+
+def test_score_formula_mismatch_fails() -> None:
+    frame = build_valid_risk_frame()
+    frame.loc[0, "risk_score"] = 73
+
+    with pytest.raises(RiskScoreContractError, match="fórmula oficial"):
+        validate_risk_scores(frame)
+
+
+def test_risk_level_mismatch_fails() -> None:
+    frame = build_valid_risk_frame()
+    frame.loc[0, "risk_level"] = "crítico"
+
+    with pytest.raises(RiskScoreContractError, match="não corresponde"):
+        validate_risk_scores(frame)
+
+
+def test_explanation_must_be_filled() -> None:
+    frame = build_valid_risk_frame()
+    frame.loc[0, "top_risk_factors"] = ""
+
+    with pytest.raises(RiskScoreContractError, match="top_risk_factors"):
         validate_risk_scores(frame)
 
 

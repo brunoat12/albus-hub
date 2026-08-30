@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 REQUIRED_RISK_COLUMNS = {
@@ -23,6 +24,36 @@ RISK_LEVELS = {
     "alto",
     "crítico",
 }
+
+RISK_SCORE_WEIGHTS = {
+    "breach_probability": 0.70,
+    "priority_impact": 0.20,
+    "operational_pressure": 0.10,
+}
+
+
+def calculate_risk_score(
+    breach_probability,
+    priority_impact,
+    operational_pressure,
+) -> np.ndarray:
+    """Calcula o score operacional oficial e aplica arredondamento para 0–100."""
+    weighted = 100 * (
+        RISK_SCORE_WEIGHTS["breach_probability"] * np.asarray(breach_probability)
+        + RISK_SCORE_WEIGHTS["priority_impact"] * np.asarray(priority_impact)
+        + RISK_SCORE_WEIGHTS["operational_pressure"] * np.asarray(operational_pressure)
+    )
+    return np.floor(weighted + 0.5).clip(0, 100).astype("int64")
+
+
+def risk_level_from_score(score) -> np.ndarray:
+    """Converte scores nos níveis em português aceitos pelo dashboard."""
+    values = np.asarray(score, dtype=float)
+    return np.select(
+        [values <= 24, values <= 49, values <= 74],
+        ["baixo", "moderado", "alto"],
+        default="crítico",
+    )
 
 
 class RiskScoreContractError(ValueError):
@@ -105,10 +136,27 @@ def validate_risk_scores(
 
     invalid_levels = set(result["risk_level"].dropna()) - RISK_LEVELS
 
-    if invalid_levels:
+    if result["risk_level"].isna().any() or invalid_levels:
         raise RiskScoreContractError(
             f"risk_level contém valores inválidos: {sorted(invalid_levels)}"
         )
+
+    expected_scores = calculate_risk_score(
+        result["breach_probability"],
+        result["priority_impact"],
+        result["operational_pressure"],
+    )
+    if not np.array_equal(result["risk_score"].to_numpy(), expected_scores):
+        raise RiskScoreContractError("risk_score não respeita a fórmula oficial 70/20/10.")
+
+    expected_levels = risk_level_from_score(result["risk_score"])
+    if not np.array_equal(result["risk_level"].to_numpy(dtype=str), expected_levels):
+        raise RiskScoreContractError("risk_level não corresponde à faixa do risk_score.")
+
+    for column in ["top_risk_factors", "recommended_action"]:
+        result[column] = result[column].astype("string").str.strip()
+        if result[column].isna().any() or result[column].eq("").any():
+            raise RiskScoreContractError(f"{column} deve ser preenchido.")
 
     duplicated_key = result.duplicated(
         subset=[
