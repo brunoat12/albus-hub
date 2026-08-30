@@ -8,7 +8,6 @@ import joblib
 import numpy as np
 import pandas as pd
 
-
 MODEL_START_DATE = pd.Timestamp("2025-01-01")
 
 SCOPES: dict[str, int | None] = {

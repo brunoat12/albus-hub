@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Albus Hub - Frente ML (Integrante 2) - Pipeline v3.2: VOLUME por PRIORIDADE, DEDUPLICADO.
 
@@ -21,8 +20,12 @@ PROTOCOLO
   walk-forward diario | selecao: set-out/2025 (61d) | nota: nov-dez/2025 (61d nunca vistos)
 Le o dataset bruto (fonte de verdade); cacheia parquet local.
 """
-import os, json, warnings
-import numpy as np, pandas as pd, holidays
+import os
+import json
+import warnings
+import numpy as np
+import pandas as pd
+import holidays
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 from sklearn.linear_model import PoissonRegressor, Ridge
 from sklearn.ensemble import HistGradientBoostingRegressor
@@ -44,8 +47,17 @@ from albus_hub.config import get_settings
 
 settings = get_settings()
 
+source_path = (
+    os.getenv("ALBUS_ML_SILVER_PATH")
+    or str(
+        settings.absolute_path(
+            settings.locaweb_silver_file
+        )
+    )
+)
+
 df = pd.read_parquet(
-    settings.absolute_path(settings.locaweb_silver_file)
+    source_path
 )
 
 df["_prio"] = pd.to_numeric(

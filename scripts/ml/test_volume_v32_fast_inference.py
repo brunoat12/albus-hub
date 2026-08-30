@@ -8,7 +8,6 @@ from albus_hub.ml.volume_forecast_v32 import (
     predict_volume,
 )
 
-
 ROOT = Path(
     __file__
 ).resolve().parents[2]

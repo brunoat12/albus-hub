@@ -6,12 +6,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import joblib
-import numpy as np
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.linear_model import PoissonRegressor, Ridge
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-
 
 ROOT = Path(__file__).resolve().parents[2]
 PIPELINE = ROOT / "ml_volume" / "pipeline_prioridades.py"

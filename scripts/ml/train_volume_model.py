@@ -2,46 +2,45 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
-import pandas as pd
+import joblib
 
-from albus_hub.ml.volume_forecast import (
-    MODEL_VERSION,
-    PRIORITY_SCOPES,
-    build_training_features,
-    evaluate_model,
-    fit_model,
-    prepare_scope,
-    save_model,
-)
 from albus_hub.storage.adls import (
     download_file,
     upload_file,
 )
 
-STORAGE_ACCOUNT_ENV = "AZURE_STORAGE_ACCOUNT_NAME"
+STORAGE_ACCOUNT_ENV = (
+    "AZURE_STORAGE_ACCOUNT_NAME"
+)
 
-GOLD_FILE_SYSTEM = "gold"
+TRUSTED_FILE_SYSTEM = "trusted"
 MODELS_FILE_SYSTEM = "models"
 
-GOLD_REMOTE_PATH = (
-    "analytics/daily_incident_volume.parquet"
+TRUSTED_REMOTE_PATH = (
+    "ml/locaweb_incidents.parquet"
+)
+
+CURRENT_REMOTE_PATH = (
+    "volume_forecast/current.json"
 )
 
 RUNTIME_DIR = Path(
-    "artifacts/runtime/ml_training"
+    "artifacts/runtime/ml_training_v32"
 )
 
-LOCAL_GOLD_PATH = (
+LOCAL_SOURCE_PATH = (
     RUNTIME_DIR
-    / "daily_incident_volume.parquet"
+    / "locaweb_incidents.parquet"
 )
 
-LOCAL_MODEL_PATH = (
+LOCAL_BUNDLE_PATH = (
     RUNTIME_DIR
-    / "model.npz"
+    / "model_bundle.joblib"
 )
 
 LOCAL_METADATA_PATH = (
@@ -49,21 +48,36 @@ LOCAL_METADATA_PATH = (
     / "metadata.json"
 )
 
+LOCAL_METRICS_PATH = (
+    RUNTIME_DIR
+    / "metrics.json"
+)
+
 LOCAL_CURRENT_PATH = (
     RUNTIME_DIR
     / "current.json"
 )
 
-# Mantido como cache local para desenvolvimento/testes.
+CANONICAL_METRICS_PATH = Path(
+    "ml_volume/outputs/metrics.json"
+)
+
+EXPORTER_PATH = Path(
+    "scripts/ml/export_volume_v32_bundle.py"
+)
+
 LOCAL_CACHE_DIR = Path(
     "artifacts/models/volume_forecast"
 )
 
 
 def main() -> None:
-    if not os.getenv(STORAGE_ACCOUNT_ENV):
+    if not os.getenv(
+        STORAGE_ACCOUNT_ENV
+    ):
         raise RuntimeError(
-            f"{STORAGE_ACCOUNT_ENV} não está configurada."
+            f"{STORAGE_ACCOUNT_ENV} "
+            "não está configurada."
         )
 
     RUNTIME_DIR.mkdir(
@@ -71,119 +85,214 @@ def main() -> None:
         exist_ok=True,
     )
 
-    print("=== TREINO DO MODELO DE VOLUME ===")
+    print(
+        "=== TREINO ML V3.2 "
+        "DE VOLUME ==="
+    )
+
     print(
         "Fonte oficial:",
-        f"ADLS/{GOLD_FILE_SYSTEM}/{GOLD_REMOTE_PATH}",
+        f"{TRUSTED_FILE_SYSTEM}/"
+        f"{TRUSTED_REMOTE_PATH}",
     )
 
     print()
-    print("Baixando Gold do ADLS...")
+    print(
+        "Baixando Silver governada "
+        "do ADLS..."
+    )
 
     download_file(
-        file_system=GOLD_FILE_SYSTEM,
-        remote_path=GOLD_REMOTE_PATH,
-        local_path=LOCAL_GOLD_PATH,
+        file_system=(
+            TRUSTED_FILE_SYSTEM
+        ),
+        remote_path=(
+            TRUSTED_REMOTE_PATH
+        ),
+        local_path=(
+            LOCAL_SOURCE_PATH
+        ),
     )
 
-    source = pd.read_parquet(
-        LOCAL_GOLD_PATH
+    os.environ[
+        "ALBUS_ML_SILVER_PATH"
+    ] = str(
+        LOCAL_SOURCE_PATH.resolve()
     )
 
-    coefficients = {}
-    metrics = {}
-
-    for scope in PRIORITY_SCOPES:
-        scoped = prepare_scope(
-            source,
-            scope,
-        )
-
-        features = build_training_features(
-            scoped
-        )
-
-        metrics[scope] = evaluate_model(
-            features
-        )
-
-        coefficients[scope] = fit_model(
-            features
-        )
-
-        print(
-            f"{scope}: "
-            f"MAE={metrics[scope]['mae']:.2f} | "
-            f"RMSE={metrics[scope]['rmse']:.2f}"
-        )
-
-    trained_at = datetime.now(UTC)
-
-    run_id = trained_at.strftime(
-        "%Y%m%dT%H%M%SZ"
+    print()
+    print(
+        "Executando seleção e treino "
+        "canônico v3.2..."
     )
 
-    training_end_date = pd.to_datetime(
-        source["reference_date"]
-    ).max()
+    runpy.run_path(
+        str(EXPORTER_PATH),
+        run_name="__main__",
+    )
+
+    if not LOCAL_BUNDLE_PATH.exists():
+        raise RuntimeError(
+            "O treinamento não gerou "
+            "model_bundle.joblib."
+        )
+
+    if not LOCAL_METADATA_PATH.exists():
+        raise RuntimeError(
+            "O treinamento não gerou "
+            "metadata.json."
+        )
+
+    if not CANONICAL_METRICS_PATH.exists():
+        raise RuntimeError(
+            "O treinamento não gerou "
+            "metrics.json."
+        )
+
+    shutil.copy2(
+        CANONICAL_METRICS_PATH,
+        LOCAL_METRICS_PATH,
+    )
+
+    source_label = (
+        f"{TRUSTED_FILE_SYSTEM}/"
+        f"{TRUSTED_REMOTE_PATH}"
+    )
+
+    bundle = joblib.load(
+        LOCAL_BUNDLE_PATH
+    )
+
+    bundle[
+        "source"
+    ] = source_label
+
+    joblib.dump(
+        bundle,
+        LOCAL_BUNDLE_PATH,
+    )
+
+    metadata = json.loads(
+        LOCAL_METADATA_PATH.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    metadata[
+        "training_source"
+    ] = source_label
+
+    LOCAL_METADATA_PATH.write_text(
+        json.dumps(
+            metadata,
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    model_version = str(
+        metadata["model_version"]
+    )
+
+    training_end_date = str(
+        metadata["training_end_date"]
+    )
+
+    trained_at = str(
+        metadata["trained_at"]
+    )
+
+    run_timestamp = (
+        datetime.now(UTC)
+    )
+
+    run_id = (
+        run_timestamp.strftime(
+            "%Y%m%dT%H%M%SZ"
+        )
+    )
 
     remote_base = (
-        f"volume_forecast/"
-        f"{MODEL_VERSION}/"
+        "volume_forecast/"
+        f"{model_version}/"
         f"{run_id}"
     )
 
-    remote_model_path = (
-        f"{remote_base}/model.npz"
+    remote_bundle_path = (
+        f"{remote_base}/"
+        "model_bundle.joblib"
     )
 
     remote_metadata_path = (
-        f"{remote_base}/metadata.json"
+        f"{remote_base}/"
+        "metadata.json"
     )
 
-    metadata = {
-        "model_version": MODEL_VERSION,
-        "trained_at": trained_at.isoformat(),
-        "training_end_date": str(
-            training_end_date.date()
-        ),
-        "training_source": (
-            f"{GOLD_FILE_SYSTEM}/"
-            f"{GOLD_REMOTE_PATH}"
-        ),
-        "metrics": metrics,
-    }
-
-    save_model(
-        LOCAL_MODEL_PATH,
-        LOCAL_METADATA_PATH,
-        coefficients,
-        metadata,
+    remote_metrics_path = (
+        f"{remote_base}/"
+        "metrics.json"
     )
 
     print()
-    print("Publicando modelo versionado no ADLS...")
-
-    upload_file(
-        local_path=LOCAL_MODEL_PATH,
-        file_system=MODELS_FILE_SYSTEM,
-        remote_path=remote_model_path,
+    print(
+        "Publicando bundle "
+        "versionado no ADLS..."
     )
 
     upload_file(
-        local_path=LOCAL_METADATA_PATH,
-        file_system=MODELS_FILE_SYSTEM,
-        remote_path=remote_metadata_path,
+        local_path=(
+            LOCAL_BUNDLE_PATH
+        ),
+        file_system=(
+            MODELS_FILE_SYSTEM
+        ),
+        remote_path=(
+            remote_bundle_path
+        ),
+    )
+
+    upload_file(
+        local_path=(
+            LOCAL_METADATA_PATH
+        ),
+        file_system=(
+            MODELS_FILE_SYSTEM
+        ),
+        remote_path=(
+            remote_metadata_path
+        ),
+    )
+
+    upload_file(
+        local_path=(
+            LOCAL_METRICS_PATH
+        ),
+        file_system=(
+            MODELS_FILE_SYSTEM
+        ),
+        remote_path=(
+            remote_metrics_path
+        ),
     )
 
     current = {
-        "model_version": MODEL_VERSION,
-        "trained_at": trained_at.isoformat(),
-        "training_end_date": str(
-            training_end_date.date()
-        ),
-        "model_path": remote_model_path,
-        "metadata_path": remote_metadata_path,
+        "model_version":
+            model_version,
+        "artifact_format":
+            "joblib",
+        "trained_at":
+            trained_at,
+        "training_end_date":
+            training_end_date,
+        "training_source":
+            source_label,
+        "bundle_path":
+            remote_bundle_path,
+        "metadata_path":
+            remote_metadata_path,
+        "metrics_path":
+            remote_metrics_path,
     }
 
     LOCAL_CURRENT_PATH.write_text(
@@ -195,38 +304,67 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    # Atualizado por último de propósito:
-    # só aponta para o novo modelo depois que os
-    # artefatos já foram publicados com sucesso.
+    # Atualizado por último:
+    # nunca apontamos current.json
+    # para artefato incompleto.
     upload_file(
-        local_path=LOCAL_CURRENT_PATH,
-        file_system=MODELS_FILE_SYSTEM,
-        remote_path="volume_forecast/current.json",
+        local_path=(
+            LOCAL_CURRENT_PATH
+        ),
+        file_system=(
+            MODELS_FILE_SYSTEM
+        ),
+        remote_path=(
+            CURRENT_REMOTE_PATH
+        ),
     )
 
-    # Cache local útil para testes e fallback de desenvolvimento.
     LOCAL_CACHE_DIR.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    (LOCAL_CACHE_DIR / "current.npz").write_bytes(
-        LOCAL_MODEL_PATH.read_bytes()
+    shutil.copy2(
+        LOCAL_BUNDLE_PATH,
+        LOCAL_CACHE_DIR
+        / "current.joblib",
     )
 
-    (LOCAL_CACHE_DIR / "metadata.json").write_bytes(
-        LOCAL_METADATA_PATH.read_bytes()
+    shutil.copy2(
+        LOCAL_METADATA_PATH,
+        LOCAL_CACHE_DIR
+        / "metadata.json",
+    )
+
+    shutil.copy2(
+        LOCAL_METRICS_PATH,
+        LOCAL_CACHE_DIR
+        / "metrics.json",
     )
 
     print()
-    print("TREINO_ADLS=SUCCESS")
+    print(
+        "TREINO_ADLS=SUCCESS"
+    )
     print(
         "Modelo:",
-        f"{MODELS_FILE_SYSTEM}/{remote_model_path}",
+        model_version,
+    )
+    print(
+        "Bundle:",
+        f"{MODELS_FILE_SYSTEM}/"
+        f"{remote_bundle_path}",
+    )
+    print(
+        "Componentes:",
+        metadata[
+            "component_count"
+        ],
     )
     print(
         "Current:",
-        "models/volume_forecast/current.json",
+        "models/"
+        f"{CURRENT_REMOTE_PATH}",
     )
 
 

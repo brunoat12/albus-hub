@@ -7,15 +7,15 @@ from pathlib import Path
 
 import pandas as pd
 
-from albus_hub.config.settings import get_settings
+from albus_hub.config.settings import (
+    get_settings,
+)
 from albus_hub.integration.volume_predictions import (
     validate_volume_predictions,
 )
-from albus_hub.ml.volume_forecast import (
-    PRIORITY_SCOPES,
-    forecast,
-    load_model,
-    prepare_scope,
+from albus_hub.ml.volume_forecast_v32 import (
+    load_volume_bundle,
+    predict_volume,
 )
 from albus_hub.storage.adls import (
     download_file,
@@ -26,13 +26,16 @@ from albus_hub.storage.mysql import (
     create_mysql_engine,
 )
 
-STORAGE_ACCOUNT_ENV = "AZURE_STORAGE_ACCOUNT_NAME"
+STORAGE_ACCOUNT_ENV = (
+    "AZURE_STORAGE_ACCOUNT_NAME"
+)
 
+TRUSTED_FILE_SYSTEM = "trusted"
 GOLD_FILE_SYSTEM = "gold"
 MODELS_FILE_SYSTEM = "models"
 
-GOLD_REMOTE_PATH = (
-    "analytics/daily_incident_volume.parquet"
+TRUSTED_REMOTE_PATH = (
+    "ml/locaweb_incidents.parquet"
 )
 
 CURRENT_REMOTE_PATH = (
@@ -40,12 +43,12 @@ CURRENT_REMOTE_PATH = (
 )
 
 RUNTIME_DIR = Path(
-    "artifacts/runtime/ml_inference"
+    "artifacts/runtime/ml_inference_v32"
 )
 
-LOCAL_GOLD_PATH = (
+LOCAL_SOURCE_PATH = (
     RUNTIME_DIR
-    / "daily_incident_volume.parquet"
+    / "locaweb_incidents.parquet"
 )
 
 LOCAL_CURRENT_PATH = (
@@ -53,9 +56,9 @@ LOCAL_CURRENT_PATH = (
     / "current.json"
 )
 
-LOCAL_MODEL_PATH = (
+LOCAL_BUNDLE_PATH = (
     RUNTIME_DIR
-    / "current_model.npz"
+    / "current_bundle.joblib"
 )
 
 LOCAL_OUTPUT_PATH = (
@@ -63,17 +66,19 @@ LOCAL_OUTPUT_PATH = (
     / "volume_predictions.parquet"
 )
 
-# Mantido temporariamente para compatibilidade local
-# com o Streamlit durante a transição.
 LOCAL_STREAMLIT_OUTPUT = Path(
-    "data/gold/volume_predictions.parquet"
+    "data/gold/"
+    "volume_predictions.parquet"
 )
 
 
 def main() -> None:
-    if not os.getenv(STORAGE_ACCOUNT_ENV):
+    if not os.getenv(
+        STORAGE_ACCOUNT_ENV
+    ):
         raise RuntimeError(
-            f"{STORAGE_ACCOUNT_ENV} não está configurada."
+            f"{STORAGE_ACCOUNT_ENV} "
+            "não está configurada."
         )
 
     RUNTIME_DIR.mkdir(
@@ -81,23 +86,44 @@ def main() -> None:
         exist_ok=True,
     )
 
-    print("=== INFERENCIA DIARIA DE VOLUME ===")
-
-    print()
-    print("Baixando Gold do ADLS...")
-
-    download_file(
-        file_system=GOLD_FILE_SYSTEM,
-        remote_path=GOLD_REMOTE_PATH,
-        local_path=LOCAL_GOLD_PATH,
+    print(
+        "=== INFERENCIA DIARIA "
+        "ML V3.2 ==="
     )
 
-    print("Baixando ponteiro do modelo vigente...")
+    print()
+    print(
+        "Baixando Silver governada "
+        "do ADLS..."
+    )
 
     download_file(
-        file_system=MODELS_FILE_SYSTEM,
-        remote_path=CURRENT_REMOTE_PATH,
-        local_path=LOCAL_CURRENT_PATH,
+        file_system=(
+            TRUSTED_FILE_SYSTEM
+        ),
+        remote_path=(
+            TRUSTED_REMOTE_PATH
+        ),
+        local_path=(
+            LOCAL_SOURCE_PATH
+        ),
+    )
+
+    print(
+        "Baixando ponteiro "
+        "do modelo vigente..."
+    )
+
+    download_file(
+        file_system=(
+            MODELS_FILE_SYSTEM
+        ),
+        remote_path=(
+            CURRENT_REMOTE_PATH
+        ),
+        local_path=(
+            LOCAL_CURRENT_PATH
+        ),
     )
 
     current = json.loads(
@@ -110,18 +136,22 @@ def main() -> None:
         "model_version"
     )
 
-    model_remote_path = current.get(
-        "model_path"
+    bundle_remote_path = (
+        current.get(
+            "bundle_path"
+        )
     )
 
     if not model_version:
         raise ValueError(
-            "current.json não possui model_version."
+            "current.json sem "
+            "model_version."
         )
 
-    if not model_remote_path:
+    if not bundle_remote_path:
         raise ValueError(
-            "current.json não possui model_path."
+            "current.json ainda não "
+            "possui bundle_path v3.2."
         )
 
     print(
@@ -130,91 +160,114 @@ def main() -> None:
     )
 
     print(
-        "Artefato:",
-        model_remote_path,
+        "Bundle:",
+        bundle_remote_path,
     )
 
     print()
-    print("Baixando modelo vigente do ADLS...")
+    print(
+        "Baixando bundle vigente..."
+    )
 
     download_file(
-        file_system=MODELS_FILE_SYSTEM,
-        remote_path=model_remote_path,
-        local_path=LOCAL_MODEL_PATH,
+        file_system=(
+            MODELS_FILE_SYSTEM
+        ),
+        remote_path=(
+            bundle_remote_path
+        ),
+        local_path=(
+            LOCAL_BUNDLE_PATH
+        ),
     )
 
     source = pd.read_parquet(
-        LOCAL_GOLD_PATH
+        LOCAL_SOURCE_PATH
     )
 
-    models = load_model(
-        LOCAL_MODEL_PATH
+    bundle = load_volume_bundle(
+        LOCAL_BUNDLE_PATH
     )
 
-    generated_at = datetime.now(UTC)
+    bundle_version = str(
+        bundle.get(
+            "model_version"
+        )
+    )
 
-    rows = []
-
-    for scope in PRIORITY_SCOPES:
-        scoped = prepare_scope(
-            source,
-            scope,
+    if bundle_version != str(
+        model_version
+    ):
+        raise RuntimeError(
+            "Versão do bundle difere "
+            "do current.json: "
+            f"{bundle_version} != "
+            f"{model_version}"
         )
 
-        predictions = forecast(
-            scoped,
-            models[scope],
+    generated_at = (
+        datetime.now(UTC)
+    )
+
+    frame = predict_volume(
+        source,
+        bundle,
+        generated_at=generated_at,
+    )
+
+    frame = (
+        validate_volume_predictions(
+            frame
+        )
+    )
+
+    if len(frame) != 12:
+        raise RuntimeError(
+            "A inferência v3.2 deve "
+            "gerar exatamente "
+            "12 previsões."
         )
 
-        for step, horizon in (
-            (1, "D+1"),
-            (7, "D+7"),
-        ):
-            reference_date, value = (
-                predictions[step]
-            )
-
-            rows.append(
-                {
-                    "reference_date": reference_date,
-                    "generated_at": generated_at.replace(
-                        tzinfo=None
-                    ),
-                    "horizon": horizon,
-                    "priority_scope": scope,
-                    "predicted_incident_count": round(
-                        value,
-                        2,
-                    ),
-                    "model_version": model_version,
-                }
-            )
-
-            print(
-                f"{scope} {horizon}: "
-                f"{reference_date.date()} "
-                f"-> {value:.2f}"
-            )
-
-    frame = pd.DataFrame(
-        rows
+    print()
+    print(
+        "===== PREVISOES ====="
     )
 
-    frame = validate_volume_predictions(
-        frame
-    )
+    for row in frame.itertuples(
+        index=False
+    ):
+        reference_date = (
+            pd.Timestamp(
+                row.reference_date
+            ).date()
+        )
+
+        print(
+            f"{row.priority_scope} "
+            f"{row.horizon}: "
+            f"{reference_date} "
+            f"-> "
+            f"{row.predicted_incident_count:.2f} "
+            f"[{row.lower_bound:.2f}, "
+            f"{row.upper_bound:.2f}] "
+            f"| {row.model_name}"
+        )
 
     frame.to_parquet(
         LOCAL_OUTPUT_PATH,
         index=False,
     )
 
-    run_date = generated_at.strftime(
-        "%Y-%m-%d"
+    run_date = (
+        generated_at.strftime(
+            "%Y-%m-%d"
+        )
     )
 
-    run_id = generated_at.strftime(
-        "%Y%m%dT%H%M%SZ"
+    run_id = (
+        generated_at.strftime(
+            "%Y%m%dT%H%M%SZ"
+        )
     )
 
     remote_prediction_path = (
@@ -225,16 +278,28 @@ def main() -> None:
     )
 
     print()
-    print("Publicando previsão no ADLS...")
+    print(
+        "Publicando previsão "
+        "no ADLS..."
+    )
 
     upload_file(
-        local_path=LOCAL_OUTPUT_PATH,
-        file_system=GOLD_FILE_SYSTEM,
-        remote_path=remote_prediction_path,
+        local_path=(
+            LOCAL_OUTPUT_PATH
+        ),
+        file_system=(
+            GOLD_FILE_SYSTEM
+        ),
+        remote_path=(
+            remote_prediction_path
+        ),
     )
 
     print()
-    print("Persistindo previsão vigente no MySQL...")
+    print(
+        "Persistindo previsão "
+        "vigente no MySQL..."
+    )
 
     settings = get_settings()
 
@@ -253,26 +318,60 @@ def main() -> None:
     ):
         mysql_rows.append(
             {
-                "priority_scope": str(
-                    row["priority_scope"]
-                ),
-                "horizon": str(
-                    row["horizon"]
-                ),
-                "reference_date": pd.Timestamp(
-                    row["reference_date"]
-                ).to_pydatetime(),
-                "predicted_incident_count": float(
-                    row[
-                        "predicted_incident_count"
-                    ]
-                ),
-                "generated_at": pd.Timestamp(
-                    row["generated_at"]
-                ).to_pydatetime(),
-                "model_version": str(
-                    row["model_version"]
-                ),
+                "priority_scope":
+                    str(
+                        row[
+                            "priority_scope"
+                        ]
+                    ),
+                "horizon":
+                    str(
+                        row[
+                            "horizon"
+                        ]
+                    ),
+                "reference_date":
+                    pd.Timestamp(
+                        row[
+                            "reference_date"
+                        ]
+                    ).to_pydatetime(),
+                "predicted_incident_count":
+                    float(
+                        row[
+                            "predicted_incident_count"
+                        ]
+                    ),
+                "lower_bound":
+                    float(
+                        row[
+                            "lower_bound"
+                        ]
+                    ),
+                "upper_bound":
+                    float(
+                        row[
+                            "upper_bound"
+                        ]
+                    ),
+                "model_name":
+                    str(
+                        row[
+                            "model_name"
+                        ]
+                    ),
+                "generated_at":
+                    pd.Timestamp(
+                        row[
+                            "generated_at"
+                        ]
+                    ).to_pydatetime(),
+                "model_version":
+                    str(
+                        row[
+                            "model_version"
+                        ]
+                    ),
             }
         )
 
@@ -284,7 +383,6 @@ def main() -> None:
         "MYSQL_PREDICTIONS_UPSERT=SUCCESS"
     )
 
-    # Compatibilidade temporária com o Streamlit local.
     LOCAL_STREAMLIT_OUTPUT.parent.mkdir(
         parents=True,
         exist_ok=True,
@@ -295,16 +393,21 @@ def main() -> None:
     )
 
     print()
-    print("INFERENCE_ADLS=SUCCESS")
-
+    print(
+        "INFERENCE_ADLS=SUCCESS"
+    )
     print(
         "Modelo utilizado:",
         model_version,
     )
-
+    print(
+        "Previsões geradas:",
+        len(frame),
+    )
     print(
         "Previsão:",
-        f"{GOLD_FILE_SYSTEM}/{remote_prediction_path}",
+        f"{GOLD_FILE_SYSTEM}/"
+        f"{remote_prediction_path}",
     )
 
 
