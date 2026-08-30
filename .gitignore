@@ -92,3 +92,6 @@ data/backups/*
 
 # Restore temporário para validação de backup
 data/restore_test/
+
+# Base acadêmica necessária para execução do notebook de Deep Learning
+!data/silver/locaweb_incidents.parquet
