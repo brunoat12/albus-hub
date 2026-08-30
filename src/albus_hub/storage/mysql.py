@@ -66,6 +66,21 @@ ml_volume_predictions_current_table = Table(
         nullable=False,
     ),
     Column(
+        "lower_bound",
+        Numeric(12, 2),
+        nullable=True,
+    ),
+    Column(
+        "upper_bound",
+        Numeric(12, 2),
+        nullable=True,
+    ),
+    Column(
+        "model_name",
+        String(64),
+        nullable=True,
+    ),
+    Column(
         "generated_at",
         DateTime(),
         nullable=False,
@@ -260,6 +275,49 @@ class MySQLRepository:
             ],
         )
 
+        # create_all não altera tabelas existentes.
+        # Em MySQL, adicionamos de forma idempotente
+        # as colunas introduzidas pelo ML v3.2.
+        if self.engine.dialect.name == "mysql":
+            with self.engine.begin() as connection:
+                existing_columns = {
+                    row["Field"]
+                    for row in connection.execute(
+                        text(
+                            "SHOW COLUMNS FROM "
+                            "ml_volume_predictions_current"
+                        )
+                    ).mappings()
+                }
+
+                migrations = {
+                    "lower_bound": (
+                        "ALTER TABLE "
+                        "ml_volume_predictions_current "
+                        "ADD COLUMN lower_bound "
+                        "DECIMAL(12,2) NULL "
+                        "AFTER predicted_incident_count"
+                    ),
+                    "upper_bound": (
+                        "ALTER TABLE "
+                        "ml_volume_predictions_current "
+                        "ADD COLUMN upper_bound "
+                        "DECIMAL(12,2) NULL "
+                        "AFTER lower_bound"
+                    ),
+                    "model_name": (
+                        "ALTER TABLE "
+                        "ml_volume_predictions_current "
+                        "ADD COLUMN model_name "
+                        "VARCHAR(64) NULL "
+                        "AFTER upper_bound"
+                    ),
+                }
+
+                for column, ddl in migrations.items():
+                    if column not in existing_columns:
+                        connection.execute(text(ddl))
+
     def ensure_dashboard_serving_tables(
         self,
     ) -> None:
@@ -361,6 +419,9 @@ class MySQLRepository:
             predicted_incident_count=(
                 statement.inserted.predicted_incident_count
             ),
+            lower_bound=statement.inserted.lower_bound,
+            upper_bound=statement.inserted.upper_bound,
+            model_name=statement.inserted.model_name,
             generated_at=statement.inserted.generated_at,
             model_version=statement.inserted.model_version,
             updated_at=statement.inserted.updated_at,
@@ -380,6 +441,9 @@ class MySQLRepository:
                 ml_volume_predictions_current_table.c.horizon,
                 ml_volume_predictions_current_table.c.reference_date,
                 ml_volume_predictions_current_table.c.predicted_incident_count,
+                ml_volume_predictions_current_table.c.lower_bound,
+                ml_volume_predictions_current_table.c.upper_bound,
+                ml_volume_predictions_current_table.c.model_name,
                 ml_volume_predictions_current_table.c.generated_at,
                 ml_volume_predictions_current_table.c.model_version,
                 ml_volume_predictions_current_table.c.updated_at,
