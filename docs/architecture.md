@@ -6,9 +6,9 @@ O Albus-Hub é uma solução de AIOps voltada à análise operacional de
 incidentes, previsão de volume e avaliação de risco de violação de
 indicadores operacionais.
 
-A implementação da Sprint 3 utiliza Azure como plataforma cloud principal,
+A implementação consolidada da Sprint 4 utiliza Azure como plataforma cloud principal,
 mantendo os componentes da aplicação desacoplados da infraestrutura por
-meio de Python e Docker.
+meio de Python, Docker e contratos de dados bem definidos.
 
 ## Arquitetura implementada
 
@@ -18,41 +18,47 @@ Fonte de incidentes
         v
 Azure Data Factory
         |
-        +----------------------+
-        |                      |
-        v                      v
-Azure Data Lake Gen2     Azure Database for MySQL
-raw/trusted/gold         incidents_trusted
-        |                      |
-        +----------+-----------+
-                   |
-                   v
-             Python / Airflow
-                   |
-          +--------+---------+
-          |                  |
-          v                  v
-   Dados operacionais   Contratos de modelos
-          |                  |
-          +--------+---------+
-                   |
-                   v
-               Streamlit
-                   |
-                Docker
-                   |
-                   v
-       Azure Container Registry
-                   |
-                   v
-      Azure Container Instances
-                   |
-          +--------+---------+
-          |                  |
-          v                  v
- Azure Monitor /        Application Insights
- Log Analytics          OpenTelemetry
+        v
+Azure Data Lake Storage Gen2
+ raw / trusted / gold
+        |
+        +-------------+-------------+
+        |             |             |
+        v             v             v
+ Gold analítico   ML Volume      DL Risco
+        |          D+1 / D+7       Score
+        |             |             |
+        |             v             v
+        |       Modelos no ADLS  Modelos no ADLS
+        |             |             |
+        +-------------+-------------+
+                      |
+                      v
+          Azure Database for MySQL
+                      |
+          +-----------+-----------+
+          |           |           |
+          v           v           v
+     Gold serving  Previsões   Scores de risco
+          |           |           |
+          +-----------+-----------+
+                      |
+                      v
+                  Streamlit
+                      |
+                   Docker
+                      |
+                      v
+          Azure Container Registry
+                      |
+                      v
+         Azure Container Instances
 
+Airflow:
+- treinamento ML
+- inferência ML
+- treinamento DL
+- inferência DL
 ```
 
 ## Camada de dados
@@ -77,11 +83,19 @@ Os contratos completos estão documentados em:
 
 ## Orquestração
 
-O Azure Data Factory é utilizado como orquestrador central do fluxo de
-Data Warehousing requerido na Sprint 3.
+O Azure Data Factory permanece responsável pelos fluxos de Data Warehousing
+desenvolvidos nas etapas anteriores do projeto.
 
-O Airflow é utilizado pela solução para pipelines de processamento,
-validação, geração da camada Gold, backup e recuperação.
+Na Sprint 4, o Apache Airflow também orquestra os pipelines analíticos de
+Machine Learning e Deep Learning:
+
+- treinamento do modelo de previsão de volume;
+- inferência de volume D+1 e D+7;
+- treinamento do modelo de risco;
+- inferência e geração dos scores de risco.
+
+Os pipelines utilizam marcadores explícitos de sucesso para evitar que uma
+execução parcialmente concluída seja considerada válida.
 
 ## Persistência
 
@@ -120,41 +134,43 @@ O serviço é identificado como:
 
 `albus-hub`
 
-## Componentes com contrato pronto e integração pendente
-
-Alguns componentes dependem da conclusão dos artefatos de modelagem das
-demais frentes do projeto.
+## Componentes analíticos integrados
 
 ### Previsão de volume
 
-Contrato preparado para previsões:
+O pipeline de Machine Learning produz previsões D+1 e D+7 para os
+escopos ALL, P1, P2, P3, P4 e P5.
 
-- D+1;
-- D+7;
-- ALL;
-- P2;
-- P3.
+Os artefatos são versionados no Azure Data Lake e as previsões vigentes
+são persistidas no Azure MySQL.
+
+Versão operacional:
+
+`volume_v3.2_2026-08-21`
 
 ### Risco operacional
 
-Contrato preparado para:
+O pipeline de Deep Learning produz probabilidade de violação, score de
+risco de 0 a 100, nível de risco e fatores explicativos.
 
-- probabilidade de violação;
-- score operacional de 0 a 100;
-- classificação de nível de risco;
-- principais fatores;
-- ação recomendada.
+Os artefatos são versionados no Azure Data Lake e os scores vigentes
+são persistidos no Azure MySQL.
+
+Versão operacional:
+
+`risk-ann-v1-20260820`
+
+### Gold e serving
+
+A camada Gold suporta análise de volume, produto, categoria, grupo, item
+de configuração, agrupamentos críticos e cascatas por parent_incident_id.
+
+Os dados consumidos pelo Streamlit são materializados no Azure MySQL.
 
 ### RabbitMQ
 
-O RabbitMQ faz parte da arquitetura de integração para publicação de
-eventos críticos.
-
-Quando a integração do modelo de risco estiver concluída, previsões
-classificadas como críticas poderão gerar eventos para consumo pelo
-serviço de alertas.
-
-Esse componente não é apresentado como deploy Azure concluído nesta etapa.
+O RabbitMQ permanece como evolução para integração orientada a eventos
+e alertas críticos, fora do caminho crítico da entrega analítica.
 
 ## Portabilidade
 
