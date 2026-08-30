@@ -206,7 +206,9 @@ for scope,y in series.items():
         all_metrics[scope][hn]["_coverage"]={"nominal":.8,
             "conformal_nov_dez":float(np.mean((a[evr]>=lo[evr])&(a[evr]<=hi[evr]))) if evr.any() else float("nan"),
             "largura_media":float(np.nanmean(hi[evr]-lo[evr])) if evr.any() else float("nan"),
-            "n_avaliado":int(evr.sum())}
+            "n_avaliado":int(evr.sum()),
+            "q_low":float(qlo),
+            "q_high":float(qhi)}
         LO,HI=_bf(lo,bp),_bf(hi,bp)
         for dte,av,pv,l_,h_ in zip(td,a,bp,LO,HI):
             all_preds.append(dict(reference_date=dte.date(),horizon=hn,scope=scope,predicted_incidents=int(round(pv)),
