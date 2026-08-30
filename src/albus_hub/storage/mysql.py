@@ -17,6 +17,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Table,
+    Text,
     create_engine,
     delete,
     func,
@@ -96,6 +97,67 @@ ml_volume_predictions_current_table = Table(
         nullable=False,
     ),
 )
+
+dl_risk_scores_current_table = Table(
+    "dl_risk_scores_current",
+    metadata,
+    Column(
+        "incident_id",
+        String(64),
+        primary_key=True,
+    ),
+    Column(
+        "scored_at",
+        DateTime(),
+        nullable=False,
+    ),
+    Column(
+        "model_version",
+        String(128),
+        nullable=False,
+    ),
+    Column(
+        "breach_probability",
+        Numeric(10, 8),
+        nullable=False,
+    ),
+    Column(
+        "priority_impact",
+        Numeric(5, 4),
+        nullable=False,
+    ),
+    Column(
+        "operational_pressure",
+        Numeric(5, 4),
+        nullable=False,
+    ),
+    Column(
+        "risk_score",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "risk_level",
+        String(16),
+        nullable=False,
+    ),
+    Column(
+        "top_risk_factors",
+        Text,
+        nullable=False,
+    ),
+    Column(
+        "recommended_action",
+        String(512),
+        nullable=False,
+    ),
+    Column(
+        "updated_at",
+        DateTime(),
+        nullable=False,
+    ),
+)
+
 
 app_daily_incident_volume_table = Table(
     "app_daily_incident_volume",
@@ -317,6 +379,80 @@ class MySQLRepository:
                 for column, ddl in migrations.items():
                     if column not in existing_columns:
                         connection.execute(text(ddl))
+
+    def ensure_dl_risk_scores_table(
+        self,
+    ) -> None:
+        """Cria a tabela operacional de scores de risco vigentes."""
+
+        metadata.create_all(
+            self.engine,
+            tables=[
+                dl_risk_scores_current_table,
+            ],
+        )
+
+    def replace_dl_risk_scores(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> None:
+        """Substitui atomicamente a coorte vigente de scores de risco."""
+
+        now = datetime.now(UTC).replace(
+            tzinfo=None
+        )
+
+        normalized_rows = [
+            {
+                **row,
+                "updated_at": now,
+            }
+            for row in rows
+        ]
+
+        with self.engine.begin() as connection:
+            connection.execute(
+                delete(
+                    dl_risk_scores_current_table
+                )
+            )
+
+            if normalized_rows:
+                connection.execute(
+                    insert(
+                        dl_risk_scores_current_table
+                    ),
+                    normalized_rows,
+                )
+
+    def fetch_dl_risk_scores(
+        self,
+    ) -> list[dict[str, Any]]:
+        """Retorna a coorte operacional vigente de scores de risco."""
+
+        statement = (
+            select(
+                dl_risk_scores_current_table
+            )
+            .order_by(
+                dl_risk_scores_current_table.c.risk_score.desc(),
+                dl_risk_scores_current_table.c.incident_id,
+            )
+        )
+
+        with self.engine.connect() as connection:
+            rows = (
+                connection.execute(
+                    statement
+                )
+                .mappings()
+                .all()
+            )
+
+        return [
+            dict(row)
+            for row in rows
+        ]
 
     def ensure_dashboard_serving_tables(
         self,
