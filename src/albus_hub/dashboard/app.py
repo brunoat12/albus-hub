@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from albus_hub.config import get_settings
 from albus_hub.integration import (
     RiskScoreContractError,
-    load_risk_scores,
+    validate_risk_scores,
 )
 from albus_hub.observability import configure_observability
 from albus_hub.storage.mysql import (
@@ -62,6 +62,26 @@ def load_current_predictions() -> pd.DataFrame:
     )
 
     return frame
+
+@st.cache_data(
+    ttl=60,
+    show_spinner=False,
+)
+def load_current_risk_scores() -> pd.DataFrame:
+    """Carrega os scores de risco operacionais vigentes do MySQL."""
+
+    rows = (
+        get_mysql_repository()
+        .fetch_dl_risk_scores()
+    )
+
+    frame = pd.DataFrame(rows)
+
+    if frame.empty:
+        return frame
+
+    return validate_risk_scores(frame)
+
 
 @st.cache_data(
     ttl=300,
@@ -407,6 +427,27 @@ with tab_operations:
 with tab_forecast:
     st.subheader("Previsão de Volume")
 
+    forecast_scope = st.selectbox(
+        "Escopo da previsão",
+        options=[
+            "ALL",
+            "P1",
+            "P2",
+            "P3",
+            "P4",
+            "P5",
+        ],
+        format_func=lambda value: {
+            "ALL": "Todas as prioridades",
+            "P1": "P1 — Crítica",
+            "P2": "P2 — Alta",
+            "P3": "P3 — Média",
+            "P4": "P4 — Baixa",
+            "P5": "P5 — Planejada",
+        }[value],
+        key="forecast_priority_scope",
+    )
+
     try:
         predictions = load_current_predictions()
     except SQLAlchemyError as exc:
@@ -418,206 +459,419 @@ with tab_forecast:
         st.caption(
             f"Detalhes técnicos: {exc}"
         )
+
+        predictions = pd.DataFrame()
+
+    if predictions.empty:
+        st.info(
+            "Ainda não há previsões operacionais "
+            "disponíveis no MySQL."
+        )
+
+        col1, col2 = st.columns(2)
+
+        col1.metric(
+            "Previsão D+1",
+            "Aguardando modelo",
+        )
+
+        col2.metric(
+            "Previsão D+7",
+            "Aguardando modelo",
+        )
+
     else:
-        if predictions.empty:
+        scoped_predictions = predictions.loc[
+            predictions[
+                "priority_scope"
+            ].eq(forecast_scope)
+        ].copy()
+
+        if scoped_predictions.empty:
             st.info(
-                "Ainda não há previsões operacionais "
-                "disponíveis no MySQL."
+                "Não há previsões disponíveis "
+                "para o escopo selecionado."
             )
+
+        else:
+            latest_by_horizon = (
+                scoped_predictions
+                .sort_values(
+                    [
+                        "reference_date",
+                        "generated_at",
+                    ]
+                )
+                .drop_duplicates(
+                    subset=["horizon"],
+                    keep="last",
+                )
+            )
+
+            def get_horizon_row(
+                horizon: str,
+            ) -> pd.Series | None:
+                rows = latest_by_horizon.loc[
+                    latest_by_horizon[
+                        "horizon"
+                    ].eq(horizon)
+                ]
+
+                if rows.empty:
+                    return None
+
+                return rows.iloc[-1]
+
+            def format_prediction(
+                horizon: str,
+            ) -> str:
+                row = get_horizon_row(
+                    horizon
+                )
+
+                if row is None:
+                    return "Indisponível"
+
+                return format_integer(
+                    round(
+                        row[
+                            "predicted_incident_count"
+                        ]
+                    )
+                )
 
             col1, col2 = st.columns(2)
 
             col1.metric(
                 "Previsão D+1",
-                "Aguardando modelo",
+                format_prediction("D+1"),
             )
 
             col2.metric(
                 "Previsão D+7",
-                "Aguardando modelo",
+                format_prediction("D+7"),
             )
 
-        else:
-            scoped_predictions = predictions.loc[
-                predictions["priority_scope"].eq(
-                    priority_scope
-                )
-            ].copy()
+            st.caption(
+                "Fonte operacional: "
+                "Azure Database for MySQL • "
+                "modelo vigente carregado pelo "
+                "pipeline de inferência"
+            )
 
-            if scoped_predictions.empty:
-                st.info(
-                    "Não há previsões disponíveis "
-                    "para o escopo selecionado."
-                )
-            else:
-                latest_by_horizon = (
-                    scoped_predictions
-                    .sort_values(
-                        [
-                            "reference_date",
-                            "generated_at",
-                        ]
-                    )
-                    .drop_duplicates(
-                        subset=["horizon"],
-                        keep="last",
-                    )
+            interval_rows = []
+
+            for horizon in [
+                "D+1",
+                "D+7",
+            ]:
+                row = get_horizon_row(
+                    horizon
                 )
 
-                def prediction_value(
-                    horizon: str,
-                ) -> str:
-                    rows = latest_by_horizon.loc[
-                        latest_by_horizon[
-                            "horizon"
-                        ].eq(horizon)
-                    ]
+                if row is None:
+                    continue
 
-                    if rows.empty:
-                        return "Indisponível"
-
-                    value = rows.iloc[-1][
-                        "predicted_incident_count"
-                    ]
-
-                    return format_integer(
-                        round(value)
-                    )
-
-                col1, col2 = st.columns(2)
-
-                col1.metric(
-                    "Previsão D+1",
-                    prediction_value("D+1"),
+                interval_rows.append(
+                    {
+                        "Horizonte": horizon,
+                        "Previsão": round(
+                            float(
+                                row[
+                                    "predicted_incident_count"
+                                ]
+                            ),
+                            2,
+                        ),
+                        "Limite inferior": (
+                            None
+                            if pd.isna(
+                                row[
+                                    "lower_bound"
+                                ]
+                            )
+                            else round(
+                                float(
+                                    row[
+                                        "lower_bound"
+                                    ]
+                                ),
+                                2,
+                            )
+                        ),
+                        "Limite superior": (
+                            None
+                            if pd.isna(
+                                row[
+                                    "upper_bound"
+                                ]
+                            )
+                            else round(
+                                float(
+                                    row[
+                                        "upper_bound"
+                                    ]
+                                ),
+                                2,
+                            )
+                        ),
+                        "Modelo": row[
+                            "model_name"
+                        ],
+                        "Versão": row[
+                            "model_version"
+                        ],
+                        "Data prevista": row[
+                            "reference_date"
+                        ],
+                        "Gerado em": row[
+                            "generated_at"
+                        ],
+                    }
                 )
 
-                col2.metric(
-                    "Previsão D+7",
-                    prediction_value("D+7"),
-                )
+            st.subheader(
+                "Detalhes da previsão"
+            )
 
-                st.caption(
-                    "Fonte operacional: "
-                    "Azure Database for MySQL • "
-                    "Atualização automática via pipeline de inferência"
-                )
-
-                st.dataframe(
-                    latest_by_horizon[
-                        [
-                            "reference_date",
-                            "horizon",
-                            "priority_scope",
-                            "predicted_incident_count",
-                            "model_version",
-                            "generated_at",
-                        ]
-                    ].sort_values(
-                        "horizon"
-                    ),
-                    width="stretch",
-                    hide_index=True,
-                )
+            st.dataframe(
+                pd.DataFrame(
+                    interval_rows
+                ),
+                width="stretch",
+                hide_index=True,
+            )
 
 
 with tab_risk:
     st.subheader("Risco Operacional")
 
-    risk_score_path = settings.absolute_path(settings.locaweb_risk_scores_file)
-
     try:
-        risk_scores = load_risk_scores(risk_score_path)
+        risk_scores = load_current_risk_scores()
+    except SQLAlchemyError as exc:
+        st.error(
+            "Não foi possível consultar os scores "
+            "de risco vigentes no Azure MySQL."
+        )
+        st.caption(
+            f"Detalhes técnicos: {exc}"
+        )
+        risk_scores = pd.DataFrame()
     except RiskScoreContractError as exc:
-        st.error(f"O artefato de risco não respeita o contrato: {exc}")
+        st.error(
+            "Os scores de risco no serving "
+            f"não respeitam o contrato: {exc}"
+        )
+        risk_scores = pd.DataFrame()
+
+    if risk_scores.empty:
+        st.warning(
+            "Ainda não há scores de risco "
+            "operacionais disponíveis no MySQL."
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Risk score",
+            "Aguardando modelo",
+        )
+
+        col2.metric(
+            "Nível de risco",
+            "Aguardando modelo",
+        )
+
+        col3.metric(
+            "Incidentes críticos",
+            "Aguardando modelo",
+        )
+
+        st.caption(
+            "Fonte operacional: "
+            "Azure Database for MySQL"
+        )
+
     else:
-        if risk_scores is None:
-            st.warning("O modelo de risco e o score operacional ainda não foram integrados.")
-
-            col1, col2, col3 = st.columns(3)
-
-            col1.metric(
-                "Risk score",
-                "Aguardando modelo",
-            )
-
-            col2.metric(
-                "Nível de risco",
-                "Aguardando modelo",
-            )
-
-            col3.metric(
-                "Incidentes críticos",
-                "Aguardando modelo",
-            )
-
-            st.caption("Arquivo esperado: data/gold/risk_scores.parquet")
-
-        else:
-            latest_scores = risk_scores.sort_values("scored_at").drop_duplicates(
+        latest_scores = (
+            risk_scores
+            .sort_values("scored_at")
+            .drop_duplicates(
                 subset=["incident_id"],
                 keep="last",
             )
+        )
 
-            average_score = latest_scores["risk_score"].mean()
+        average_score = (
+            latest_scores["risk_score"]
+            .mean()
+        )
 
-            critical_count = int(latest_scores["risk_level"].eq("crítico").sum())
+        critical_count = int(
+            latest_scores[
+                "risk_level"
+            ]
+            .eq("crítico")
+            .sum()
+        )
 
-            high_or_critical = int(
-                latest_scores["risk_level"]
-                .isin(
-                    [
-                        "alto",
-                        "crítico",
-                    ]
-                )
-                .sum()
+        high_or_critical = int(
+            latest_scores[
+                "risk_level"
+            ]
+            .isin(
+                [
+                    "alto",
+                    "crítico",
+                ]
             )
+            .sum()
+        )
 
-            col1, col2, col3 = st.columns(3)
+        moderate_count = int(
+            latest_scores[
+                "risk_level"
+            ]
+            .eq("moderado")
+            .sum()
+        )
 
-            col1.metric(
-                "Risk score médio",
-                f"{average_score:.1f}",
+        col1, col2, col3, col4 = (
+            st.columns(4)
+        )
+
+        col1.metric(
+            "Risk score médio",
+            f"{average_score:.1f}",
+        )
+
+        col2.metric(
+            "Moderados",
+            format_integer(
+                moderate_count
+            ),
+        )
+
+        col3.metric(
+            "Alto ou crítico",
+            format_integer(
+                high_or_critical
+            ),
+        )
+
+        col4.metric(
+            "Críticos",
+            format_integer(
+                critical_count
+            ),
+        )
+
+        st.caption(
+            "Fonte operacional: "
+            "Azure Database for MySQL • "
+            "modelo vigente sem retreinamento "
+            "durante a inferência"
+        )
+
+        st.subheader(
+            "Distribuição de risco"
+        )
+
+        risk_distribution = (
+            latest_scores[
+                "risk_level"
+            ]
+            .value_counts()
+            .rename_axis(
+                "Nível de risco"
             )
-
-            col2.metric(
-                "Alto ou crítico",
-                format_integer(high_or_critical),
+            .reset_index(
+                name="Incidentes"
             )
+        )
 
-            col3.metric(
-                "Críticos",
-                format_integer(critical_count),
-            )
+        st.bar_chart(
+            risk_distribution,
+            x="Nível de risco",
+            y="Incidentes",
+        )
 
-            st.subheader("Incidentes prioritários")
+        st.subheader(
+            "Incidentes prioritários"
+        )
 
-            ranking = (
-                latest_scores.sort_values(
+        ranking = (
+            latest_scores
+            .sort_values(
+                [
                     "risk_score",
-                    ascending=False,
-                )
-                .head(20)
-                .copy()
-            )
-
-            ranking["risk_level"] = ranking["risk_level"].str.title()
-
-            st.dataframe(
-                ranking[
-                    [
-                        "incident_id",
-                        "risk_score",
-                        "risk_level",
-                        "breach_probability",
-                        "top_risk_factors",
-                        "recommended_action",
-                        "model_version",
-                    ]
+                    "breach_probability",
                 ],
-                width="stretch",
-                hide_index=True,
+                ascending=False,
             )
+            .head(20)
+            .copy()
+        )
+
+        ranking["risk_level"] = (
+            ranking[
+                "risk_level"
+            ]
+            .str.title()
+        )
+
+        st.dataframe(
+            ranking[
+                [
+                    "incident_id",
+                    "risk_score",
+                    "risk_level",
+                    "breach_probability",
+                    "priority_impact",
+                    "operational_pressure",
+                    "top_risk_factors",
+                    "recommended_action",
+                    "model_version",
+                    "scored_at",
+                ]
+            ].rename(
+                columns={
+                    "incident_id": (
+                        "Incidente"
+                    ),
+                    "risk_score": (
+                        "Risk score"
+                    ),
+                    "risk_level": (
+                        "Nível"
+                    ),
+                    "breach_probability": (
+                        "Prob. violação"
+                    ),
+                    "priority_impact": (
+                        "Impacto prioridade"
+                    ),
+                    "operational_pressure": (
+                        "Pressão operacional"
+                    ),
+                    "top_risk_factors": (
+                        "Principais fatores"
+                    ),
+                    "recommended_action": (
+                        "Ação recomendada"
+                    ),
+                    "model_version": (
+                        "Versão do modelo"
+                    ),
+                    "scored_at": (
+                        "Scoring em"
+                    ),
+                }
+            ),
+            width="stretch",
+            hide_index=True,
+        )
+
 
 with tab_cloud:
     st.subheader("Integração Cloud")
