@@ -208,6 +208,39 @@ def test_build_daily_breakdown_preserves_missing_values() -> None:
     assert len(group_a) == 1
     assert group_a.iloc[0]["incident_count"] == 2
 
+    critical_group = result.loc[
+        result["reference_date"].eq(
+            pd.Timestamp("2025-01-01")
+        )
+        & result["dimension_name"].eq(
+            "critical_group"
+        )
+        & result["dimension_value"].eq(
+            "Produto A | Categoria 1 | P2"
+        )
+        & result["priority_scope"].eq("ALL")
+    ]
+
+    assert len(critical_group) == 1
+    assert (
+        critical_group.iloc[0][
+            "incident_count"
+        ]
+        == 1
+    )
+    assert (
+        critical_group.iloc[0][
+            "entered_kpi_count"
+        ]
+        == 1
+    )
+    assert (
+        critical_group.iloc[0][
+            "kpi_breach_count"
+        ]
+        == 1
+    )
+
     assert not result["dimension_value"].isna().any()
 
     assert not result.duplicated(

@@ -632,6 +632,9 @@ class MySQLRepository:
         priority_scope: str,
         dimension_name: str,
         limit: int,
+        ranking_metric: str = "incident_count",
+        min_entered_kpi: int = 0,
+        exclude_missing: bool = False,
     ) -> list[dict[str, Any]]:
         """Retorna ranking operacional agregado pelo MySQL."""
 
@@ -647,6 +650,45 @@ class MySQLRepository:
             app_daily_incident_breakdown_table.c.kpi_breach_count
         )
 
+        breach_rate = (
+            100.0
+            * breach_sum
+            / func.nullif(
+                entered_kpi_sum,
+                0,
+            )
+        )
+
+        ranking_expressions = {
+            "incident_count": incident_sum,
+            "kpi_breach_count": breach_sum,
+            "breach_rate_pct": breach_rate,
+        }
+
+        if ranking_metric not in ranking_expressions:
+            raise ValueError(
+                "Métrica de ranking inválida: "
+                f"{ranking_metric}"
+            )
+
+        conditions = [
+            app_daily_incident_breakdown_table.c.reference_date.between(
+                start_date,
+                end_date,
+            ),
+            app_daily_incident_breakdown_table.c.priority_scope
+            == priority_scope,
+            app_daily_incident_breakdown_table.c.dimension_name
+            == dimension_name,
+        ]
+
+        if exclude_missing:
+            conditions.append(
+                ~app_daily_incident_breakdown_table.c.dimension_value.contains(
+                    "__MISSING__"
+                )
+            )
+
         statement = (
             select(
                 app_daily_incident_breakdown_table.c.dimension_value,
@@ -659,22 +701,25 @@ class MySQLRepository:
                 breach_sum.label(
                     "kpi_breach_count"
                 ),
+                breach_rate.label(
+                    "breach_rate_pct"
+                ),
             )
             .where(
-                app_daily_incident_breakdown_table.c.reference_date.between(
-                    start_date,
-                    end_date,
-                ),
-                app_daily_incident_breakdown_table.c.priority_scope
-                == priority_scope,
-                app_daily_incident_breakdown_table.c.dimension_name
-                == dimension_name,
+                *conditions
             )
             .group_by(
                 app_daily_incident_breakdown_table.c.dimension_value
             )
+            .having(
+                entered_kpi_sum >= min_entered_kpi
+            )
             .order_by(
-                incident_sum.desc()
+                ranking_expressions[
+                    ranking_metric
+                ].desc(),
+                breach_sum.desc(),
+                incident_sum.desc(),
             )
             .limit(limit)
         )

@@ -115,6 +115,9 @@ def load_breakdown_ranking_from_mysql(
     priority_scope: str,
     dimension_name: str,
     top_n: int,
+    ranking_metric: str = "incident_count",
+    min_entered_kpi: int = 0,
+    exclude_missing: bool = False,
 ) -> pd.DataFrame:
     """Consulta o ranking operacional diretamente no MySQL."""
 
@@ -130,6 +133,9 @@ def load_breakdown_ranking_from_mysql(
             priority_scope=priority_scope,
             dimension_name=dimension_name,
             limit=top_n,
+            ranking_metric=ranking_metric,
+            min_entered_kpi=min_entered_kpi,
+            exclude_missing=exclude_missing,
         )
     )
 
@@ -422,6 +428,215 @@ with tab_operations:
             width="stretch",
             hide_index=True,
         )
+
+
+    st.divider()
+
+    st.subheader(
+        "Agrupamentos críticos"
+    )
+
+    st.caption(
+        "Análise combinada de produto × categoria × prioridade. "
+        "Os rankings permitem distinguir concentração operacional, "
+        "impacto absoluto e risco proporcional."
+    )
+
+    try:
+        critical_by_volume = (
+            load_breakdown_ranking_from_mysql(
+                start_date=start_date.date().isoformat(),
+                end_date=end_date.date().isoformat(),
+                priority_scope="ALL",
+                dimension_name="critical_group",
+                top_n=10,
+                ranking_metric="incident_count",
+                exclude_missing=True,
+            )
+        )
+
+        critical_by_breach = (
+            load_breakdown_ranking_from_mysql(
+                start_date=start_date.date().isoformat(),
+                end_date=end_date.date().isoformat(),
+                priority_scope="ALL",
+                dimension_name="critical_group",
+                top_n=10,
+                ranking_metric="kpi_breach_count",
+                min_entered_kpi=10,
+                exclude_missing=True,
+            )
+        )
+
+        critical_by_rate = (
+            load_breakdown_ranking_from_mysql(
+                start_date=start_date.date().isoformat(),
+                end_date=end_date.date().isoformat(),
+                priority_scope="ALL",
+                dimension_name="critical_group",
+                top_n=10,
+                ranking_metric="breach_rate_pct",
+                min_entered_kpi=20,
+                exclude_missing=True,
+            )
+        )
+
+    except SQLAlchemyError as exc:
+        st.error(
+            "Não foi possível consultar os "
+            "agrupamentos críticos."
+        )
+
+        st.caption(
+            f"Detalhes técnicos: {exc}"
+        )
+
+    else:
+        def prepare_critical_ranking(
+            frame: pd.DataFrame,
+        ) -> pd.DataFrame:
+            if frame.empty:
+                return frame
+
+            result = frame.copy()
+
+            parts = (
+                result["dimension_value"]
+                .astype("string")
+                .str.split(
+                    " | ",
+                    n=2,
+                    expand=True,
+                    regex=False,
+                )
+            )
+
+            result["Produto"] = parts[0]
+            result["Categoria"] = parts[1]
+            result["Prioridade"] = parts[2]
+
+            result["breach_rate_pct"] = (
+                pd.to_numeric(
+                    result["breach_rate_pct"],
+                    errors="coerce",
+                )
+                .round(2)
+            )
+
+            return result[
+                [
+                    "Produto",
+                    "Categoria",
+                    "Prioridade",
+                    "incident_count",
+                    "entered_kpi_count",
+                    "kpi_breach_count",
+                    "breach_rate_pct",
+                ]
+            ].rename(
+                columns={
+                    "incident_count": "Incidentes",
+                    "entered_kpi_count": "Entraram no KPI",
+                    "kpi_breach_count": "KPI violado",
+                    "breach_rate_pct": "Taxa de violação (%)",
+                }
+            )
+
+        critical_rankings = {
+            "Maior volume": prepare_critical_ranking(
+                critical_by_volume
+            ),
+            "Mais violações": prepare_critical_ranking(
+                critical_by_breach
+            ),
+            "Maior taxa de violação": prepare_critical_ranking(
+                critical_by_rate
+            ),
+        }
+
+        critical_view = st.radio(
+            "Critério do ranking",
+            options=list(
+                critical_rankings
+            ),
+            horizontal=True,
+            key="critical_group_ranking",
+        )
+
+        selected_critical = (
+            critical_rankings[
+                critical_view
+            ]
+        )
+
+        if selected_critical.empty:
+            st.info(
+                "Não há agrupamentos críticos "
+                "para o período selecionado."
+            )
+
+        else:
+            leader = (
+                selected_critical.iloc[0]
+            )
+
+            st.caption(
+                "Grupo líder: "
+                f"{leader['Produto']} | "
+                f"{leader['Categoria']} | "
+                f"{leader['Prioridade']}"
+            )
+
+            col1, col2, col3 = (
+                st.columns(3)
+            )
+
+            col1.metric(
+                "Incidentes",
+                format_integer(
+                    leader["Incidentes"]
+                ),
+            )
+
+            col2.metric(
+                "Violações",
+                format_integer(
+                    leader["KPI violado"]
+                ),
+            )
+
+            rate = leader[
+                "Taxa de violação (%)"
+            ]
+
+            col3.metric(
+                "Taxa de violação",
+                (
+                    "N/A"
+                    if pd.isna(rate)
+                    else format_percentage(
+                        float(rate)
+                    )
+                ),
+            )
+
+            st.dataframe(
+                selected_critical,
+                width="stretch",
+                hide_index=True,
+            )
+
+            if (
+                critical_view
+                == "Maior taxa de violação"
+            ):
+                st.caption(
+                    "Para evitar distorções por amostras muito pequenas, "
+                    "este ranking exige pelo menos 20 incidentes "
+                    "elegíveis ao KPI."
+                )
+
+
 
 
 with tab_forecast:
