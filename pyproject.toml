@@ -1,7 +1,7 @@
 [project]
 name = "albus-hub"
 version = "0.1.0"
-description = "Add your description here"
+description = "Plataforma AIOps para análise, previsão de volume e risco operacional de incidentes"
 readme = "README.md"
 authors = [
     { name = "Bruno", email = "brunoavelinotomin@gmail.com" }
