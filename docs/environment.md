@@ -23,7 +23,7 @@ de observabilidade.
 
 ## Azure
 
-A infraestrutura da Sprint 3 está provisionada no Resource Group:
+A infraestrutura consolidada até a Sprint 4 está provisionada no Resource Group:
 
 `rg-albus-hub-dev`
 
@@ -37,13 +37,17 @@ Azure Data Lake Storage Gen2:
 
 `stcalbushubdev`
 
-Containers:
+Containers / filesystems:
 
 - `raw`;
 - `trusted`;
 - `gold`;
+- `models`;
 - `exports`;
 - `backup`.
+
+O filesystem `models` mantém os artefatos versionados dos modelos de
+Machine Learning e Deep Learning utilizados pelos pipelines de inferência.
 
 ### Data Factory
 
@@ -68,7 +72,16 @@ Banco:
 Principais tabelas utilizadas pela aplicação:
 
 - `incidents_trusted`;
-- `albus_app_runs`.
+- `albus_app_runs`;
+- `app_daily_incident_volume`;
+- `app_daily_incident_breakdown`;
+- `ml_volume_predictions_current`;
+- `dl_risk_scores_current`.
+
+As tabelas `app_*` materializam dados analíticos para o dashboard.
+`ml_volume_predictions_current` mantém as previsões operacionais vigentes
+de volume e `dl_risk_scores_current` mantém a coorte vigente de scores
+de risco.
 
 O servidor utiliza acesso público controlado por regras de firewall.
 
@@ -79,6 +92,21 @@ A aplicação possui integração validada com operações de:
 - processamento;
 - inserção;
 - leitura dos registros persistidos.
+
+### RabbitMQ
+
+O RabbitMQ é utilizado na Sprint 4 como transporte dos eventos de alerta
+de risco operacional.
+
+No ambiente local, o serviço é disponibilizado via Docker Compose:
+
+- AMQP: porta `5672`;
+- interface de gerenciamento: porta `15672`;
+- fila operacional: `albus_alerts`.
+
+Após a inferência DL, apenas scores classificados como `alto` ou
+`crítico` são elegíveis para publicação. O producer e o consumer foram
+validados com fluxo real utilizando ACK após processamento bem-sucedido.
 
 ### Azure Container Registry
 
