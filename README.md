@@ -231,9 +231,7 @@ A Sprint 4 consolida as frentes analíticas do projeto:
 Antes da entrega final ainda devem ser registradas evidências de:
 
 - deploy da versão integrada do dashboard no Azure;
-- execução dos novos DAGs no ambiente Airflow final;
 - screenshots do dashboard;
-- atualização da documentação arquitetural;
 - apresentação e demais materiais exigidos pela entrega.
 
 A integração automática de alertas via RabbitMQ está implementada na
