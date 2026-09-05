@@ -28,10 +28,7 @@ def _event() -> RiskAlertEvent:
         risk_score=87,
         risk_level="crítico",
         top_risk_factors="prioridade alta",
-        recommended_action=(
-            "Priorizar atendimento e avaliar "
-            "escalonamento imediato."
-        ),
+        recommended_action=("Priorizar atendimento e avaliar escalonamento imediato."),
     )
 
 
@@ -57,14 +54,8 @@ def test_empty_queue_is_rejected() -> None:
         )
 
 
-@patch(
-    "albus_hub.alerts.publisher."
-    "pika.BlockingConnection"
-)
-@patch(
-    "albus_hub.alerts.publisher."
-    "pika.URLParameters"
-)
+@patch("albus_hub.alerts.publisher.pika.BlockingConnection")
+@patch("albus_hub.alerts.publisher.pika.URLParameters")
 def test_publish_risk_alert(
     url_parameters_mock: MagicMock,
     blocking_connection_mock: MagicMock,
@@ -74,33 +65,21 @@ def test_publish_risk_alert(
 
     connection = MagicMock()
     connection.is_open = True
-    blocking_connection_mock.return_value = (
-        connection
-    )
+    blocking_connection_mock.return_value = connection
 
     channel = MagicMock()
     connection.channel.return_value = channel
 
     publisher = RabbitMQRiskAlertPublisher(
-        rabbitmq_url=(
-            "amqp://albus:albus_local@"
-            "localhost:5672/"
-        ),
+        rabbitmq_url=("amqp://albus:albus_local@localhost:5672/"),
         queue_name="albus_alerts",
     )
 
-    publisher.publish(
-        _event()
-    )
+    publisher.publish(_event())
 
-    url_parameters_mock.assert_called_once_with(
-        "amqp://albus:albus_local@"
-        "localhost:5672/"
-    )
+    url_parameters_mock.assert_called_once_with("amqp://albus:albus_local@localhost:5672/")
 
-    blocking_connection_mock.assert_called_once_with(
-        parameters
-    )
+    blocking_connection_mock.assert_called_once_with(parameters)
 
     channel.queue_declare.assert_called_once_with(
         queue="albus_alerts",
@@ -110,39 +89,24 @@ def test_publish_risk_alert(
     call = channel.basic_publish.call_args
 
     assert call.kwargs["exchange"] == ""
-    assert call.kwargs["routing_key"] == (
-        "albus_alerts"
-    )
+    assert call.kwargs["routing_key"] == ("albus_alerts")
 
-    payload = json.loads(
-        call.kwargs["body"].decode("utf-8")
-    )
+    payload = json.loads(call.kwargs["body"].decode("utf-8"))
 
-    assert payload["event_type"] == (
-        "ola_risk_alert"
-    )
-    assert payload["incident_id"] == (
-        "INC1234567"
-    )
+    assert payload["event_type"] == ("ola_risk_alert")
+    assert payload["incident_id"] == ("INC1234567")
     assert payload["risk_level"] == "crítico"
 
     properties = call.kwargs["properties"]
 
-    assert properties.content_type == (
-        "application/json"
-    )
+    assert properties.content_type == ("application/json")
     assert properties.delivery_mode == 2
-    assert properties.type == (
-        "ola_risk_alert"
-    )
+    assert properties.type == ("ola_risk_alert")
 
     connection.close.assert_called_once_with()
 
 
-@patch(
-    "albus_hub.alerts.publisher."
-    "pika.BlockingConnection"
-)
+@patch("albus_hub.alerts.publisher.pika.BlockingConnection")
 def test_connection_is_closed_on_failure(
     blocking_connection_mock: MagicMock,
 ) -> None:
@@ -150,14 +114,10 @@ def test_connection_is_closed_on_failure(
     connection.is_open = True
 
     channel = MagicMock()
-    channel.basic_publish.side_effect = (
-        RuntimeError("publish failure")
-    )
+    channel.basic_publish.side_effect = RuntimeError("publish failure")
 
     connection.channel.return_value = channel
-    blocking_connection_mock.return_value = (
-        connection
-    )
+    blocking_connection_mock.return_value = connection
 
     publisher = RabbitMQRiskAlertPublisher(
         rabbitmq_url="amqp://localhost/",
@@ -168,8 +128,6 @@ def test_connection_is_closed_on_failure(
         RuntimeError,
         match="publish failure",
     ):
-        publisher.publish(
-            _event()
-        )
+        publisher.publish(_event())
 
     connection.close.assert_called_once_with()

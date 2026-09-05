@@ -58,11 +58,7 @@ FEATURES_RATE = [
     *CALENDAR_COLUMNS,
 ]
 
-ALL_FEATURES = list(
-    dict.fromkeys(
-        FEATURES_LEVEL + FEATURES_RATE
-    )
-)
+ALL_FEATURES = list(dict.fromkeys(FEATURES_LEVEL + FEATURES_RATE))
 
 REQUIRED_COLUMNS = {
     "incident_id",
@@ -76,16 +72,10 @@ REQUIRED_COLUMNS = {
 def _validate_silver(
     frame: pd.DataFrame,
 ) -> None:
-    missing = (
-        REQUIRED_COLUMNS
-        - set(frame.columns)
-    )
+    missing = REQUIRED_COLUMNS - set(frame.columns)
 
     if missing:
-        raise ValueError(
-            "Silver sem colunas obrigatorias "
-            f"para ML v3.2: {sorted(missing)}"
-        )
+        raise ValueError(f"Silver sem colunas obrigatorias para ML v3.2: {sorted(missing)}")
 
     if frame.empty:
         raise ValueError("Silver vazia.")
@@ -103,22 +93,14 @@ def _prepare_silver(
         errors="coerce",
     )
 
-    result = result.dropna(
-        subset=["opened_at"]
-    ).copy()
+    result = result.dropna(subset=["opened_at"]).copy()
 
-    result["day"] = (
-        result["opened_at"]
-        .dt.normalize()
-    )
+    result["day"] = result["opened_at"].dt.normalize()
 
-    result["priority_code"] = (
-        pd.to_numeric(
-            result["priority_code"],
-            errors="coerce",
-        )
-        .astype("Int64")
-    )
+    result["priority_code"] = pd.to_numeric(
+        result["priority_code"],
+        errors="coerce",
+    ).astype("Int64")
 
     return result
 
@@ -126,35 +108,20 @@ def _prepare_silver(
 def _calendar_features(
     index: pd.DatetimeIndex,
 ) -> pd.DataFrame:
-    years = sorted(
-        set(index.year.tolist())
-    )
+    years = sorted(set(index.year.tolist()))
 
-    br = holidays.Brazil(
-        years=years
-    )
+    br = holidays.Brazil(years=years)
 
-    result = pd.DataFrame(
-        index=index
-    )
+    result = pd.DataFrame(index=index)
 
     dow = index.dayofweek
 
     for value in range(7):
-        result[
-            f"dow_{value}"
-        ] = (
-            dow == value
-        ).astype(int)
+        result[f"dow_{value}"] = (dow == value).astype(int)
 
-    result["is_weekend"] = (
-        dow >= 5
-    ).astype(int)
+    result["is_weekend"] = (dow >= 5).astype(int)
 
-    result["is_holiday"] = [
-        int(day in br)
-        for day in index
-    ]
+    result["is_holiday"] = [int(day in br) for day in index]
 
     result["black_week"] = 0
 
@@ -165,24 +132,13 @@ def _calendar_features(
             freq="D",
         )
 
-        fridays = november[
-            november.dayofweek == 4
-        ]
+        fridays = november[november.dayofweek == 4]
 
         if len(fridays) >= 4:
             black_friday = fridays[3]
 
-            mask = (
-                (
-                    index
-                    >= black_friday
-                    - pd.Timedelta(days=1)
-                )
-                & (
-                    index
-                    <= black_friday
-                    + pd.Timedelta(days=4)
-                )
+            mask = (index >= black_friday - pd.Timedelta(days=1)) & (
+                index <= black_friday + pd.Timedelta(days=4)
             )
 
             result.loc[
@@ -190,10 +146,7 @@ def _calendar_features(
                 "black_week",
             ] = 1
 
-    result["dec_season"] = (
-        (index.month == 12)
-        & (index.day >= 15)
-    ).astype(int)
+    result["dec_season"] = ((index.month == 12) & (index.day >= 15)).astype(int)
 
     return result
 
@@ -201,13 +154,9 @@ def _calendar_features(
 def build_context(
     silver: pd.DataFrame,
 ) -> dict[str, Any]:
-    base = _prepare_silver(
-        silver
-    )
+    base = _prepare_silver(silver)
 
-    last_date = base[
-        "day"
-    ].max()
+    last_date = base["day"].max()
 
     base = base.loc[
         base["day"].between(
@@ -216,87 +165,43 @@ def build_context(
         )
     ].copy()
 
-    parent = (
-        base["parent_incident_id"]
-        .astype("string")
-        .str.strip()
-    )
+    parent = base["parent_incident_id"].astype("string").str.strip()
 
-    root = base.loc[
-        parent.isna()
-        | parent.eq("")
-    ].copy()
+    root = base.loc[parent.isna() | parent.eq("")].copy()
 
     index = pd.date_range(
         MODEL_START_DATE,
-        last_date
-        + pd.Timedelta(days=7),
+        last_date + pd.Timedelta(days=7),
         freq="D",
     )
 
-    observed = index[
-        index <= last_date
-    ]
+    observed = index[index <= last_date]
 
     series = {}
 
-    for scope, priority in (
-        SCOPES.items()
-    ):
+    for scope, priority in SCOPES.items():
         scoped = root
 
         if priority is not None:
-            scoped = root.loc[
-                root[
-                    "priority_code"
-                ].eq(priority)
-            ]
+            scoped = root.loc[root["priority_code"].eq(priority)]
 
-        daily = (
-            scoped.groupby("day")
-            .size()
-            .reindex(index)
-            .astype(float)
-        )
+        daily = scoped.groupby("day").size().reindex(index).astype(float)
 
-        daily.loc[
-            observed
-        ] = (
-            daily.loc[
-                observed
-            ].fillna(0.0)
-        )
+        daily.loc[observed] = daily.loc[observed].fillna(0.0)
 
         series[scope] = daily
 
-    active_cis = (
-        base.groupby("day")[
-            "configuration_item"
-        ]
-        .nunique()
-        .reindex(index)
-        .astype(float)
-    )
+    active_cis = base.groupby("day")["configuration_item"].nunique().reindex(index).astype(float)
 
-    active_cis.loc[
-        observed
-    ] = (
-        active_cis.loc[
-            observed
-        ].fillna(0.0)
-    )
+    active_cis.loc[observed] = active_cis.loc[observed].fillna(0.0)
 
-    active_cis = (
-        active_cis.ffill()
-    )
+    active_cis = active_cis.ffill()
 
     return {
         "last_date": last_date,
         "series": series,
         "active_cis": active_cis,
-        "calendar": (
-            _calendar_features(index)
-        ),
+        "calendar": (_calendar_features(index)),
     }
 
 
@@ -305,92 +210,44 @@ def build_features(
     horizon_days: int,
     context: dict[str, Any],
 ) -> pd.DataFrame:
-    shifted = y.shift(
-        horizon_days
-    )
+    shifted = y.shift(horizon_days)
 
-    x = pd.DataFrame(
-        index=y.index
-    )
+    x = pd.DataFrame(index=y.index)
 
-    x["seas_lag7"] = (
-        y.shift(7)
-    )
+    x["seas_lag7"] = y.shift(7)
 
-    x["seas_lag14"] = (
-        y.shift(14)
-    )
+    x["seas_lag14"] = y.shift(14)
 
     x["last"] = shifted
 
-    x["roll7_mean"] = (
-        shifted
-        .rolling(7)
-        .mean()
-    )
+    x["roll7_mean"] = shifted.rolling(7).mean()
 
-    x["roll7_std"] = (
-        shifted
-        .rolling(7)
-        .std()
-    )
+    x["roll7_std"] = shifted.rolling(7).std()
 
-    x["roll28_mean"] = (
-        shifted
-        .rolling(28)
-        .mean()
-    )
+    x["roll28_mean"] = shifted.rolling(28).mean()
 
-    active_cis = context[
-        "active_cis"
-    ]
+    active_cis = context["active_cis"]
 
-    x["exp_last"] = (
-        active_cis.shift(
-            horizon_days
-        )
-    )
+    x["exp_last"] = active_cis.shift(horizon_days)
 
-    x["exp_roll7"] = (
-        active_cis
-        .shift(horizon_days)
-        .rolling(7)
-        .mean()
-    )
+    x["exp_roll7"] = active_cis.shift(horizon_days).rolling(7).mean()
 
     x["trend"] = np.arange(
         len(y),
         dtype=float,
     )
 
-    exposure = (
-        x["exp_roll7"]
-        .replace(0, np.nan)
-    )
+    exposure = x["exp_roll7"].replace(0, np.nan)
 
-    exposure_last = (
-        x["exp_last"]
-        .replace(0, np.nan)
-    )
+    exposure_last = x["exp_last"].replace(0, np.nan)
 
-    x["r_last"] = (
-        x["last"]
-        / exposure_last
-    )
+    x["r_last"] = x["last"] / exposure_last
 
-    x["r_roll7"] = (
-        x["roll7_mean"]
-        / exposure
-    )
+    x["r_roll7"] = x["roll7_mean"] / exposure
 
-    x["r_seas7"] = (
-        x["seas_lag7"]
-        / exposure
-    )
+    x["r_seas7"] = x["seas_lag7"] / exposure
 
-    return x.join(
-        context["calendar"]
-    )
+    return x.join(context["calendar"])
 
 
 def _base_prediction(
@@ -403,29 +260,17 @@ def _base_prediction(
         values = y.shift(7)
 
     elif name == "media7":
-        values = (
-            y.shift(horizon_days)
-            .rolling(7)
-            .mean()
-        )
+        values = y.shift(horizon_days).rolling(7).mean()
 
     elif name == "ultimo":
-        values = y.shift(
-            horizon_days
-        )
+        values = y.shift(horizon_days)
 
     else:
-        raise ValueError(
-            f"Regra desconhecida: {name}"
-        )
+        raise ValueError(f"Regra desconhecida: {name}")
 
     return max(
         0.0,
-        float(
-            values.loc[
-                target_date
-            ]
-        ),
+        float(values.loc[target_date]),
     )
 
 
@@ -440,28 +285,16 @@ def _model_prediction(
     ):
         return max(
             0.0,
-            float(
-                model["constant"]
-            ),
+            float(model["constant"]),
         )
 
     if name == "poisson_off":
         exposure = max(
             1e-6,
-            float(
-                row[
-                    "exp_roll7"
-                ].iloc[0]
-            ),
+            float(row["exp_roll7"].iloc[0]),
         )
 
-        rate = float(
-            model.predict(
-                row[
-                    FEATURES_RATE
-                ]
-            )[0]
-        )
+        rate = float(model.predict(row[FEATURES_RATE])[0])
 
         return max(
             0.0,
@@ -470,13 +303,7 @@ def _model_prediction(
 
     return max(
         0.0,
-        float(
-            model.predict(
-                row[
-                    FEATURES_LEVEL
-                ]
-            )[0]
-        ),
+        float(model.predict(row[FEATURES_LEVEL])[0]),
     )
 
 
@@ -485,11 +312,7 @@ def _scale(
 ) -> float:
     return max(
         1.0,
-        float(
-            np.sqrt(
-                max(value, 0.0)
-            )
-        ),
+        float(np.sqrt(max(value, 0.0))),
     )
 
 
@@ -502,14 +325,10 @@ def load_volume_bundle(
         bundle,
         dict,
     ):
-        raise ValueError(
-            "Bundle ML invalido."
-        )
+        raise ValueError("Bundle ML invalido.")
 
     if "components" not in bundle:
-        raise ValueError(
-            "Bundle sem components."
-        )
+        raise ValueError("Bundle sem components.")
 
     return bundle
 
@@ -520,45 +339,25 @@ def predict_volume(
     *,
     generated_at: datetime | None = None,
 ) -> pd.DataFrame:
-    context = build_context(
-        silver
-    )
+    context = build_context(silver)
 
-    generated_at = (
-        generated_at
-        or datetime.now(UTC)
-    )
+    generated_at = generated_at or datetime.now(UTC)
 
     rows = []
 
-    for scope, y in (
-        context["series"].items()
-    ):
+    for scope, y in context["series"].items():
         for (
             horizon,
             horizon_days,
         ) in HORIZONS.items():
-            key = (
-                f"{scope}|{horizon}"
-            )
+            key = f"{scope}|{horizon}"
 
-            component = (
-                bundle["components"]
-                .get(key)
-            )
+            component = bundle["components"].get(key)
 
             if not component:
-                raise ValueError(
-                    "Bundle sem componente "
-                    f"{key}."
-                )
+                raise ValueError(f"Bundle sem componente {key}.")
 
-            target_date = (
-                context["last_date"]
-                + pd.Timedelta(
-                    days=horizon_days
-                )
-            )
+            target_date = context["last_date"] + pd.Timedelta(days=horizon_days)
 
             x = build_features(
                 y,
@@ -566,110 +365,61 @@ def predict_volume(
                 context,
             )
 
-            row = x.loc[
-                [target_date]
-            ]
+            row = x.loc[[target_date]]
 
-            if (
-                row[
-                    ALL_FEATURES
-                ]
-                .isna()
-                .any()
-                .any()
-            ):
-                raise ValueError(
-                    "Features invalidas "
-                    f"para {key}."
-                )
+            if row[ALL_FEATURES].isna().any().any():
+                raise ValueError(f"Features invalidas para {key}.")
 
-            predictor = str(
-                component[
-                    "predictor"
-                ]
-            )
+            predictor = str(component["predictor"])
 
             if predictor in BASES:
-                prediction = (
-                    _base_prediction(
-                        predictor,
-                        y,
-                        horizon_days,
-                        target_date,
-                    )
+                prediction = _base_prediction(
+                    predictor,
+                    y,
+                    horizon_days,
+                    target_date,
                 )
             else:
-                prediction = (
-                    _model_prediction(
-                        predictor,
-                        component[
-                            "model"
-                        ],
-                        row,
-                    )
+                prediction = _model_prediction(
+                    predictor,
+                    component["model"],
+                    row,
                 )
 
-            q_low = float(
-                component[
-                    "q_low"
-                ]
-            )
+            q_low = float(component["q_low"])
 
-            q_high = float(
-                component[
-                    "q_high"
-                ]
-            )
+            q_high = float(component["q_high"])
 
             lower = max(
                 0.0,
-                prediction
-                + q_low
-                * _scale(prediction),
+                prediction + q_low * _scale(prediction),
             )
 
             upper = max(
                 lower,
-                prediction
-                + q_high
-                * _scale(prediction),
+                prediction + q_high * _scale(prediction),
             )
 
             rows.append(
                 {
-                    "reference_date":
-                        target_date,
-                    "generated_at":
-                        generated_at.replace(
-                            tzinfo=None
-                        ),
-                    "horizon":
-                        horizon,
-                    "priority_scope":
-                        scope,
-                    "predicted_incident_count":
-                        round(
-                            prediction,
-                            2,
-                        ),
-                    "lower_bound":
-                        round(
-                            lower,
-                            2,
-                        ),
-                    "upper_bound":
-                        round(
-                            upper,
-                            2,
-                        ),
-                    "model_name":
-                        predictor,
-                    "model_version":
-                        str(
-                            bundle[
-                                "model_version"
-                            ]
-                        ),
+                    "reference_date": target_date,
+                    "generated_at": generated_at.replace(tzinfo=None),
+                    "horizon": horizon,
+                    "priority_scope": scope,
+                    "predicted_incident_count": round(
+                        prediction,
+                        2,
+                    ),
+                    "lower_bound": round(
+                        lower,
+                        2,
+                    ),
+                    "upper_bound": round(
+                        upper,
+                        2,
+                    ),
+                    "model_name": predictor,
+                    "model_version": str(bundle["model_version"]),
                 }
             )
 

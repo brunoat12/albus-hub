@@ -254,6 +254,7 @@ Index(
     app_daily_incident_breakdown_table.c.dimension_name,
 )
 
+
 @dataclass(frozen=True)
 class IncidentSummary:
     """Resumo calculado a partir dos incidentes persistidos."""
@@ -332,9 +333,7 @@ class MySQLRepository:
 
         metadata.create_all(
             self.engine,
-            tables=[
-                ml_volume_predictions_current_table
-            ],
+            tables=[ml_volume_predictions_current_table],
         )
 
         # create_all não altera tabelas existentes.
@@ -345,10 +344,7 @@ class MySQLRepository:
                 existing_columns = {
                     row["Field"]
                     for row in connection.execute(
-                        text(
-                            "SHOW COLUMNS FROM "
-                            "ml_volume_predictions_current"
-                        )
+                        text("SHOW COLUMNS FROM ml_volume_predictions_current")
                     ).mappings()
                 }
 
@@ -398,9 +394,7 @@ class MySQLRepository:
     ) -> None:
         """Substitui atomicamente a coorte vigente de scores de risco."""
 
-        now = datetime.now(UTC).replace(
-            tzinfo=None
-        )
+        now = datetime.now(UTC).replace(tzinfo=None)
 
         normalized_rows = [
             {
@@ -411,17 +405,11 @@ class MySQLRepository:
         ]
 
         with self.engine.begin() as connection:
-            connection.execute(
-                delete(
-                    dl_risk_scores_current_table
-                )
-            )
+            connection.execute(delete(dl_risk_scores_current_table))
 
             if normalized_rows:
                 connection.execute(
-                    insert(
-                        dl_risk_scores_current_table
-                    ),
+                    insert(dl_risk_scores_current_table),
                     normalized_rows,
                 )
 
@@ -430,29 +418,15 @@ class MySQLRepository:
     ) -> list[dict[str, Any]]:
         """Retorna a coorte operacional vigente de scores de risco."""
 
-        statement = (
-            select(
-                dl_risk_scores_current_table
-            )
-            .order_by(
-                dl_risk_scores_current_table.c.risk_score.desc(),
-                dl_risk_scores_current_table.c.incident_id,
-            )
+        statement = select(dl_risk_scores_current_table).order_by(
+            dl_risk_scores_current_table.c.risk_score.desc(),
+            dl_risk_scores_current_table.c.incident_id,
         )
 
         with self.engine.connect() as connection:
-            rows = (
-                connection.execute(
-                    statement
-                )
-                .mappings()
-                .all()
-            )
+            rows = connection.execute(statement).mappings().all()
 
-        return [
-            dict(row)
-            for row in rows
-        ]
+        return [dict(row) for row in rows]
 
     def ensure_dashboard_serving_tables(
         self,
@@ -474,17 +448,11 @@ class MySQLRepository:
         """Substitui o Gold de volume diário no serving."""
 
         with self.engine.begin() as connection:
-            connection.execute(
-                delete(
-                    app_daily_incident_volume_table
-                )
-            )
+            connection.execute(delete(app_daily_incident_volume_table))
 
             if rows:
                 connection.execute(
-                    insert(
-                        app_daily_incident_volume_table
-                    ),
+                    insert(app_daily_incident_volume_table),
                     rows,
                 )
 
@@ -497,25 +465,17 @@ class MySQLRepository:
         """Substitui o Gold de breakdown no serving."""
 
         with self.engine.begin() as connection:
-            connection.execute(
-                delete(
-                    app_daily_incident_breakdown_table
-                )
-            )
+            connection.execute(delete(app_daily_incident_breakdown_table))
 
             for start in range(
                 0,
                 len(rows),
                 chunk_size,
             ):
-                chunk = rows[
-                    start : start + chunk_size
-                ]
+                chunk = rows[start : start + chunk_size]
 
                 connection.execute(
-                    insert(
-                        app_daily_incident_breakdown_table
-                    ),
+                    insert(app_daily_incident_breakdown_table),
                     chunk,
                 )
 
@@ -532,9 +492,7 @@ class MySQLRepository:
         if not rows:
             return
 
-        now = datetime.now(UTC).replace(
-            tzinfo=None
-        )
+        now = datetime.now(UTC).replace(tzinfo=None)
 
         normalized_rows = [
             {
@@ -544,17 +502,11 @@ class MySQLRepository:
             for row in rows
         ]
 
-        statement = mysql_insert(
-            ml_volume_predictions_current_table
-        ).values(
-            normalized_rows
-        )
+        statement = mysql_insert(ml_volume_predictions_current_table).values(normalized_rows)
 
         statement = statement.on_duplicate_key_update(
             reference_date=statement.inserted.reference_date,
-            predicted_incident_count=(
-                statement.inserted.predicted_incident_count
-            ),
+            predicted_incident_count=(statement.inserted.predicted_incident_count),
             lower_bound=statement.inserted.lower_bound,
             upper_bound=statement.inserted.upper_bound,
             model_name=statement.inserted.model_name,
@@ -571,58 +523,39 @@ class MySQLRepository:
     ) -> list[dict[str, Any]]:
         """Retorna todas as previsões operacionais vigentes."""
 
-        statement = (
-            select(
-                ml_volume_predictions_current_table.c.priority_scope,
-                ml_volume_predictions_current_table.c.horizon,
-                ml_volume_predictions_current_table.c.reference_date,
-                ml_volume_predictions_current_table.c.predicted_incident_count,
-                ml_volume_predictions_current_table.c.lower_bound,
-                ml_volume_predictions_current_table.c.upper_bound,
-                ml_volume_predictions_current_table.c.model_name,
-                ml_volume_predictions_current_table.c.generated_at,
-                ml_volume_predictions_current_table.c.model_version,
-                ml_volume_predictions_current_table.c.updated_at,
-            )
-            .order_by(
-                ml_volume_predictions_current_table.c.priority_scope,
-                ml_volume_predictions_current_table.c.horizon,
-            )
+        statement = select(
+            ml_volume_predictions_current_table.c.priority_scope,
+            ml_volume_predictions_current_table.c.horizon,
+            ml_volume_predictions_current_table.c.reference_date,
+            ml_volume_predictions_current_table.c.predicted_incident_count,
+            ml_volume_predictions_current_table.c.lower_bound,
+            ml_volume_predictions_current_table.c.upper_bound,
+            ml_volume_predictions_current_table.c.model_name,
+            ml_volume_predictions_current_table.c.generated_at,
+            ml_volume_predictions_current_table.c.model_version,
+            ml_volume_predictions_current_table.c.updated_at,
+        ).order_by(
+            ml_volume_predictions_current_table.c.priority_scope,
+            ml_volume_predictions_current_table.c.horizon,
         )
 
         with self.engine.connect() as connection:
-            rows = (
-                connection.execute(
-                    statement
-                )
-                .mappings()
-                .all()
-            )
+            rows = connection.execute(statement).mappings().all()
 
-        return [
-            dict(row)
-            for row in rows
-        ]
+        return [dict(row) for row in rows]
 
     def fetch_daily_incident_volume(
         self,
     ) -> list[dict[str, Any]]:
         """Retorna o Gold diário utilizado pelo dashboard."""
 
-        statement = select(
-            app_daily_incident_volume_table
-        ).order_by(
+        statement = select(app_daily_incident_volume_table).order_by(
             app_daily_incident_volume_table.c.reference_date,
             app_daily_incident_volume_table.c.priority_scope,
         )
 
         with self.engine.connect() as connection:
-            return [
-                dict(row)
-                for row in connection.execute(
-                    statement
-                ).mappings()
-            ]
+            return [dict(row) for row in connection.execute(statement).mappings()]
 
     def fetch_incident_breakdown_ranking(
         self,
@@ -638,17 +571,11 @@ class MySQLRepository:
     ) -> list[dict[str, Any]]:
         """Retorna ranking operacional agregado pelo MySQL."""
 
-        incident_sum = func.sum(
-            app_daily_incident_breakdown_table.c.incident_count
-        )
+        incident_sum = func.sum(app_daily_incident_breakdown_table.c.incident_count)
 
-        entered_kpi_sum = func.sum(
-            app_daily_incident_breakdown_table.c.entered_kpi_count
-        )
+        entered_kpi_sum = func.sum(app_daily_incident_breakdown_table.c.entered_kpi_count)
 
-        breach_sum = func.sum(
-            app_daily_incident_breakdown_table.c.kpi_breach_count
-        )
+        breach_sum = func.sum(app_daily_incident_breakdown_table.c.kpi_breach_count)
 
         breach_rate = (
             100.0
@@ -666,58 +593,35 @@ class MySQLRepository:
         }
 
         if ranking_metric not in ranking_expressions:
-            raise ValueError(
-                "Métrica de ranking inválida: "
-                f"{ranking_metric}"
-            )
+            raise ValueError(f"Métrica de ranking inválida: {ranking_metric}")
 
         conditions = [
             app_daily_incident_breakdown_table.c.reference_date.between(
                 start_date,
                 end_date,
             ),
-            app_daily_incident_breakdown_table.c.priority_scope
-            == priority_scope,
-            app_daily_incident_breakdown_table.c.dimension_name
-            == dimension_name,
+            app_daily_incident_breakdown_table.c.priority_scope == priority_scope,
+            app_daily_incident_breakdown_table.c.dimension_name == dimension_name,
         ]
 
         if exclude_missing:
             conditions.append(
-                ~app_daily_incident_breakdown_table.c.dimension_value.contains(
-                    "__MISSING__"
-                )
+                ~app_daily_incident_breakdown_table.c.dimension_value.contains("__MISSING__")
             )
 
         statement = (
             select(
                 app_daily_incident_breakdown_table.c.dimension_value,
-                incident_sum.label(
-                    "incident_count"
-                ),
-                entered_kpi_sum.label(
-                    "entered_kpi_count"
-                ),
-                breach_sum.label(
-                    "kpi_breach_count"
-                ),
-                breach_rate.label(
-                    "breach_rate_pct"
-                ),
+                incident_sum.label("incident_count"),
+                entered_kpi_sum.label("entered_kpi_count"),
+                breach_sum.label("kpi_breach_count"),
+                breach_rate.label("breach_rate_pct"),
             )
-            .where(
-                *conditions
-            )
-            .group_by(
-                app_daily_incident_breakdown_table.c.dimension_value
-            )
-            .having(
-                entered_kpi_sum >= min_entered_kpi
-            )
+            .where(*conditions)
+            .group_by(app_daily_incident_breakdown_table.c.dimension_value)
+            .having(entered_kpi_sum >= min_entered_kpi)
             .order_by(
-                ranking_expressions[
-                    ranking_metric
-                ].desc(),
+                ranking_expressions[ranking_metric].desc(),
                 breach_sum.desc(),
                 incident_sum.desc(),
             )
@@ -725,12 +629,7 @@ class MySQLRepository:
         )
 
         with self.engine.connect() as connection:
-            return [
-                dict(row)
-                for row in connection.execute(
-                    statement
-                ).mappings()
-            ]
+            return [dict(row) for row in connection.execute(statement).mappings()]
 
     def fetch_incident_summary(self) -> IncidentSummary:
         """Consulta e processa o volume de incidentes persistidos."""

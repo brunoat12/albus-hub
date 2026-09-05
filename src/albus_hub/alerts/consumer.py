@@ -34,14 +34,10 @@ class RabbitMQRiskAlertConsumer:
         handler: RiskAlertHandler = log_risk_alert,
     ) -> None:
         if not rabbitmq_url.strip():
-            raise ValueError(
-                "rabbitmq_url não pode ser vazio."
-            )
+            raise ValueError("rabbitmq_url não pode ser vazio.")
 
         if not queue_name.strip():
-            raise ValueError(
-                "queue_name não pode ser vazio."
-            )
+            raise ValueError("queue_name não pode ser vazio.")
 
         self.rabbitmq_url = rabbitmq_url
         self.queue_name = queue_name
@@ -55,17 +51,11 @@ class RabbitMQRiskAlertConsumer:
         body: bytes,
     ) -> None:
         try:
-            payload = json.loads(
-                body.decode("utf-8")
-            )
+            payload = json.loads(body.decode("utf-8"))
 
-            event = RiskAlertEvent.model_validate(
-                payload
-            )
+            event = RiskAlertEvent.model_validate(payload)
 
-            self.handler(
-                event
-            )
+            self.handler(event)
 
         except (
             UnicodeDecodeError,
@@ -85,19 +75,13 @@ class RabbitMQRiskAlertConsumer:
             )
             raise
 
-        channel.basic_ack(
-            delivery_tag=method.delivery_tag
-        )
+        channel.basic_ack(delivery_tag=method.delivery_tag)
 
     def start(self) -> None:
         """Inicia o consumo bloqueante da fila configurada."""
-        parameters = pika.URLParameters(
-            self.rabbitmq_url
-        )
+        parameters = pika.URLParameters(self.rabbitmq_url)
 
-        connection = pika.BlockingConnection(
-            parameters
-        )
+        connection = pika.BlockingConnection(parameters)
 
         try:
             channel = connection.channel()
@@ -107,9 +91,7 @@ class RabbitMQRiskAlertConsumer:
                 durable=True,
             )
 
-            channel.basic_qos(
-                prefetch_count=1
-            )
+            channel.basic_qos(prefetch_count=1)
 
             channel.basic_consume(
                 queue=self.queue_name,

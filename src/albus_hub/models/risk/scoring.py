@@ -35,8 +35,7 @@ def build_operational_scores(
     )
     denominator = max(float(pressure_reference_p95), 1.0)
     pressure = np.clip(
-        feature_frame["assigned_group_incidents_previous_1d"].to_numpy(dtype=float)
-        / denominator,
+        feature_frame["assigned_group_incidents_previous_1d"].to_numpy(dtype=float) / denominator,
         0,
         1,
     )

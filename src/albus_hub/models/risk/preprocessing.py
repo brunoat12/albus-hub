@@ -14,9 +14,7 @@ def prepare_model_frame(frame: pd.DataFrame) -> pd.DataFrame:
     """Normaliza extensões Pandas para tipos aceitos de forma estável pelo sklearn."""
     result = frame[CATEGORICAL_FEATURES + NUMERIC_FEATURES].copy()
     for column in CATEGORICAL_FEATURES:
-        result[column] = (
-            result[column].astype("string").fillna("__MISSING__").astype(str)
-        )
+        result[column] = result[column].astype("string").fillna("__MISSING__").astype(str)
     for column in NUMERIC_FEATURES:
         result[column] = pd.to_numeric(result[column], errors="coerce").astype(float)
     return result

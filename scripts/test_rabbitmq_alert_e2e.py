@@ -20,13 +20,9 @@ def main() -> None:
     print("=== RABBITMQ RISK ALERT E2E ===")
     print(f"Queue: {queue_name}")
 
-    parameters = pika.URLParameters(
-        rabbitmq_url
-    )
+    parameters = pika.URLParameters(rabbitmq_url)
 
-    connection = pika.BlockingConnection(
-        parameters
-    )
+    connection = pika.BlockingConnection(parameters)
 
     channel = connection.channel()
 
@@ -49,14 +45,8 @@ def main() -> None:
             breach_probability=0.91,
             risk_score=92,
             risk_level="crítico",
-            top_risk_factors=(
-                "prioridade alta; "
-                "pressão operacional"
-            ),
-            recommended_action=(
-                "Priorizar atendimento e avaliar "
-                "escalonamento imediato."
-            ),
+            top_risk_factors=("prioridade alta; pressão operacional"),
+            recommended_action=("Priorizar atendimento e avaliar escalonamento imediato."),
         )
 
         publisher = RabbitMQRiskAlertPublisher(
@@ -67,24 +57,18 @@ def main() -> None:
         print()
         print("Publicando alerta...")
 
-        publisher.publish(
-            event
-        )
+        publisher.publish(event)
 
-        print(
-            "RABBITMQ_ALERT_PUBLISH=SUCCESS"
-        )
+        print("RABBITMQ_ALERT_PUBLISH=SUCCESS")
 
         method = None
         properties = None
         body = None
 
         for _ in range(20):
-            method, properties, body = (
-                channel.basic_get(
-                    queue=queue_name,
-                    auto_ack=False,
-                )
+            method, properties, body = channel.basic_get(
+                queue=queue_name,
+                auto_ack=False,
             )
 
             if method is not None:
@@ -92,14 +76,8 @@ def main() -> None:
 
             time.sleep(0.25)
 
-        if (
-            method is None
-            or body is None
-        ):
-            raise RuntimeError(
-                "Mensagem não encontrada "
-                "na fila após publicação."
-            )
+        if method is None or body is None:
+            raise RuntimeError("Mensagem não encontrada na fila após publicação.")
 
         consumed: list[RiskAlertEvent] = []
 
@@ -119,21 +97,12 @@ def main() -> None:
         )
 
         if len(consumed) != 1:
-            raise RuntimeError(
-                "Consumer não processou "
-                "exatamente um alerta."
-            )
+            raise RuntimeError("Consumer não processou exatamente um alerta.")
 
         received = consumed[0]
 
-        if (
-            received.incident_id
-            != event.incident_id
-        ):
-            raise RuntimeError(
-                "incident_id recebido "
-                "diverge do publicado."
-            )
+        if received.incident_id != event.incident_id:
+            raise RuntimeError("incident_id recebido diverge do publicado.")
 
         queue_state = channel.queue_declare(
             queue=queue_name,
@@ -141,18 +110,10 @@ def main() -> None:
             passive=True,
         )
 
-        if (
-            queue_state.method.message_count
-            != 0
-        ):
-            raise RuntimeError(
-                "Fila não ficou vazia "
-                "após ACK."
-            )
+        if queue_state.method.message_count != 0:
+            raise RuntimeError("Fila não ficou vazia após ACK.")
 
-        print(
-            "RABBITMQ_ALERT_CONSUME=SUCCESS"
-        )
+        print("RABBITMQ_ALERT_CONSUME=SUCCESS")
         print(
             "Incident:",
             received.incident_id,
@@ -167,9 +128,7 @@ def main() -> None:
         )
 
         print()
-        print(
-            "RABBITMQ_ALERT_E2E=SUCCESS"
-        )
+        print("RABBITMQ_ALERT_E2E=SUCCESS")
 
     finally:
         if connection.is_open:

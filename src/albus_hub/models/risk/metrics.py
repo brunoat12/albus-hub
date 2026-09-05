@@ -62,12 +62,7 @@ def select_operating_threshold(
     rows = []
     for threshold in candidates:
         metrics = classification_metrics(y_true, probabilities, float(threshold))
-        rows.append(
-            {
-                key: metrics[key]
-                for key in ["threshold", "precision", "recall", "f1"]
-            }
-        )
+        rows.append({key: metrics[key] for key in ["threshold", "precision", "recall", "f1"]})
     table = pd.DataFrame(rows).sort_values("threshold").reset_index(drop=True)
     eligible = table.loc[table["recall"].ge(minimum_recall)]
     if eligible.empty:
@@ -77,4 +72,3 @@ def select_operating_threshold(
             ["precision", "f1", "threshold"], ascending=[False, False, False]
         ).iloc[0]
     return float(selected["threshold"]), table
-

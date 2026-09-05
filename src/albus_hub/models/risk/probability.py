@@ -23,4 +23,3 @@ def fit_probability_calibrator(
 def apply_probability_calibrator(calibrator, probabilities: np.ndarray) -> np.ndarray:
     """Aplica a calibração salva sem reestimar parâmetros."""
     return calibrator.predict_proba(probability_logit(probabilities))[:, 1]
-

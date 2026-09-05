@@ -28,24 +28,12 @@ GOLD_FILE_SYSTEM = "gold"
 TRUSTED_REMOTE_PATH = "ml/locaweb_incidents.parquet"
 CURRENT_REMOTE_PATH = "risk/current.json"
 
-RUNTIME_DIR = Path(
-    "artifacts/runtime/dl_risk_inference"
-)
-LOCAL_SOURCE_PATH = (
-    RUNTIME_DIR / "locaweb_incidents.parquet"
-)
-LOCAL_CURRENT_PATH = (
-    RUNTIME_DIR / "current.json"
-)
-LOCAL_MODEL_DIR = (
-    RUNTIME_DIR / "model"
-)
-LOCAL_OUTPUT_PATH = (
-    RUNTIME_DIR / "risk_scores.parquet"
-)
-LOCAL_STREAMLIT_OUTPUT = Path(
-    "data/gold/risk_scores.parquet"
-)
+RUNTIME_DIR = Path("artifacts/runtime/dl_risk_inference")
+LOCAL_SOURCE_PATH = RUNTIME_DIR / "locaweb_incidents.parquet"
+LOCAL_CURRENT_PATH = RUNTIME_DIR / "current.json"
+LOCAL_MODEL_DIR = RUNTIME_DIR / "model"
+LOCAL_OUTPUT_PATH = RUNTIME_DIR / "risk_scores.parquet"
+LOCAL_STREAMLIT_OUTPUT = Path("data/gold/risk_scores.parquet")
 
 REQUIRED_ARTIFACTS = (
     "ann.weights.h5",
@@ -62,40 +50,21 @@ def _load_current() -> dict:
         local_path=LOCAL_CURRENT_PATH,
     )
 
-    current = json.loads(
-        LOCAL_CURRENT_PATH.read_text(
-            encoding="utf-8"
-        )
-    )
+    current = json.loads(LOCAL_CURRENT_PATH.read_text(encoding="utf-8"))
 
-    model_version = current.get(
-        "model_version"
-    )
-    artifacts = current.get(
-        "artifacts"
-    )
+    model_version = current.get("model_version")
+    artifacts = current.get("artifacts")
 
     if not model_version:
-        raise RuntimeError(
-            "current.json sem model_version."
-        )
+        raise RuntimeError("current.json sem model_version.")
 
     if not isinstance(artifacts, dict):
-        raise RuntimeError(
-            "current.json sem mapa de artifacts."
-        )
+        raise RuntimeError("current.json sem mapa de artifacts.")
 
-    missing = [
-        name
-        for name in REQUIRED_ARTIFACTS
-        if name not in artifacts
-    ]
+    missing = [name for name in REQUIRED_ARTIFACTS if name not in artifacts]
 
     if missing:
-        raise RuntimeError(
-            "current.json incompleto. "
-            f"Artefatos ausentes: {missing}"
-        )
+        raise RuntimeError(f"current.json incompleto. Artefatos ausentes: {missing}")
 
     return current
 
@@ -123,52 +92,24 @@ def _to_mysql_rows(
 ) -> list[dict]:
     rows: list[dict] = []
 
-    for row in frame.itertuples(
-        index=False
-    ):
-        scored_at = pd.Timestamp(
-            row.scored_at
-        )
+    for row in frame.itertuples(index=False):
+        scored_at = pd.Timestamp(row.scored_at)
 
         if scored_at.tzinfo is not None:
-            scored_at = (
-                scored_at
-                .tz_convert("UTC")
-                .tz_localize(None)
-            )
+            scored_at = scored_at.tz_convert("UTC").tz_localize(None)
 
         rows.append(
             {
-                "incident_id": str(
-                    row.incident_id
-                ),
-                "scored_at": (
-                    scored_at.to_pydatetime()
-                ),
-                "model_version": str(
-                    row.model_version
-                ),
-                "breach_probability": float(
-                    row.breach_probability
-                ),
-                "priority_impact": float(
-                    row.priority_impact
-                ),
-                "operational_pressure": float(
-                    row.operational_pressure
-                ),
-                "risk_score": int(
-                    row.risk_score
-                ),
-                "risk_level": str(
-                    row.risk_level
-                ),
-                "top_risk_factors": str(
-                    row.top_risk_factors
-                ),
-                "recommended_action": str(
-                    row.recommended_action
-                ),
+                "incident_id": str(row.incident_id),
+                "scored_at": (scored_at.to_pydatetime()),
+                "model_version": str(row.model_version),
+                "breach_probability": float(row.breach_probability),
+                "priority_impact": float(row.priority_impact),
+                "operational_pressure": float(row.operational_pressure),
+                "risk_score": int(row.risk_score),
+                "risk_level": str(row.risk_level),
+                "top_risk_factors": str(row.top_risk_factors),
+                "recommended_action": str(row.recommended_action),
             }
         )
 
@@ -176,23 +117,13 @@ def _to_mysql_rows(
 
 
 def main() -> None:
-    if not os.getenv(
-        STORAGE_ACCOUNT_ENV
-    ):
-        raise RuntimeError(
-            f"{STORAGE_ACCOUNT_ENV} "
-            "não está configurada."
-        )
+    if not os.getenv(STORAGE_ACCOUNT_ENV):
+        raise RuntimeError(f"{STORAGE_ACCOUNT_ENV} não está configurada.")
 
-    print(
-        "=== INFERENCIA OPERACIONAL DL - "
-        "RISK SCORE ==="
-    )
+    print("=== INFERENCIA OPERACIONAL DL - RISK SCORE ===")
 
     if RUNTIME_DIR.exists():
-        shutil.rmtree(
-            RUNTIME_DIR
-        )
+        shutil.rmtree(RUNTIME_DIR)
 
     RUNTIME_DIR.mkdir(
         parents=True,
@@ -200,9 +131,7 @@ def main() -> None:
     )
 
     print()
-    print(
-        "Baixando Silver governada..."
-    )
+    print("Baixando Silver governada...")
 
     download_file(
         file_system=TRUSTED_FILE_SYSTEM,
@@ -210,9 +139,7 @@ def main() -> None:
         local_path=LOCAL_SOURCE_PATH,
     )
 
-    print(
-        "Baixando ponteiro do modelo..."
-    )
+    print("Baixando ponteiro do modelo...")
 
     current = _load_current()
 
@@ -221,77 +148,39 @@ def main() -> None:
         current["model_version"],
     )
 
-    _download_model(
-        current
-    )
+    _download_model(current)
 
-    metadata = json.loads(
-        (
-            LOCAL_MODEL_DIR
-            / "metadata.json"
-        ).read_text(
-            encoding="utf-8"
-        )
-    )
+    metadata = json.loads((LOCAL_MODEL_DIR / "metadata.json").read_text(encoding="utf-8"))
 
-    if (
-        metadata["model_version"]
-        != current["model_version"]
-    ):
-        raise RuntimeError(
-            "model_version divergente entre "
-            "current.json e metadata.json."
-        )
+    if metadata["model_version"] != current["model_version"]:
+        raise RuntimeError("model_version divergente entre current.json e metadata.json.")
 
     print()
-    print(
-        "Construindo features..."
-    )
+    print("Construindo features...")
 
-    silver = pd.read_parquet(
-        LOCAL_SOURCE_PATH
-    )
+    silver = pd.read_parquet(LOCAL_SOURCE_PATH)
 
     features = build_risk_features(
         silver,
         require_targets=False,
     )
 
-    features["opened_at"] = (
-        pd.to_datetime(
-            features["opened_at"],
-            errors="coerce",
-        )
+    features["opened_at"] = pd.to_datetime(
+        features["opened_at"],
+        errors="coerce",
     )
 
-    eligible = features.loc[
-        features[
-            ELIGIBILITY_COLUMN
-        ].eq(True)
-    ].copy()
+    eligible = features.loc[features[ELIGIBILITY_COLUMN].eq(True)].copy()
 
     if eligible.empty:
-        raise RuntimeError(
-            "Nenhum incidente elegível "
-            "para scoring."
-        )
+        raise RuntimeError("Nenhum incidente elegível para scoring.")
 
-    reference_date = (
-        eligible["opened_at"]
-        .dt.date
-        .max()
-    )
+    reference_date = eligible["opened_at"].dt.date.max()
 
-    cohort = eligible.loc[
-        eligible["opened_at"]
-        .dt.date
-        .eq(reference_date)
-    ].copy()
+    cohort = eligible.loc[eligible["opened_at"].dt.date.eq(reference_date)].copy()
 
     if cohort.empty:
-        raise RuntimeError(
-            "Coorte operacional vazia."
-        )
+        raise RuntimeError("Coorte operacional vazia.")
 
     print(
         "Data de referência:",
@@ -302,57 +191,29 @@ def main() -> None:
         len(cohort),
     )
 
-    run_datetime = datetime.now(
-        UTC
-    )
-    run_id = run_datetime.strftime(
-        "%Y%m%dT%H%M%SZ"
-    )
+    run_datetime = datetime.now(UTC)
+    run_id = run_datetime.strftime("%Y%m%dT%H%M%SZ")
 
-    predictor = RiskPredictor(
-        LOCAL_MODEL_DIR
-    )
+    predictor = RiskPredictor(LOCAL_MODEL_DIR)
 
     print()
-    print(
-        "Executando scoring..."
-    )
+    print("Executando scoring...")
 
     scores = predictor.predict_features(
         cohort.reset_index(drop=True),
-        scored_at=pd.Timestamp(
-            run_datetime
-        ),
+        scored_at=pd.Timestamp(run_datetime),
     )
 
-    scores = validate_risk_scores(
-        scores
-    )
+    scores = validate_risk_scores(scores)
 
     if len(scores) != len(cohort):
-        raise RuntimeError(
-            "Quantidade de scores diverge "
-            "da coorte operacional."
-        )
+        raise RuntimeError("Quantidade de scores diverge da coorte operacional.")
 
-    if (
-        scores["incident_id"]
-        .duplicated()
-        .any()
-    ):
-        raise RuntimeError(
-            "incident_id duplicado "
-            "na saída operacional."
-        )
+    if scores["incident_id"].duplicated().any():
+        raise RuntimeError("incident_id duplicado na saída operacional.")
 
-    if set(
-        scores["model_version"]
-    ) != {
-        current["model_version"]
-    }:
-        raise RuntimeError(
-            "Versão inesperada nos scores."
-        )
+    if set(scores["model_version"]) != {current["model_version"]}:
+        raise RuntimeError("Versão inesperada nos scores.")
 
     LOCAL_OUTPUT_PATH.parent.mkdir(
         parents=True,
@@ -365,16 +226,11 @@ def main() -> None:
     )
 
     remote_output = (
-        "ml/risk_scores/"
-        f"reference_date={reference_date}/"
-        f"run_id={run_id}/"
-        "risk_scores.parquet"
+        f"ml/risk_scores/reference_date={reference_date}/run_id={run_id}/risk_scores.parquet"
     )
 
     print()
-    print(
-        "Publicando Gold..."
-    )
+    print("Publicando Gold...")
 
     upload_file(
         local_path=LOCAL_OUTPUT_PATH,
@@ -382,57 +238,31 @@ def main() -> None:
         remote_path=remote_output,
     )
 
-    print(
-        "Persistindo serving MySQL..."
-    )
+    print("Persistindo serving MySQL...")
 
     settings = get_settings()
-    engine = create_mysql_engine(
-        settings
-    )
+    engine = create_mysql_engine(settings)
 
     try:
-        repo = MySQLRepository(
-            engine
-        )
+        repo = MySQLRepository(engine)
 
         repo.ensure_dl_risk_scores_table()
 
-        mysql_rows = _to_mysql_rows(
-            scores
-        )
+        mysql_rows = _to_mysql_rows(scores)
 
-        repo.replace_dl_risk_scores(
-            mysql_rows
-        )
+        repo.replace_dl_risk_scores(mysql_rows)
 
         stored = repo.fetch_dl_risk_scores()
 
-        if len(stored) != len(
-            mysql_rows
-        ):
-            raise RuntimeError(
-                "Quantidade persistida no MySQL "
-                "diverge da saída."
-            )
+        if len(stored) != len(mysql_rows):
+            raise RuntimeError("Quantidade persistida no MySQL diverge da saída.")
 
-        expected_ids = {
-            str(value)
-            for value in scores[
-                "incident_id"
-            ]
-        }
+        expected_ids = {str(value) for value in scores["incident_id"]}
 
-        stored_ids = {
-            str(row["incident_id"])
-            for row in stored
-        }
+        stored_ids = {str(row["incident_id"]) for row in stored}
 
         if stored_ids != expected_ids:
-            raise RuntimeError(
-                "Conjunto de incident_id no "
-                "MySQL diverge do scoring."
-            )
+            raise RuntimeError("Conjunto de incident_id no MySQL diverge do scoring.")
 
     finally:
         engine.dispose()
@@ -448,19 +278,11 @@ def main() -> None:
     )
 
     print()
-    print(
-        "===== DISTRIBUICAO DE RISCO ====="
-    )
+    print("===== DISTRIBUICAO DE RISCO =====")
 
-    distribution = (
-        scores["risk_level"]
-        .value_counts()
-        .sort_index()
-    )
+    distribution = scores["risk_level"].value_counts().sort_index()
 
-    for level, count in (
-        distribution.items()
-    ):
+    for level, count in distribution.items():
         print(
             level,
             "=",
@@ -468,42 +290,28 @@ def main() -> None:
         )
 
     print()
-    print(
-        "===== MAIORES SCORES ====="
-    )
+    print("===== MAIORES SCORES =====")
 
-    top = (
-        scores.sort_values(
-            [
-                "risk_score",
-                "breach_probability",
-            ],
-            ascending=False,
-        )
-        .head(10)
+    top = scores.sort_values(
         [
-            [
-                "incident_id",
-                "risk_score",
-                "risk_level",
-                "breach_probability",
-            ]
+            "risk_score",
+            "breach_probability",
+        ],
+        ascending=False,
+    ).head(10)[
+        [
+            "incident_id",
+            "risk_score",
+            "risk_level",
+            "breach_probability",
         ]
-    )
+    ]
 
-    print(
-        top.to_string(
-            index=False
-        )
-    )
+    print(top.to_string(index=False))
 
     print()
-    print(
-        "MYSQL_RISK_SCORES_REPLACE=SUCCESS"
-    )
-    print(
-        "DL_RISK_INFERENCE_ADLS=SUCCESS"
-    )
+    print("MYSQL_RISK_SCORES_REPLACE=SUCCESS")
+    print("DL_RISK_INFERENCE_ADLS=SUCCESS")
     print(
         "Modelo:",
         current["model_version"],

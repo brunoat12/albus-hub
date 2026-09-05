@@ -24,32 +24,20 @@ DW_FILES = [
 
 def main() -> None:
     if not os.getenv(STORAGE_ACCOUNT_ENV):
-        raise RuntimeError(
-            f"{STORAGE_ACCOUNT_ENV} não está configurada."
-        )
+        raise RuntimeError(f"{STORAGE_ACCOUNT_ENV} não está configurada.")
 
     print("=== PUBLICAÇÃO DO DW NO ADLS ===")
 
-    missing_files = [
-        filename
-        for filename in DW_FILES
-        if not (LOCAL_DIR / filename).exists()
-    ]
+    missing_files = [filename for filename in DW_FILES if not (LOCAL_DIR / filename).exists()]
 
     if missing_files:
-        raise FileNotFoundError(
-            "Arquivos dimensionais ausentes: "
-            + ", ".join(missing_files)
-        )
+        raise FileNotFoundError("Arquivos dimensionais ausentes: " + ", ".join(missing_files))
 
     for filename in DW_FILES:
         local_path = LOCAL_DIR / filename
         remote_path = f"{REMOTE_DIR}/{filename}"
 
-        print(
-            f"Enviando {local_path} "
-            f"-> {FILE_SYSTEM}/{remote_path}"
-        )
+        print(f"Enviando {local_path} -> {FILE_SYSTEM}/{remote_path}")
 
         upload_file(
             local_path=local_path,

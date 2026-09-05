@@ -44,8 +44,7 @@ def validate_volume_predictions(
 
     if missing:
         raise VolumePredictionContractError(
-            "Colunas obrigatórias ausentes nas previsões "
-            f"de volume: {sorted(missing)}"
+            f"Colunas obrigatórias ausentes nas previsões de volume: {sorted(missing)}"
         )
 
     result = frame.copy()
@@ -61,49 +60,27 @@ def validate_volume_predictions(
     )
 
     if result["reference_date"].isna().any():
-        raise VolumePredictionContractError(
-            "reference_date possui valores inválidos."
-        )
+        raise VolumePredictionContractError("reference_date possui valores inválidos.")
 
     if result["generated_at"].isna().any():
-        raise VolumePredictionContractError(
-            "generated_at possui valores inválidos."
-        )
+        raise VolumePredictionContractError("generated_at possui valores inválidos.")
 
-    result["horizon"] = (
-        result["horizon"]
-        .astype("string")
-        .str.strip()
-        .str.upper()
-    )
+    result["horizon"] = result["horizon"].astype("string").str.strip().str.upper()
 
-    invalid_horizons = (
-        set(result["horizon"].dropna())
-        - VALID_HORIZONS
-    )
+    invalid_horizons = set(result["horizon"].dropna()) - VALID_HORIZONS
 
     if invalid_horizons:
         raise VolumePredictionContractError(
-            "horizon contém valores inválidos: "
-            f"{sorted(invalid_horizons)}"
+            f"horizon contém valores inválidos: {sorted(invalid_horizons)}"
         )
 
-    result["priority_scope"] = (
-        result["priority_scope"]
-        .astype("string")
-        .str.strip()
-        .str.upper()
-    )
+    result["priority_scope"] = result["priority_scope"].astype("string").str.strip().str.upper()
 
-    invalid_scopes = (
-        set(result["priority_scope"].dropna())
-        - VALID_PRIORITY_SCOPES
-    )
+    invalid_scopes = set(result["priority_scope"].dropna()) - VALID_PRIORITY_SCOPES
 
     if invalid_scopes:
         raise VolumePredictionContractError(
-            "priority_scope contém valores inválidos: "
-            f"{sorted(invalid_scopes)}"
+            f"priority_scope contém valores inválidos: {sorted(invalid_scopes)}"
         )
 
     numeric_columns = [
@@ -118,29 +95,15 @@ def validate_volume_predictions(
             errors="coerce",
         )
 
-        invalid = (
-            result[column].isna()
-            | (result[column] < 0)
-        )
+        invalid = result[column].isna() | (result[column] < 0)
 
         if invalid.any():
-            raise VolumePredictionContractError(
-                f"{column} deve ser numérico e não negativo."
-            )
+            raise VolumePredictionContractError(f"{column} deve ser numérico e não negativo.")
 
     invalid_interval = (
-        (
-            result["lower_bound"]
-            > result["predicted_incident_count"]
-        )
-        | (
-            result["upper_bound"]
-            < result["predicted_incident_count"]
-        )
-        | (
-            result["lower_bound"]
-            > result["upper_bound"]
-        )
+        (result["lower_bound"] > result["predicted_incident_count"])
+        | (result["upper_bound"] < result["predicted_incident_count"])
+        | (result["lower_bound"] > result["upper_bound"])
     )
 
     if invalid_interval.any():
@@ -150,33 +113,15 @@ def validate_volume_predictions(
             "<= upper_bound."
         )
 
-    result["model_name"] = (
-        result["model_name"]
-        .astype("string")
-        .str.strip()
-    )
+    result["model_name"] = result["model_name"].astype("string").str.strip()
 
-    if (
-        result["model_name"].isna().any()
-        or result["model_name"].eq("").any()
-    ):
-        raise VolumePredictionContractError(
-            "model_name possui valores ausentes."
-        )
+    if result["model_name"].isna().any() or result["model_name"].eq("").any():
+        raise VolumePredictionContractError("model_name possui valores ausentes.")
 
-    result["model_version"] = (
-        result["model_version"]
-        .astype("string")
-        .str.strip()
-    )
+    result["model_version"] = result["model_version"].astype("string").str.strip()
 
-    if (
-        result["model_version"].isna().any()
-        or result["model_version"].eq("").any()
-    ):
-        raise VolumePredictionContractError(
-            "model_version possui valores ausentes."
-        )
+    if result["model_version"].isna().any() or result["model_version"].eq("").any():
+        raise VolumePredictionContractError("model_version possui valores ausentes.")
 
     duplicated_key = result.duplicated(
         subset=[

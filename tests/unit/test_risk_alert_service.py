@@ -48,9 +48,7 @@ def _scores() -> pd.DataFrame:
                 "risk_score": 68,
                 "risk_level": "alto",
                 "top_risk_factors": "pressão operacional",
-                "recommended_action": (
-                    "Priorizar investigação preventiva."
-                ),
+                "recommended_action": ("Priorizar investigação preventiva."),
             },
             {
                 "incident_id": "INC-CRITICAL",
@@ -60,9 +58,7 @@ def _scores() -> pd.DataFrame:
                 "risk_score": 92,
                 "risk_level": "crítico",
                 "top_risk_factors": "prioridade alta",
-                "recommended_action": (
-                    "Priorizar atendimento imediatamente."
-                ),
+                "recommended_action": ("Priorizar atendimento imediatamente."),
             },
         ]
     )
@@ -79,15 +75,9 @@ def test_only_high_and_critical_are_published() -> None:
     assert count == 2
     assert publisher.publish.call_count == 2
 
-    published_events = [
-        call.args[0]
-        for call in publisher.publish.call_args_list
-    ]
+    published_events = [call.args[0] for call in publisher.publish.call_args_list]
 
-    assert {
-        event.incident_id
-        for event in published_events
-    } == {
+    assert {event.incident_id for event in published_events} == {
         "INC-HIGH",
         "INC-CRITICAL",
     }

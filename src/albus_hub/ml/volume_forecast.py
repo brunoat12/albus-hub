@@ -37,9 +37,7 @@ def prepare_scope(
     )
 
     if scoped.empty:
-        raise ValueError(
-            f"Nenhum dado encontrado para {priority_scope}."
-        )
+        raise ValueError(f"Nenhum dado encontrado para {priority_scope}.")
 
     scoped["reference_date"] = pd.to_datetime(
         scoped["reference_date"],
@@ -47,9 +45,7 @@ def prepare_scope(
     ).dt.normalize()
 
     if scoped["reference_date"].duplicated().any():
-        raise ValueError(
-            f"Existem datas duplicadas no escopo {priority_scope}."
-        )
+        raise ValueError(f"Existem datas duplicadas no escopo {priority_scope}.")
 
     expected_dates = pd.date_range(
         scoped["reference_date"].min(),
@@ -57,14 +53,10 @@ def prepare_scope(
         freq="D",
     )
 
-    actual_dates = pd.DatetimeIndex(
-        scoped["reference_date"]
-    )
+    actual_dates = pd.DatetimeIndex(scoped["reference_date"])
 
     if not expected_dates.equals(actual_dates):
-        raise ValueError(
-            f"A série {priority_scope} não possui calendário diário contínuo."
-        )
+        raise ValueError(f"A série {priority_scope} não possui calendário diário contínuo.")
 
     scoped["incident_count"] = pd.to_numeric(
         scoped["incident_count"],
@@ -84,49 +76,29 @@ def build_training_features(
         dtype=float,
     )
 
-    result["lag_1"] = result[
-        "incident_count"
-    ].shift(1)
+    result["lag_1"] = result["incident_count"].shift(1)
 
-    result["lag_7"] = result[
-        "incident_count"
-    ].shift(7)
+    result["lag_7"] = result["incident_count"].shift(7)
 
-    shifted = result[
-        "incident_count"
-    ].shift(1)
+    shifted = result["incident_count"].shift(1)
 
-    result["rolling_7"] = (
-        shifted.rolling(7).mean()
-    )
+    result["rolling_7"] = shifted.rolling(7).mean()
 
-    result["rolling_28"] = (
-        shifted.rolling(28).mean()
-    )
+    result["rolling_28"] = shifted.rolling(28).mean()
 
-    dow = result[
-        "reference_date"
-    ].dt.dayofweek
+    dow = result["reference_date"].dt.dayofweek
 
-    result["dow_sin"] = np.sin(
-        2 * np.pi * dow / 7
-    )
+    result["dow_sin"] = np.sin(2 * np.pi * dow / 7)
 
-    result["dow_cos"] = np.cos(
-        2 * np.pi * dow / 7
-    )
+    result["dow_cos"] = np.cos(2 * np.pi * dow / 7)
 
-    return result.dropna().reset_index(
-        drop=True
-    )
+    return result.dropna().reset_index(drop=True)
 
 
 def design_matrix(
     frame: pd.DataFrame,
 ) -> np.ndarray:
-    features = frame[
-        FEATURE_COLUMNS
-    ].to_numpy(dtype=float)
+    features = frame[FEATURE_COLUMNS].to_numpy(dtype=float)
 
     return np.column_stack(
         [
@@ -141,9 +113,7 @@ def fit_model(
 ) -> np.ndarray:
     x = design_matrix(frame)
 
-    y = frame[
-        "incident_count"
-    ].to_numpy(dtype=float)
+    y = frame["incident_count"].to_numpy(dtype=float)
 
     coefficients, *_ = np.linalg.lstsq(
         x,
@@ -158,24 +128,15 @@ def evaluate_model(
     frame: pd.DataFrame,
 ) -> dict[str, float]:
     if len(frame) <= HOLDOUT_DAYS:
-        raise ValueError(
-            "Histórico insuficiente para holdout."
-        )
+        raise ValueError("Histórico insuficiente para holdout.")
 
-    train = frame.iloc[
-        :-HOLDOUT_DAYS
-    ]
+    train = frame.iloc[:-HOLDOUT_DAYS]
 
-    test = frame.iloc[
-        -HOLDOUT_DAYS:
-    ]
+    test = frame.iloc[-HOLDOUT_DAYS:]
 
     coefficients = fit_model(train)
 
-    prediction = (
-        design_matrix(test)
-        @ coefficients
-    )
+    prediction = design_matrix(test) @ coefficients
 
     prediction = np.clip(
         prediction,
@@ -183,19 +144,11 @@ def evaluate_model(
         None,
     )
 
-    actual = test[
-        "incident_count"
-    ].to_numpy(dtype=float)
+    actual = test["incident_count"].to_numpy(dtype=float)
 
-    mae = np.mean(
-        np.abs(actual - prediction)
-    )
+    mae = np.mean(np.abs(actual - prediction))
 
-    rmse = np.sqrt(
-        np.mean(
-            (actual - prediction) ** 2
-        )
-    )
+    rmse = np.sqrt(np.mean((actual - prediction) ** 2))
 
     return {
         "mae": float(mae),
@@ -219,16 +172,8 @@ def build_prediction_vector(
             float(history.iloc[-7]),
             float(history.iloc[-7:].mean()),
             float(history.iloc[-28:].mean()),
-            float(
-                np.sin(
-                    2 * np.pi * dow / 7
-                )
-            ),
-            float(
-                np.cos(
-                    2 * np.pi * dow / 7
-                )
-            ),
+            float(np.sin(2 * np.pi * dow / 7)),
+            float(np.cos(2 * np.pi * dow / 7)),
         ]
     )
 
@@ -238,39 +183,28 @@ def forecast(
     coefficients: np.ndarray,
 ) -> dict[int, tuple[pd.Timestamp, float]]:
     history = pd.Series(
-        scoped[
-            "incident_count"
-        ].to_numpy(dtype=float),
-        index=pd.DatetimeIndex(
-            scoped["reference_date"]
-        ),
+        scoped["incident_count"].to_numpy(dtype=float),
+        index=pd.DatetimeIndex(scoped["reference_date"]),
     )
 
     result = {}
 
     for step in range(1, 8):
-        target_date = (
-            history.index.max()
-            + pd.Timedelta(days=1)
-        )
+        target_date = history.index.max() + pd.Timedelta(days=1)
 
         vector = build_prediction_vector(
             history,
             target_date,
         )
 
-        value = float(
-            vector @ coefficients
-        )
+        value = float(vector @ coefficients)
 
         value = max(
             0.0,
             value,
         )
 
-        history.loc[
-            target_date
-        ] = value
+        history.loc[target_date] = value
 
         if step in {1, 7}:
             result[step] = (
@@ -311,15 +245,8 @@ def load_model(
     model_path: Path,
 ) -> dict[str, np.ndarray]:
     if not model_path.exists():
-        raise FileNotFoundError(
-            f"Modelo não encontrado: {model_path}"
-        )
+        raise FileNotFoundError(f"Modelo não encontrado: {model_path}")
 
-    loaded = np.load(
-        model_path
-    )
+    loaded = np.load(model_path)
 
-    return {
-        scope: loaded[scope]
-        for scope in PRIORITY_SCOPES
-    }
+    return {scope: loaded[scope] for scope in PRIORITY_SCOPES}

@@ -30,11 +30,7 @@ def fit_final_model(
         return None
 
     if y_train.nunique() <= 1:
-        return {
-            "constant": float(y_train.iloc[0])
-            if len(y_train)
-            else 0.0
-        }
+        return {"constant": float(y_train.iloc[0]) if len(y_train) else 0.0}
 
     if name == "ridge":
         model = make_pipeline(
@@ -63,9 +59,7 @@ def fit_final_model(
         return model
 
     if name == "poisson_off":
-        exposure = x_train[
-            "exp_roll7"
-        ].clip(lower=1e-6)
+        exposure = x_train["exp_roll7"].clip(lower=1e-6)
 
         rate = y_train / exposure
 
@@ -83,16 +77,12 @@ def fit_final_model(
         model.fit(
             x_train[feats_rate],
             rate,
-            poissonregressor__sample_weight=(
-                exposure.values
-            ),
+            poissonregressor__sample_weight=(exposure.values),
         )
 
         return model
 
-    raise ValueError(
-        f"Preditor desconhecido: {name}"
-    )
+    raise ValueError(f"Preditor desconhecido: {name}")
 
 
 def predict_final_model(
@@ -111,18 +101,10 @@ def predict_final_model(
     if name == "poisson_off":
         exposure = max(
             1e-6,
-            float(
-                x_row[
-                    "exp_roll7"
-                ].iloc[0]
-            ),
+            float(x_row["exp_roll7"].iloc[0]),
         )
 
-        rate = float(
-            model.predict(
-                x_row[feats_rate]
-            )[0]
-        )
+        rate = float(model.predict(x_row[feats_rate])[0])
 
         return max(
             0.0,
@@ -131,21 +113,13 @@ def predict_final_model(
 
     return max(
         0.0,
-        float(
-            model.predict(
-                x_row[feats_level]
-            )[0]
-        ),
+        float(model.predict(x_row[feats_level])[0]),
     )
 
 
 def main():
-    print(
-        "=== EXPORTACAO DO BUNDLE ML V3.2 ==="
-    )
-    print(
-        "Executando metodologia canonica..."
-    )
+    print("=== EXPORTACAO DO BUNDLE ML V3.2 ===")
+    print("Executando metodologia canonica...")
 
     ns = runpy.run_path(
         str(PIPELINE),
@@ -171,31 +145,21 @@ def main():
     components = {}
 
     print()
-    print(
-        "Treinando componentes finais..."
-    )
+    print("Treinando componentes finais...")
 
     for scope, y in series.items():
         for horizon_days, horizon in [
             (1, "D+1"),
             (7, "D+7"),
         ]:
-            predictor = chosen[
-                (scope, horizon)
-            ]
+            predictor = chosen[(scope, horizon)]
 
             x, target = build_xy(
                 y,
                 horizon_days,
             )
 
-            valid = (
-                x[all_features]
-                .notna()
-                .all(axis=1)
-                & target.notna()
-                & (target.index <= last)
-            )
+            valid = x[all_features].notna().all(axis=1) & target.notna() & (target.index <= last)
 
             model = fit_final_model(
                 predictor,
@@ -205,23 +169,12 @@ def main():
                 feats_rate,
             )
 
-            coverage = metrics[
-                scope
-            ][horizon]["_coverage"]
+            coverage = metrics[scope][horizon]["_coverage"]
 
-            q_low = float(
-                coverage["q_low"]
-            )
-            q_high = float(
-                coverage["q_high"]
-            )
+            q_low = float(coverage["q_low"])
+            q_high = float(coverage["q_high"])
 
-            future_date = (
-                last
-                + ns["pd"].Timedelta(
-                    days=horizon_days
-                )
-            )
+            future_date = last + ns["pd"].Timedelta(days=horizon_days)
 
             if predictor in bases:
                 b = base_series(
@@ -230,44 +183,31 @@ def main():
                 )
                 prediction = max(
                     0.0,
-                    float(
-                        b[predictor].loc[
-                            future_date
-                        ]
-                    ),
+                    float(b[predictor].loc[future_date]),
                 )
             else:
-                prediction = (
-                    predict_final_model(
-                        predictor,
-                        model,
-                        x.loc[[future_date]],
-                        feats_level,
-                        feats_rate,
-                    )
+                prediction = predict_final_model(
+                    predictor,
+                    model,
+                    x.loc[[future_date]],
+                    feats_level,
+                    feats_rate,
                 )
 
             lower = max(
                 0.0,
-                prediction
-                + q_low * scale(prediction),
+                prediction + q_low * scale(prediction),
             )
 
             upper = max(
                 lower,
-                prediction
-                + q_high * scale(prediction),
+                prediction + q_high * scale(prediction),
             )
 
             expected = pred_df[
                 (pred_df["scope"] == scope)
-                & (
-                    pred_df["horizon"]
-                    == horizon
-                )
-                & pred_df[
-                    "actual_incidents"
-                ].isna()
+                & (pred_df["horizon"] == horizon)
+                & pred_df["actual_incidents"].isna()
             ].iloc[0]
 
             got = (
@@ -277,105 +217,55 @@ def main():
             )
 
             wanted = (
-                int(
-                    expected[
-                        "predicted_incidents"
-                    ]
-                ),
-                int(
-                    expected["lower_bound"]
-                ),
-                int(
-                    expected["upper_bound"]
-                ),
+                int(expected["predicted_incidents"]),
+                int(expected["lower_bound"]),
+                int(expected["upper_bound"]),
             )
 
             if got != wanted:
                 raise RuntimeError(
-                    f"Paridade falhou "
-                    f"{scope} {horizon}: "
-                    f"bundle={got} "
-                    f"canonico={wanted}"
+                    f"Paridade falhou {scope} {horizon}: bundle={got} canonico={wanted}"
                 )
 
-            key = (
-                f"{scope}|{horizon}"
-            )
+            key = f"{scope}|{horizon}"
 
             components[key] = {
                 "scope": scope,
                 "horizon": horizon,
-                "horizon_days": (
-                    horizon_days
-                ),
+                "horizon_days": (horizon_days),
                 "predictor": predictor,
                 "model": model,
                 "q_low": q_low,
                 "q_high": q_high,
             }
 
-            print(
-                f"{scope:4} {horizon:3} "
-                f"{predictor:10} "
-                f"-> {got[0]} "
-                f"({got[1]}-{got[2]}) "
-                "[OK]"
-            )
+            print(f"{scope:4} {horizon:3} {predictor:10} -> {got[0]} ({got[1]}-{got[2]}) [OK]")
 
-    trained_at = (
-        datetime.now(UTC).isoformat()
-    )
+    trained_at = datetime.now(UTC).isoformat()
 
     bundle = {
-        "model_version": (
-            model_version
-        ),
+        "model_version": (model_version),
         "trained_at": trained_at,
-        "training_end_date": (
-            str(last.date())
-        ),
-        "source": (
-            "Silver governada "
-            "data/silver/"
-            "locaweb_incidents.parquet"
-        ),
-        "methodology": (
-            "v3.2 - deduplicacao + "
-            "selecao honesta + "
-            "intervalo conformal adaptativo"
-        ),
+        "training_end_date": (str(last.date())),
+        "source": ("Silver governada data/silver/locaweb_incidents.parquet"),
+        "methodology": ("v3.2 - deduplicacao + selecao honesta + intervalo conformal adaptativo"),
         "components": components,
     }
 
     metadata = {
-        "model_version": (
-            model_version
-        ),
+        "model_version": (model_version),
         "trained_at": trained_at,
-        "training_end_date": (
-            str(last.date())
-        ),
-        "component_count": (
-            len(components)
-        ),
+        "training_end_date": (str(last.date())),
+        "component_count": (len(components)),
         "components": {
             key: {
                 "scope": value["scope"],
-                "horizon": (
-                    value["horizon"]
-                ),
-                "predictor": (
-                    value["predictor"]
-                ),
-                "q_low": (
-                    value["q_low"]
-                ),
-                "q_high": (
-                    value["q_high"]
-                ),
+                "horizon": (value["horizon"]),
+                "predictor": (value["predictor"]),
+                "q_low": (value["q_low"]),
+                "q_high": (value["q_high"]),
             }
-            for key, value
-            in components.items()
+            for key, value in components.items()
         },
     }
 
@@ -399,19 +289,10 @@ def main():
     )
 
     print()
-    print(
-        f"Bundle: {BUNDLE_PATH}"
-    )
-    print(
-        f"Metadata: {METADATA_PATH}"
-    )
-    print(
-        f"Componentes: "
-        f"{len(components)}"
-    )
-    print(
-        "BUNDLE_PARITY=SUCCESS"
-    )
+    print(f"Bundle: {BUNDLE_PATH}")
+    print(f"Metadata: {METADATA_PATH}")
+    print(f"Componentes: {len(components)}")
+    print("BUNDLE_PARITY=SUCCESS")
 
 
 if __name__ == "__main__":

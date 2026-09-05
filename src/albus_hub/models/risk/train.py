@@ -63,9 +63,7 @@ def _split_temporally(
     config: RiskTrainingConfig,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     train_end = int(len(eligible) * config.train_fraction)
-    validation_end = int(
-        len(eligible) * (config.train_fraction + config.validation_fraction)
-    )
+    validation_end = int(len(eligible) * (config.train_fraction + config.validation_fraction))
     return (
         eligible.iloc[:train_end].copy(),
         eligible.iloc[train_end:validation_end].copy(),
@@ -167,7 +165,9 @@ def train_risk_model(config: RiskTrainingConfig) -> dict[str, object]:
                 "validation_metrics_at_0_5": classification_metrics(
                     y_validation, validation_probability, 0.5
                 ),
-                "history": {key: [float(value) for value in values] for key, values in history.items()},
+                "history": {
+                    key: [float(value) for value in values] for key, values in history.items()
+                },
             }
         )
         trained_models[ann_config.name] = (model, validation_probability, test_probability)

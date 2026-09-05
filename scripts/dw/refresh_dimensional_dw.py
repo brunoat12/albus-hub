@@ -43,9 +43,7 @@ DW_FILES = {
     "dim_produto": "dim_produto.parquet",
     "dim_categoria": "dim_categoria.parquet",
     "dim_grupo": "dim_grupo.parquet",
-    "dim_item_configuracao": (
-        "dim_item_configuracao.parquet"
-    ),
+    "dim_item_configuracao": ("dim_item_configuracao.parquet"),
     "fato_incidente": "fato_incidente.parquet",
 }
 
@@ -68,9 +66,7 @@ def expected_counts() -> dict[str, int]:
         path = DW_DIR / filename
 
         if not path.exists():
-            raise FileNotFoundError(
-                f"Arquivo dimensional não encontrado: {path}"
-            )
+            raise FileNotFoundError(f"Arquivo dimensional não encontrado: {path}")
 
         count = len(
             pd.read_parquet(
@@ -80,9 +76,7 @@ def expected_counts() -> dict[str, int]:
         )
 
         if count <= 0:
-            raise ValueError(
-                f"Arquivo dimensional vazio: {path}"
-            )
+            raise ValueError(f"Arquivo dimensional vazio: {path}")
 
         counts[table] = count
 
@@ -92,31 +86,17 @@ def expected_counts() -> dict[str, int]:
 def clear_mysql_dw() -> None:
     """Limpa o DW respeitando as foreign keys."""
 
-    engine = create_mysql_engine(
-        get_settings()
-    )
+    engine = create_mysql_engine(get_settings())
 
     with engine.begin() as connection:
-        print(
-            "Removendo registros da FATO..."
-        )
+        print("Removendo registros da FATO...")
 
-        connection.execute(
-            text(
-                "DELETE FROM fato_incidente"
-            )
-        )
+        connection.execute(text("DELETE FROM fato_incidente"))
 
         for table in DIMENSION_TABLES:
-            print(
-                f"Removendo registros de {table}..."
-            )
+            print(f"Removendo registros de {table}...")
 
-            connection.execute(
-                text(
-                    f"DELETE FROM {table}"
-                )
-            )
+            connection.execute(text(f"DELETE FROM {table}"))
 
 
 def run_command(
@@ -157,13 +137,9 @@ def trigger_adf_pipeline() -> str:
     )
 
     if not run_id:
-        raise RuntimeError(
-            "O ADF não retornou run_id."
-        )
+        raise RuntimeError("O ADF não retornou run_id.")
 
-    print(
-        f"ADF_RUN_ID={run_id}"
-    )
+    print(f"ADF_RUN_ID={run_id}")
 
     return run_id
 
@@ -207,37 +183,22 @@ def wait_for_adf(
     }
 
     while True:
-        status = get_adf_status(
-            run_id
-        )
+        status = get_adf_status(run_id)
 
-        print(
-            f"ADF_STATUS={status}"
-        )
+        print(f"ADF_STATUS={status}")
 
         if status in terminal_statuses:
             break
 
-        elapsed = (
-            time.monotonic()
-            - started_at
-        )
+        elapsed = time.monotonic() - started_at
 
         if elapsed >= TIMEOUT_SECONDS:
-            raise TimeoutError(
-                "Tempo máximo aguardando "
-                "o ADF foi excedido."
-            )
+            raise TimeoutError("Tempo máximo aguardando o ADF foi excedido.")
 
-        time.sleep(
-            POLL_INTERVAL_SECONDS
-        )
+        time.sleep(POLL_INTERVAL_SECONDS)
 
     if status != "Succeeded":
-        raise RuntimeError(
-            "Pipeline ADF terminou com "
-            f"status {status}."
-        )
+        raise RuntimeError(f"Pipeline ADF terminou com status {status}.")
 
 
 def validate_mysql_dw(
@@ -245,29 +206,16 @@ def validate_mysql_dw(
 ) -> None:
     """Valida counts e integridade referencial após a carga."""
 
-    engine = create_mysql_engine(
-        get_settings()
-    )
+    engine = create_mysql_engine(get_settings())
 
     with engine.connect() as connection:
         print()
-        print(
-            "=== VALIDAÇÃO DE CONTAGENS ==="
-        )
+        print("=== VALIDAÇÃO DE CONTAGENS ===")
 
         for table, expected_count in expected.items():
-            actual_count = connection.execute(
-                text(
-                    f"SELECT COUNT(*) "
-                    f"FROM {table}"
-                )
-            ).scalar_one()
+            actual_count = connection.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar_one()
 
-            print(
-                f"{table}: "
-                f"esperado={expected_count} "
-                f"mysql={actual_count}"
-            )
+            print(f"{table}: esperado={expected_count} mysql={actual_count}")
 
             if actual_count != expected_count:
                 raise ValueError(
@@ -323,71 +271,46 @@ def validate_mysql_dw(
         }
 
         print()
-        print(
-            "=== VALIDAÇÃO DE FKs ==="
-        )
+        print("=== VALIDAÇÃO DE FKs ===")
 
         for dimension, query in orphan_checks.items():
-            orphan_count = connection.execute(
-                text(query)
-            ).scalar_one()
+            orphan_count = connection.execute(text(query)).scalar_one()
 
-            print(
-                f"{dimension}: "
-                f"orfãos={orphan_count}"
-            )
+            print(f"{dimension}: orfãos={orphan_count}")
 
             if orphan_count != 0:
                 raise ValueError(
-                    "Integridade referencial inválida "
-                    f"para {dimension}: "
-                    f"{orphan_count} órfãos."
+                    f"Integridade referencial inválida para {dimension}: {orphan_count} órfãos."
                 )
 
 
 def main() -> None:
-    print(
-        "=== REFRESH DIMENSIONAL DW ==="
-    )
+    print("=== REFRESH DIMENSIONAL DW ===")
 
     expected = expected_counts()
 
     print()
-    print(
-        "Contagens esperadas:"
-    )
+    print("Contagens esperadas:")
 
     for table, count in expected.items():
-        print(
-            f"{table}: {count}"
-        )
+        print(f"{table}: {count}")
 
     print()
-    print(
-        "Limpando DW atual no MySQL..."
-    )
+    print("Limpando DW atual no MySQL...")
 
     clear_mysql_dw()
 
     print()
-    print(
-        "Disparando pipeline ADF..."
-    )
+    print("Disparando pipeline ADF...")
 
     run_id = trigger_adf_pipeline()
 
-    wait_for_adf(
-        run_id
-    )
+    wait_for_adf(run_id)
 
-    validate_mysql_dw(
-        expected
-    )
+    validate_mysql_dw(expected)
 
     print()
-    print(
-        "DW_REFRESH=SUCCESS"
-    )
+    print("DW_REFRESH=SUCCESS")
 
 
 if __name__ == "__main__":

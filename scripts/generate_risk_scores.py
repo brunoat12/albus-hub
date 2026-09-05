@@ -8,9 +8,7 @@ from albus_hub.models.risk.inference import RiskPredictor
 
 def main() -> None:
     settings = get_settings()
-    features = pd.read_parquet(
-        settings.absolute_path(settings.locaweb_risk_features_file)
-    )
+    features = pd.read_parquet(settings.absolute_path(settings.locaweb_risk_features_file))
     scoring_population = features.loc[features["dataset_split"].eq("test")].copy()
     predictor = RiskPredictor(settings.absolute_path(settings.model_risk_path))
     scores = predictor.predict_features(scoring_population)

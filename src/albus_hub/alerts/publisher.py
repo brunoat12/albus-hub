@@ -17,14 +17,10 @@ class RabbitMQRiskAlertPublisher:
         queue_name: str,
     ) -> None:
         if not rabbitmq_url.strip():
-            raise ValueError(
-                "rabbitmq_url não pode ser vazio."
-            )
+            raise ValueError("rabbitmq_url não pode ser vazio.")
 
         if not queue_name.strip():
-            raise ValueError(
-                "queue_name não pode ser vazio."
-            )
+            raise ValueError("queue_name não pode ser vazio.")
 
         self.rabbitmq_url = rabbitmq_url
         self.queue_name = queue_name
@@ -34,13 +30,9 @@ class RabbitMQRiskAlertPublisher:
         event: RiskAlertEvent,
     ) -> None:
         """Publica um evento persistente na fila configurada."""
-        parameters = pika.URLParameters(
-            self.rabbitmq_url
-        )
+        parameters = pika.URLParameters(self.rabbitmq_url)
 
-        connection = pika.BlockingConnection(
-            parameters
-        )
+        connection = pika.BlockingConnection(parameters)
 
         try:
             channel = connection.channel()

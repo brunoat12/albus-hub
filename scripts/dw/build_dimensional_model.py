@@ -34,20 +34,13 @@ dimension_string_columns = [
 ]
 
 for col in dimension_string_columns:
-    df[col] = (
-        df[col]
-        .astype("string")
-        .fillna("Não informado")
-        .str.strip()
-    )
+    df[col] = df[col].astype("string").fillna("Não informado").str.strip()
 
 df["product"] = df["product"].replace("", "Não informado")
 df["category"] = df["category"].replace("", "Não informado")
 df["subcategory"] = df["subcategory"].replace("", "Não informado")
 df["assigned_group"] = df["assigned_group"].replace("", "Não informado")
-df["configuration_item"] = df["configuration_item"].replace(
-    "", "Não informado"
-)
+df["configuration_item"] = df["configuration_item"].replace("", "Não informado")
 
 
 # =========================================================
@@ -62,23 +55,15 @@ dates = pd.date_range(
 
 dim_tempo = pd.DataFrame({"data": dates})
 
-dim_tempo["sk_tempo"] = (
-    dim_tempo["data"]
-    .dt.strftime("%Y%m%d")
-    .astype(int)
-)
+dim_tempo["sk_tempo"] = dim_tempo["data"].dt.strftime("%Y%m%d").astype(int)
 
 dim_tempo["ano"] = dim_tempo["data"].dt.year
 dim_tempo["mes"] = dim_tempo["data"].dt.month
 dim_tempo["dia"] = dim_tempo["data"].dt.day
 dim_tempo["dia_semana"] = dim_tempo["data"].dt.dayofweek + 1
-dim_tempo["semana_ano"] = (
-    dim_tempo["data"].dt.isocalendar().week.astype(int)
-)
+dim_tempo["semana_ano"] = dim_tempo["data"].dt.isocalendar().week.astype(int)
 dim_tempo["trimestre"] = dim_tempo["data"].dt.quarter
-dim_tempo["fim_semana"] = (
-    dim_tempo["data"].dt.dayofweek >= 5
-)
+dim_tempo["fim_semana"] = dim_tempo["data"].dt.dayofweek >= 5
 
 dim_tempo = dim_tempo[
     [
@@ -123,12 +108,7 @@ dim_prioridade.insert(
 # DIM PRODUTO
 # =========================================================
 
-dim_produto = (
-    df[["product"]]
-    .drop_duplicates()
-    .sort_values("product")
-    .reset_index(drop=True)
-)
+dim_produto = df[["product"]].drop_duplicates().sort_values("product").reset_index(drop=True)
 
 dim_produto.insert(
     0,
@@ -136,9 +116,7 @@ dim_produto.insert(
     range(1, len(dim_produto) + 1),
 )
 
-dim_produto = dim_produto.rename(
-    columns={"product": "produto"}
-)
+dim_produto = dim_produto.rename(columns={"product": "produto"})
 
 
 # =========================================================
@@ -181,10 +159,7 @@ dim_categoria = dim_categoria.rename(
 # =========================================================
 
 dim_grupo = (
-    df[["assigned_group"]]
-    .drop_duplicates()
-    .sort_values("assigned_group")
-    .reset_index(drop=True)
+    df[["assigned_group"]].drop_duplicates().sort_values("assigned_group").reset_index(drop=True)
 )
 
 dim_grupo.insert(
@@ -193,9 +168,7 @@ dim_grupo.insert(
     range(1, len(dim_grupo) + 1),
 )
 
-dim_grupo = dim_grupo.rename(
-    columns={"assigned_group": "grupo"}
-)
+dim_grupo = dim_grupo.rename(columns={"assigned_group": "grupo"})
 
 
 # =========================================================
@@ -215,11 +188,7 @@ dim_item.insert(
     range(1, len(dim_item) + 1),
 )
 
-dim_item = dim_item.rename(
-    columns={
-        "configuration_item": "item_configuracao"
-    }
-)
+dim_item = dim_item.rename(columns={"configuration_item": "item_configuracao"})
 
 
 # =========================================================
@@ -228,11 +197,7 @@ dim_item = dim_item.rename(
 
 fato = df.copy()
 
-fato["sk_tempo"] = (
-    fato["opened_date"]
-    .dt.strftime("%Y%m%d")
-    .astype(int)
-)
+fato["sk_tempo"] = fato["opened_date"].dt.strftime("%Y%m%d").astype(int)
 
 
 fato = fato.merge(
@@ -290,14 +255,11 @@ fato = fato.merge(
 fato["qtd_incidente"] = 1
 
 
-fato["entered_kpi"] = (
-    fato["entered_kpi_raw"]
-    .map(
-        {
-            "SIM": 1,
-            "NAO": 0,
-        }
-    )
+fato["entered_kpi"] = fato["entered_kpi_raw"].map(
+    {
+        "SIM": 1,
+        "NAO": 0,
+    }
 )
 
 
@@ -392,24 +354,12 @@ fk_columns = [
     "sk_item_configuracao",
 ]
 
-print(
-    fato_incidente[
-        fk_columns
-    ]
-    .isna()
-    .sum()
-)
+print(fato_incidente[fk_columns].isna().sum())
 
 
 print("\n=== DUPLICIDADE INCIDENT_ID ===")
 
-print(
-    fato_incidente[
-        "incident_id"
-    ]
-    .duplicated()
-    .sum()
-)
+print(fato_incidente["incident_id"].duplicated().sum())
 
 
 # =========================================================

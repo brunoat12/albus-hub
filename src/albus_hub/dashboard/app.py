@@ -32,11 +32,13 @@ def load_parquet(path: str) -> pd.DataFrame:
     """Carrega um arquivo Parquet utilizado pelo dashboard."""
     return pd.read_parquet(path)
 
+
 @st.cache_resource
 def get_mysql_repository() -> MySQLRepository:
     """Cria o repositório utilizado pela aplicação para acessar o Azure MySQL."""
     engine = create_mysql_engine(settings)
     return MySQLRepository(engine)
+
 
 @st.cache_data(
     ttl=60,
@@ -53,15 +55,12 @@ def load_current_predictions() -> pd.DataFrame:
     if frame.empty:
         return frame
 
-    frame["reference_date"] = pd.to_datetime(
-        frame["reference_date"]
-    )
+    frame["reference_date"] = pd.to_datetime(frame["reference_date"])
 
-    frame["generated_at"] = pd.to_datetime(
-        frame["generated_at"]
-    )
+    frame["generated_at"] = pd.to_datetime(frame["generated_at"])
 
     return frame
+
 
 @st.cache_data(
     ttl=60,
@@ -70,10 +69,7 @@ def load_current_predictions() -> pd.DataFrame:
 def load_current_risk_scores() -> pd.DataFrame:
     """Carrega os scores de risco operacionais vigentes do MySQL."""
 
-    rows = (
-        get_mysql_repository()
-        .fetch_dl_risk_scores()
-    )
+    rows = get_mysql_repository().fetch_dl_risk_scores()
 
     frame = pd.DataFrame(rows)
 
@@ -90,17 +86,12 @@ def load_current_risk_scores() -> pd.DataFrame:
 def load_daily_volume_from_mysql() -> pd.DataFrame:
     """Carrega o Gold diário da camada serving MySQL."""
 
-    rows = (
-        get_mysql_repository()
-        .fetch_daily_incident_volume()
-    )
+    rows = get_mysql_repository().fetch_daily_incident_volume()
 
     frame = pd.DataFrame(rows)
 
     if not frame.empty:
-        frame["reference_date"] = pd.to_datetime(
-            frame["reference_date"]
-        )
+        frame["reference_date"] = pd.to_datetime(frame["reference_date"])
 
     return frame
 
@@ -121,25 +112,19 @@ def load_breakdown_ranking_from_mysql(
 ) -> pd.DataFrame:
     """Consulta o ranking operacional diretamente no MySQL."""
 
-    rows = (
-        get_mysql_repository()
-        .fetch_incident_breakdown_ranking(
-            start_date=pd.Timestamp(
-                start_date
-            ).date(),
-            end_date=pd.Timestamp(
-                end_date
-            ).date(),
-            priority_scope=priority_scope,
-            dimension_name=dimension_name,
-            limit=top_n,
-            ranking_metric=ranking_metric,
-            min_entered_kpi=min_entered_kpi,
-            exclude_missing=exclude_missing,
-        )
+    rows = get_mysql_repository().fetch_incident_breakdown_ranking(
+        start_date=pd.Timestamp(start_date).date(),
+        end_date=pd.Timestamp(end_date).date(),
+        priority_scope=priority_scope,
+        dimension_name=dimension_name,
+        limit=top_n,
+        ranking_metric=ranking_metric,
+        min_entered_kpi=min_entered_kpi,
+        exclude_missing=exclude_missing,
     )
 
     return pd.DataFrame(rows)
+
 
 def format_integer(value: int | float) -> str:
     """Formata inteiros no padrão visual pt-BR."""
@@ -178,23 +163,17 @@ def scope_sum(
         ].sum()
     )
 
+
 try:
     daily_volume = load_daily_volume_from_mysql()
 except SQLAlchemyError as exc:
-    st.error(
-        "Não foi possível carregar os dados "
-        "analíticos do Azure MySQL."
-    )
-    st.caption(
-        f"Detalhes técnicos: {exc}"
-    )
+    st.error("Não foi possível carregar os dados analíticos do Azure MySQL.")
+    st.caption(f"Detalhes técnicos: {exc}")
     st.stop()
 
 
 if daily_volume.empty:
-    st.error(
-        "A tabela serving de volume diário está vazia."
-    )
+    st.error("A tabela serving de volume diário está vazia.")
     st.stop()
 
 
@@ -244,7 +223,6 @@ daily_period = filter_period(
     start_date,
     end_date,
 )
-
 
 
 tab_overview, tab_operations, tab_forecast, tab_risk, tab_cloud = st.tabs(
@@ -386,13 +364,8 @@ with tab_operations:
             top_n=top_n,
         )
     except SQLAlchemyError as exc:
-        st.error(
-            "Não foi possível consultar "
-            "o breakdown operacional."
-        )
-        st.caption(
-            f"Detalhes técnicos: {exc}"
-        )
+        st.error("Não foi possível consultar o breakdown operacional.")
+        st.caption(f"Detalhes técnicos: {exc}")
         ranking = pd.DataFrame()
 
     if not ranking.empty:
@@ -402,8 +375,8 @@ with tab_operations:
             .replace(
                 "__MISSING__",
                 "Sem informação",
+            )
         )
-    )
 
     if ranking.empty:
         st.info("Não há dados para os filtros selecionados.")
@@ -429,12 +402,9 @@ with tab_operations:
             hide_index=True,
         )
 
-
     st.divider()
 
-    st.subheader(
-        "Agrupamentos críticos"
-    )
+    st.subheader("Agrupamentos críticos")
 
     st.caption(
         "Análise combinada de produto × categoria × prioridade. "
@@ -443,55 +413,45 @@ with tab_operations:
     )
 
     try:
-        critical_by_volume = (
-            load_breakdown_ranking_from_mysql(
-                start_date=start_date.date().isoformat(),
-                end_date=end_date.date().isoformat(),
-                priority_scope="ALL",
-                dimension_name="critical_group",
-                top_n=10,
-                ranking_metric="incident_count",
-                exclude_missing=True,
-            )
+        critical_by_volume = load_breakdown_ranking_from_mysql(
+            start_date=start_date.date().isoformat(),
+            end_date=end_date.date().isoformat(),
+            priority_scope="ALL",
+            dimension_name="critical_group",
+            top_n=10,
+            ranking_metric="incident_count",
+            exclude_missing=True,
         )
 
-        critical_by_breach = (
-            load_breakdown_ranking_from_mysql(
-                start_date=start_date.date().isoformat(),
-                end_date=end_date.date().isoformat(),
-                priority_scope="ALL",
-                dimension_name="critical_group",
-                top_n=10,
-                ranking_metric="kpi_breach_count",
-                min_entered_kpi=10,
-                exclude_missing=True,
-            )
+        critical_by_breach = load_breakdown_ranking_from_mysql(
+            start_date=start_date.date().isoformat(),
+            end_date=end_date.date().isoformat(),
+            priority_scope="ALL",
+            dimension_name="critical_group",
+            top_n=10,
+            ranking_metric="kpi_breach_count",
+            min_entered_kpi=10,
+            exclude_missing=True,
         )
 
-        critical_by_rate = (
-            load_breakdown_ranking_from_mysql(
-                start_date=start_date.date().isoformat(),
-                end_date=end_date.date().isoformat(),
-                priority_scope="ALL",
-                dimension_name="critical_group",
-                top_n=10,
-                ranking_metric="breach_rate_pct",
-                min_entered_kpi=20,
-                exclude_missing=True,
-            )
+        critical_by_rate = load_breakdown_ranking_from_mysql(
+            start_date=start_date.date().isoformat(),
+            end_date=end_date.date().isoformat(),
+            priority_scope="ALL",
+            dimension_name="critical_group",
+            top_n=10,
+            ranking_metric="breach_rate_pct",
+            min_entered_kpi=20,
+            exclude_missing=True,
         )
 
     except SQLAlchemyError as exc:
-        st.error(
-            "Não foi possível consultar os "
-            "agrupamentos críticos."
-        )
+        st.error("Não foi possível consultar os agrupamentos críticos.")
 
-        st.caption(
-            f"Detalhes técnicos: {exc}"
-        )
+        st.caption(f"Detalhes técnicos: {exc}")
 
     else:
+
         def prepare_critical_ranking(
             frame: pd.DataFrame,
         ) -> pd.DataFrame:
@@ -515,13 +475,10 @@ with tab_operations:
             result["Categoria"] = parts[1]
             result["Prioridade"] = parts[2]
 
-            result["breach_rate_pct"] = (
-                pd.to_numeric(
-                    result["breach_rate_pct"],
-                    errors="coerce",
-                )
-                .round(2)
-            )
+            result["breach_rate_pct"] = pd.to_numeric(
+                result["breach_rate_pct"],
+                errors="coerce",
+            ).round(2)
 
             return result[
                 [
@@ -543,81 +500,47 @@ with tab_operations:
             )
 
         critical_rankings = {
-            "Maior volume": prepare_critical_ranking(
-                critical_by_volume
-            ),
-            "Mais violações": prepare_critical_ranking(
-                critical_by_breach
-            ),
-            "Maior taxa de violação": prepare_critical_ranking(
-                critical_by_rate
-            ),
+            "Maior volume": prepare_critical_ranking(critical_by_volume),
+            "Mais violações": prepare_critical_ranking(critical_by_breach),
+            "Maior taxa de violação": prepare_critical_ranking(critical_by_rate),
         }
 
         critical_view = st.radio(
             "Critério do ranking",
-            options=list(
-                critical_rankings
-            ),
+            options=list(critical_rankings),
             horizontal=True,
             key="critical_group_ranking",
         )
 
-        selected_critical = (
-            critical_rankings[
-                critical_view
-            ]
-        )
+        selected_critical = critical_rankings[critical_view]
 
         if selected_critical.empty:
-            st.info(
-                "Não há agrupamentos críticos "
-                "para o período selecionado."
-            )
+            st.info("Não há agrupamentos críticos para o período selecionado.")
 
         else:
-            leader = (
-                selected_critical.iloc[0]
-            )
+            leader = selected_critical.iloc[0]
 
             st.caption(
-                "Grupo líder: "
-                f"{leader['Produto']} | "
-                f"{leader['Categoria']} | "
-                f"{leader['Prioridade']}"
+                f"Grupo líder: {leader['Produto']} | {leader['Categoria']} | {leader['Prioridade']}"
             )
 
-            col1, col2, col3 = (
-                st.columns(3)
-            )
+            col1, col2, col3 = st.columns(3)
 
             col1.metric(
                 "Incidentes",
-                format_integer(
-                    leader["Incidentes"]
-                ),
+                format_integer(leader["Incidentes"]),
             )
 
             col2.metric(
                 "Violações",
-                format_integer(
-                    leader["KPI violado"]
-                ),
+                format_integer(leader["KPI violado"]),
             )
 
-            rate = leader[
-                "Taxa de violação (%)"
-            ]
+            rate = leader["Taxa de violação (%)"]
 
             col3.metric(
                 "Taxa de violação",
-                (
-                    "N/A"
-                    if pd.isna(rate)
-                    else format_percentage(
-                        float(rate)
-                    )
-                ),
+                ("N/A" if pd.isna(rate) else format_percentage(float(rate))),
             )
 
             st.dataframe(
@@ -626,22 +549,16 @@ with tab_operations:
                 hide_index=True,
             )
 
-            if (
-                critical_view
-                == "Maior taxa de violação"
-            ):
+            if critical_view == "Maior taxa de violação":
                 st.caption(
                     "Para evitar distorções por amostras muito pequenas, "
                     "este ranking exige pelo menos 20 incidentes "
                     "elegíveis ao KPI."
                 )
 
-
     st.divider()
 
-    st.subheader(
-        "Incidentes recorrentes / cascatas"
-    )
+    st.subheader("Incidentes recorrentes / cascatas")
 
     st.caption(
         "Incidentes vinculados ao mesmo incidente-pai são "
@@ -651,144 +568,90 @@ with tab_operations:
     )
 
     try:
-        cascade_ranking = (
-            load_breakdown_ranking_from_mysql(
-                start_date=start_date.date().isoformat(),
-                end_date=end_date.date().isoformat(),
-                priority_scope="ALL",
-                dimension_name="parent_incident_id",
-                top_n=5000,
-                ranking_metric="incident_count",
-                exclude_missing=True,
-            )
+        cascade_ranking = load_breakdown_ranking_from_mysql(
+            start_date=start_date.date().isoformat(),
+            end_date=end_date.date().isoformat(),
+            priority_scope="ALL",
+            dimension_name="parent_incident_id",
+            top_n=5000,
+            ranking_metric="incident_count",
+            exclude_missing=True,
         )
 
     except SQLAlchemyError as exc:
-        st.error(
-            "Não foi possível consultar os "
-            "incidentes recorrentes."
-        )
+        st.error("Não foi possível consultar os incidentes recorrentes.")
 
-        st.caption(
-            f"Detalhes técnicos: {exc}"
-        )
+        st.caption(f"Detalhes técnicos: {exc}")
 
         cascade_ranking = pd.DataFrame()
 
     if cascade_ranking.empty:
-        st.info(
-            "Não há cascatas no período selecionado."
-        )
+        st.info("Não há cascatas no período selecionado.")
 
     else:
-        cascade_ranking[
-            "incident_count"
-        ] = pd.to_numeric(
-            cascade_ranking[
-                "incident_count"
-            ],
+        cascade_ranking["incident_count"] = pd.to_numeric(
+            cascade_ranking["incident_count"],
             errors="coerce",
         ).fillna(0)
 
-        linked_incidents = int(
-            cascade_ranking[
-                "incident_count"
-            ].sum()
-        )
+        linked_incidents = int(cascade_ranking["incident_count"].sum())
 
-        distinct_cascades = int(
-            len(cascade_ranking)
-        )
+        distinct_cascades = int(len(cascade_ranking))
 
-        large_cascades = int(
-            cascade_ranking[
-                "incident_count"
-            ].ge(50).sum()
-        )
+        large_cascades = int(cascade_ranking["incident_count"].ge(50).sum())
 
-        largest_cascade = int(
-            cascade_ranking[
-                "incident_count"
-            ].max()
-        )
+        largest_cascade = int(cascade_ranking["incident_count"].max())
 
-        period_total_incidents = (
-            scope_sum(
-                daily_period,
-                "ALL",
-                "incident_count",
-            )
+        period_total_incidents = scope_sum(
+            daily_period,
+            "ALL",
+            "incident_count",
         )
 
         cascade_share = (
-            100
-            * linked_incidents
-            / period_total_incidents
-            if period_total_incidents
-            else 0.0
+            100 * linked_incidents / period_total_incidents if period_total_incidents else 0.0
         )
 
-        col1, col2, col3, col4, col5 = (
-            st.columns(5)
-        )
+        col1, col2, col3, col4, col5 = st.columns(5)
 
         col1.metric(
             "Incidentes em cascatas",
-            format_integer(
-                linked_incidents
-            ),
+            format_integer(linked_incidents),
         )
 
         col2.metric(
             "Participação no volume",
-            format_percentage(
-                cascade_share
-            ),
+            format_percentage(cascade_share),
         )
 
         col3.metric(
             "Cascatas distintas",
-            format_integer(
-                distinct_cascades
-            ),
+            format_integer(distinct_cascades),
         )
 
         col4.metric(
             "Cascatas ≥ 50",
-            format_integer(
-                large_cascades
-            ),
+            format_integer(large_cascades),
         )
 
         col5.metric(
             "Maior cascata",
-            format_integer(
-                largest_cascade
-            ),
+            format_integer(largest_cascade),
         )
 
-        cascade_table = (
-            cascade_ranking.head(10)[
-                [
-                    "dimension_value",
-                    "incident_count",
-                ]
+        cascade_table = cascade_ranking.head(10)[
+            [
+                "dimension_value",
+                "incident_count",
             ]
-            .rename(
-                columns={
-                    "dimension_value": (
-                        "Incidente-pai"
-                    ),
-                    "incident_count": (
-                        "Incidentes filhos"
-                    ),
-                }
-            )
+        ].rename(
+            columns={
+                "dimension_value": ("Incidente-pai"),
+                "incident_count": ("Incidentes filhos"),
+            }
         )
 
-        st.subheader(
-            "Maiores cascatas"
-        )
+        st.subheader("Maiores cascatas")
 
         st.bar_chart(
             cascade_table,
@@ -810,8 +673,6 @@ with tab_operations:
             "ser interpretadas automaticamente como riscos "
             "operacionais independentes."
         )
-
-
 
 
 with tab_forecast:
@@ -841,22 +702,14 @@ with tab_forecast:
     try:
         predictions = load_current_predictions()
     except SQLAlchemyError as exc:
-        st.error(
-            "Não foi possível consultar as previsões "
-            "vigentes no Azure MySQL."
-        )
+        st.error("Não foi possível consultar as previsões vigentes no Azure MySQL.")
 
-        st.caption(
-            f"Detalhes técnicos: {exc}"
-        )
+        st.caption(f"Detalhes técnicos: {exc}")
 
         predictions = pd.DataFrame()
 
     if predictions.empty:
-        st.info(
-            "Ainda não há previsões operacionais "
-            "disponíveis no MySQL."
-        )
+        st.info("Ainda não há previsões operacionais disponíveis no MySQL.")
 
         col1, col2 = st.columns(2)
 
@@ -872,40 +725,27 @@ with tab_forecast:
 
     else:
         scoped_predictions = predictions.loc[
-            predictions[
-                "priority_scope"
-            ].eq(forecast_scope)
+            predictions["priority_scope"].eq(forecast_scope)
         ].copy()
 
         if scoped_predictions.empty:
-            st.info(
-                "Não há previsões disponíveis "
-                "para o escopo selecionado."
-            )
+            st.info("Não há previsões disponíveis para o escopo selecionado.")
 
         else:
-            latest_by_horizon = (
-                scoped_predictions
-                .sort_values(
-                    [
-                        "reference_date",
-                        "generated_at",
-                    ]
-                )
-                .drop_duplicates(
-                    subset=["horizon"],
-                    keep="last",
-                )
+            latest_by_horizon = scoped_predictions.sort_values(
+                [
+                    "reference_date",
+                    "generated_at",
+                ]
+            ).drop_duplicates(
+                subset=["horizon"],
+                keep="last",
             )
 
             def get_horizon_row(
                 horizon: str,
             ) -> pd.Series | None:
-                rows = latest_by_horizon.loc[
-                    latest_by_horizon[
-                        "horizon"
-                    ].eq(horizon)
-                ]
+                rows = latest_by_horizon.loc[latest_by_horizon["horizon"].eq(horizon)]
 
                 if rows.empty:
                     return None
@@ -915,20 +755,12 @@ with tab_forecast:
             def format_prediction(
                 horizon: str,
             ) -> str:
-                row = get_horizon_row(
-                    horizon
-                )
+                row = get_horizon_row(horizon)
 
                 if row is None:
                     return "Indisponível"
 
-                return format_integer(
-                    round(
-                        row[
-                            "predicted_incident_count"
-                        ]
-                    )
-                )
+                return format_integer(round(row["predicted_incident_count"]))
 
             col1, col2 = st.columns(2)
 
@@ -955,9 +787,7 @@ with tab_forecast:
                 "D+1",
                 "D+7",
             ]:
-                row = get_horizon_row(
-                    horizon
-                )
+                row = get_horizon_row(horizon)
 
                 if row is None:
                     continue
@@ -966,68 +796,36 @@ with tab_forecast:
                     {
                         "Horizonte": horizon,
                         "Previsão": round(
-                            float(
-                                row[
-                                    "predicted_incident_count"
-                                ]
-                            ),
+                            float(row["predicted_incident_count"]),
                             2,
                         ),
                         "Limite inferior": (
                             None
-                            if pd.isna(
-                                row[
-                                    "lower_bound"
-                                ]
-                            )
+                            if pd.isna(row["lower_bound"])
                             else round(
-                                float(
-                                    row[
-                                        "lower_bound"
-                                    ]
-                                ),
+                                float(row["lower_bound"]),
                                 2,
                             )
                         ),
                         "Limite superior": (
                             None
-                            if pd.isna(
-                                row[
-                                    "upper_bound"
-                                ]
-                            )
+                            if pd.isna(row["upper_bound"])
                             else round(
-                                float(
-                                    row[
-                                        "upper_bound"
-                                    ]
-                                ),
+                                float(row["upper_bound"]),
                                 2,
                             )
                         ),
-                        "Modelo": row[
-                            "model_name"
-                        ],
-                        "Versão": row[
-                            "model_version"
-                        ],
-                        "Data prevista": row[
-                            "reference_date"
-                        ],
-                        "Gerado em": row[
-                            "generated_at"
-                        ],
+                        "Modelo": row["model_name"],
+                        "Versão": row["model_version"],
+                        "Data prevista": row["reference_date"],
+                        "Gerado em": row["generated_at"],
                     }
                 )
 
-            st.subheader(
-                "Detalhes da previsão"
-            )
+            st.subheader("Detalhes da previsão")
 
             st.dataframe(
-                pd.DataFrame(
-                    interval_rows
-                ),
+                pd.DataFrame(interval_rows),
                 width="stretch",
                 hide_index=True,
             )
@@ -1039,26 +837,15 @@ with tab_risk:
     try:
         risk_scores = load_current_risk_scores()
     except SQLAlchemyError as exc:
-        st.error(
-            "Não foi possível consultar os scores "
-            "de risco vigentes no Azure MySQL."
-        )
-        st.caption(
-            f"Detalhes técnicos: {exc}"
-        )
+        st.error("Não foi possível consultar os scores de risco vigentes no Azure MySQL.")
+        st.caption(f"Detalhes técnicos: {exc}")
         risk_scores = pd.DataFrame()
     except RiskScoreContractError as exc:
-        st.error(
-            "Os scores de risco no serving "
-            f"não respeitam o contrato: {exc}"
-        )
+        st.error(f"Os scores de risco no serving não respeitam o contrato: {exc}")
         risk_scores = pd.DataFrame()
 
     if risk_scores.empty:
-        st.warning(
-            "Ainda não há scores de risco "
-            "operacionais disponíveis no MySQL."
-        )
+        st.warning("Ainda não há scores de risco operacionais disponíveis no MySQL.")
 
         col1, col2, col3 = st.columns(3)
 
@@ -1077,38 +864,20 @@ with tab_risk:
             "Aguardando modelo",
         )
 
-        st.caption(
-            "Fonte operacional: "
-            "Azure Database for MySQL"
-        )
+        st.caption("Fonte operacional: Azure Database for MySQL")
 
     else:
-        latest_scores = (
-            risk_scores
-            .sort_values("scored_at")
-            .drop_duplicates(
-                subset=["incident_id"],
-                keep="last",
-            )
+        latest_scores = risk_scores.sort_values("scored_at").drop_duplicates(
+            subset=["incident_id"],
+            keep="last",
         )
 
-        average_score = (
-            latest_scores["risk_score"]
-            .mean()
-        )
+        average_score = latest_scores["risk_score"].mean()
 
-        critical_count = int(
-            latest_scores[
-                "risk_level"
-            ]
-            .eq("crítico")
-            .sum()
-        )
+        critical_count = int(latest_scores["risk_level"].eq("crítico").sum())
 
         high_or_critical = int(
-            latest_scores[
-                "risk_level"
-            ]
+            latest_scores["risk_level"]
             .isin(
                 [
                     "alto",
@@ -1118,17 +887,9 @@ with tab_risk:
             .sum()
         )
 
-        moderate_count = int(
-            latest_scores[
-                "risk_level"
-            ]
-            .eq("moderado")
-            .sum()
-        )
+        moderate_count = int(latest_scores["risk_level"].eq("moderado").sum())
 
-        col1, col2, col3, col4 = (
-            st.columns(4)
-        )
+        col1, col2, col3, col4 = st.columns(4)
 
         col1.metric(
             "Risk score médio",
@@ -1137,23 +898,17 @@ with tab_risk:
 
         col2.metric(
             "Moderados",
-            format_integer(
-                moderate_count
-            ),
+            format_integer(moderate_count),
         )
 
         col3.metric(
             "Alto ou crítico",
-            format_integer(
-                high_or_critical
-            ),
+            format_integer(high_or_critical),
         )
 
         col4.metric(
             "Críticos",
-            format_integer(
-                critical_count
-            ),
+            format_integer(critical_count),
         )
 
         st.caption(
@@ -1163,21 +918,13 @@ with tab_risk:
             "durante a inferência"
         )
 
-        st.subheader(
-            "Distribuição de risco"
-        )
+        st.subheader("Distribuição de risco")
 
         risk_distribution = (
-            latest_scores[
-                "risk_level"
-            ]
+            latest_scores["risk_level"]
             .value_counts()
-            .rename_axis(
-                "Nível de risco"
-            )
-            .reset_index(
-                name="Incidentes"
-            )
+            .rename_axis("Nível de risco")
+            .reset_index(name="Incidentes")
         )
 
         st.bar_chart(
@@ -1186,13 +933,10 @@ with tab_risk:
             y="Incidentes",
         )
 
-        st.subheader(
-            "Incidentes prioritários"
-        )
+        st.subheader("Incidentes prioritários")
 
         ranking = (
-            latest_scores
-            .sort_values(
+            latest_scores.sort_values(
                 [
                     "risk_score",
                     "breach_probability",
@@ -1203,12 +947,7 @@ with tab_risk:
             .copy()
         )
 
-        ranking["risk_level"] = (
-            ranking[
-                "risk_level"
-            ]
-            .str.title()
-        )
+        ranking["risk_level"] = ranking["risk_level"].str.title()
 
         st.dataframe(
             ranking[
@@ -1226,36 +965,16 @@ with tab_risk:
                 ]
             ].rename(
                 columns={
-                    "incident_id": (
-                        "Incidente"
-                    ),
-                    "risk_score": (
-                        "Risk score"
-                    ),
-                    "risk_level": (
-                        "Nível"
-                    ),
-                    "breach_probability": (
-                        "Prob. violação"
-                    ),
-                    "priority_impact": (
-                        "Impacto prioridade"
-                    ),
-                    "operational_pressure": (
-                        "Pressão operacional"
-                    ),
-                    "top_risk_factors": (
-                        "Principais fatores"
-                    ),
-                    "recommended_action": (
-                        "Ação recomendada"
-                    ),
-                    "model_version": (
-                        "Versão do modelo"
-                    ),
-                    "scored_at": (
-                        "Scoring em"
-                    ),
+                    "incident_id": ("Incidente"),
+                    "risk_score": ("Risk score"),
+                    "risk_level": ("Nível"),
+                    "breach_probability": ("Prob. violação"),
+                    "priority_impact": ("Impacto prioridade"),
+                    "operational_pressure": ("Pressão operacional"),
+                    "top_risk_factors": ("Principais fatores"),
+                    "recommended_action": ("Ação recomendada"),
+                    "model_version": ("Versão do modelo"),
+                    "scored_at": ("Scoring em"),
                 }
             ),
             width="stretch",
@@ -1266,10 +985,7 @@ with tab_risk:
 with tab_cloud:
     st.subheader("Integração Cloud")
 
-    st.caption(
-        "Integração da aplicação Albus-Hub com o "
-        "Azure Database for MySQL."
-    )
+    st.caption("Integração da aplicação Albus-Hub com o Azure Database for MySQL.")
 
     try:
         repository = get_mysql_repository()
@@ -1290,10 +1006,7 @@ with tab_cloud:
             format_integer(summary.total_incidents),
         )
 
-        st.success(
-            "Aplicação conectada ao Data Warehouse "
-            "no Azure Database for MySQL."
-        )
+        st.success("Aplicação conectada ao Data Warehouse no Azure Database for MySQL.")
 
         st.divider()
 
@@ -1315,9 +1028,7 @@ with tab_cloud:
                 processed_records=summary.total_incidents,
             )
 
-            st.success(
-                f"Execução registrada com sucesso: {run_id}"
-            )
+            st.success(f"Execução registrada com sucesso: {run_id}")
 
         st.divider()
 
@@ -1335,9 +1046,7 @@ with tab_cloud:
             st.info("Nenhuma execução registrada.")
 
     except SQLAlchemyError as exc:
-        st.warning(
-            "Não foi possível acessar o Azure MySQL neste ambiente."
-        )
+        st.warning("Não foi possível acessar o Azure MySQL neste ambiente.")
 
         st.caption(str(exc))
 

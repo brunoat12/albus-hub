@@ -10,19 +10,12 @@ from albus_hub.config import get_settings
 def main() -> None:
     settings = get_settings()
 
-    scores_path = settings.absolute_path(
-        settings.locaweb_risk_scores_file
-    )
+    scores_path = settings.absolute_path(settings.locaweb_risk_scores_file)
 
     if not scores_path.exists():
-        raise RuntimeError(
-            "Arquivo de risk scores não encontrado: "
-            f"{scores_path}"
-        )
+        raise RuntimeError(f"Arquivo de risk scores não encontrado: {scores_path}")
 
-    scores = pd.read_parquet(
-        scores_path
-    )
+    scores = pd.read_parquet(scores_path)
 
     print("=== PUBLICACAO DE ALERTAS DE RISCO ===")
     print("Scores:", len(scores))
@@ -39,12 +32,8 @@ def main() -> None:
     )
 
     print()
-    print(
-        f"RABBITMQ_ALERTS_PUBLISHED={published}"
-    )
-    print(
-        "RABBITMQ_ALERTS=SUCCESS"
-    )
+    print(f"RABBITMQ_ALERTS_PUBLISHED={published}")
+    print("RABBITMQ_ALERTS=SUCCESS")
 
 
 if __name__ == "__main__":

@@ -34,9 +34,7 @@ def prepare_scope(
         raise ValueError(f"Nenhum dado encontrado para {priority_scope}.")
 
     if scoped["reference_date"].duplicated().any():
-        raise ValueError(
-            f"Existem datas duplicadas no escopo {priority_scope}."
-        )
+        raise ValueError(f"Existem datas duplicadas no escopo {priority_scope}.")
 
     expected_dates = pd.date_range(
         scoped["reference_date"].min(),
@@ -47,9 +45,7 @@ def prepare_scope(
     actual_dates = pd.DatetimeIndex(scoped["reference_date"])
 
     if not expected_dates.equals(actual_dates):
-        raise ValueError(
-            f"A série {priority_scope} não possui calendário diário contínuo."
-        )
+        raise ValueError(f"A série {priority_scope} não possui calendário diário contínuo.")
 
     scoped["incident_count"] = pd.to_numeric(
         scoped["incident_count"],
@@ -83,12 +79,8 @@ def build_features(
 
     day_of_week = result["reference_date"].dt.dayofweek
 
-    result["dow_sin"] = np.sin(
-        2 * np.pi * day_of_week / 7
-    )
-    result["dow_cos"] = np.cos(
-        2 * np.pi * day_of_week / 7
-    )
+    result["dow_sin"] = np.sin(2 * np.pi * day_of_week / 7)
+    result["dow_cos"] = np.cos(2 * np.pi * day_of_week / 7)
 
     return result.dropna().reset_index(drop=True)
 
@@ -127,9 +119,7 @@ def fit_linear_regression(
 ) -> np.ndarray:
     x = design_matrix(frame)
 
-    y = frame["incident_count"].to_numpy(
-        dtype=float
-    )
+    y = frame["incident_count"].to_numpy(dtype=float)
 
     coefficients, *_ = np.linalg.lstsq(
         x,
@@ -144,18 +134,14 @@ def evaluate_temporal_holdout(
     feature_frame: pd.DataFrame,
 ) -> tuple[float, float]:
     if len(feature_frame) <= HOLDOUT_DAYS:
-        raise ValueError(
-            "Histórico insuficiente para avaliação temporal."
-        )
+        raise ValueError("Histórico insuficiente para avaliação temporal.")
 
     train = feature_frame.iloc[:-HOLDOUT_DAYS].copy()
     test = feature_frame.iloc[-HOLDOUT_DAYS:].copy()
 
     coefficients = fit_linear_regression(train)
 
-    predictions = (
-        design_matrix(test) @ coefficients
-    )
+    predictions = design_matrix(test) @ coefficients
 
     predictions = np.clip(
         predictions,
@@ -163,23 +149,11 @@ def evaluate_temporal_holdout(
         a_max=None,
     )
 
-    actual = test["incident_count"].to_numpy(
-        dtype=float
-    )
+    actual = test["incident_count"].to_numpy(dtype=float)
 
-    mae = float(
-        np.mean(
-            np.abs(actual - predictions)
-        )
-    )
+    mae = float(np.mean(np.abs(actual - predictions)))
 
-    rmse = float(
-        np.sqrt(
-            np.mean(
-                (actual - predictions) ** 2
-            )
-        )
-    )
+    rmse = float(np.sqrt(np.mean((actual - predictions) ** 2)))
 
     return mae, rmse
 
@@ -193,27 +167,15 @@ def build_future_features(
     lag_1 = float(history.iloc[-1])
     lag_7 = float(history.iloc[-7])
 
-    rolling_7 = float(
-        history.iloc[-7:].mean()
-    )
+    rolling_7 = float(history.iloc[-7:].mean())
 
-    rolling_28 = float(
-        history.iloc[-28:].mean()
-    )
+    rolling_28 = float(history.iloc[-28:].mean())
 
     day_of_week = target_date.dayofweek
 
-    dow_sin = float(
-        np.sin(
-            2 * np.pi * day_of_week / 7
-        )
-    )
+    dow_sin = float(np.sin(2 * np.pi * day_of_week / 7))
 
-    dow_cos = float(
-        np.cos(
-            2 * np.pi * day_of_week / 7
-        )
-    )
+    dow_cos = float(np.cos(2 * np.pi * day_of_week / 7))
 
     return np.array(
         [
@@ -235,12 +197,8 @@ def forecast_scope(
     coefficients: np.ndarray,
 ) -> dict[int, tuple[pd.Timestamp, float]]:
     history = pd.Series(
-        data=scoped["incident_count"].to_numpy(
-            dtype=float
-        ),
-        index=pd.DatetimeIndex(
-            scoped["reference_date"]
-        ),
+        data=scoped["incident_count"].to_numpy(dtype=float),
+        index=pd.DatetimeIndex(scoped["reference_date"]),
         dtype=float,
     )
 
@@ -250,19 +208,14 @@ def forecast_scope(
     ] = {}
 
     for step in range(1, 8):
-        target_date = (
-            history.index.max()
-            + pd.Timedelta(days=1)
-        )
+        target_date = history.index.max() + pd.Timedelta(days=1)
 
         features = build_future_features(
             history,
             target_date,
         )
 
-        prediction = float(
-            features @ coefficients
-        )
+        prediction = float(features @ coefficients)
 
         prediction = max(
             0.0,
@@ -288,10 +241,7 @@ def main() -> None:
         errors="raise",
     ).dt.normalize()
 
-    generated_at = (
-        pd.Timestamp.now(tz="UTC")
-        .tz_localize(None)
-    )
+    generated_at = pd.Timestamp.now(tz="UTC").tz_localize(None)
 
     output_rows = []
 
@@ -306,36 +256,24 @@ def main() -> None:
             priority_scope,
         )
 
-        feature_frame = build_features(
-            scoped
-        )
+        feature_frame = build_features(scoped)
 
-        mae, rmse = evaluate_temporal_holdout(
-            feature_frame
-        )
+        mae, rmse = evaluate_temporal_holdout(feature_frame)
 
-        coefficients = fit_linear_regression(
-            feature_frame
-        )
+        coefficients = fit_linear_regression(feature_frame)
 
         forecasts = forecast_scope(
             scoped,
             coefficients,
         )
 
-        print(
-            f"{priority_scope}: "
-            f"MAE={mae:.2f} | "
-            f"RMSE={rmse:.2f}"
-        )
+        print(f"{priority_scope}: MAE={mae:.2f} | RMSE={rmse:.2f}")
 
         for step, horizon in (
             (1, "D+1"),
             (7, "D+7"),
         ):
-            reference_date, prediction = (
-                forecasts[step]
-            )
+            reference_date, prediction = forecasts[step]
 
             output_rows.append(
                 {
@@ -351,21 +289,13 @@ def main() -> None:
                 }
             )
 
-            print(
-                f"  {horizon}: "
-                f"{reference_date.date()} -> "
-                f"{prediction:.2f} incidentes"
-            )
+            print(f"  {horizon}: {reference_date.date()} -> {prediction:.2f} incidentes")
 
         print()
 
-    predictions = pd.DataFrame(
-        output_rows
-    )
+    predictions = pd.DataFrame(output_rows)
 
-    predictions = validate_volume_predictions(
-        predictions
-    )
+    predictions = validate_volume_predictions(predictions)
 
     OUTPUT_PATH.parent.mkdir(
         parents=True,
@@ -380,11 +310,7 @@ def main() -> None:
     print("=== ARTEFATO GERADO ===")
     print(OUTPUT_PATH)
     print()
-    print(
-        predictions.to_string(
-            index=False
-        )
-    )
+    print(predictions.to_string(index=False))
 
 
 if __name__ == "__main__":

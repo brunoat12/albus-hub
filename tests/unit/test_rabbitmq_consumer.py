@@ -26,10 +26,7 @@ def _payload() -> dict:
         "risk_score": 87,
         "risk_level": "crítico",
         "top_risk_factors": "prioridade alta",
-        "recommended_action": (
-            "Priorizar atendimento e avaliar "
-            "escalonamento imediato."
-        ),
+        "recommended_action": ("Priorizar atendimento e avaliar escalonamento imediato."),
     }
 
 
@@ -85,9 +82,7 @@ def test_valid_message_is_acknowledged() -> None:
     assert event.incident_id == "INC1234567"
     assert event.risk_level == "crítico"
 
-    channel.basic_ack.assert_called_once_with(
-        delivery_tag=123
-    )
+    channel.basic_ack.assert_called_once_with(delivery_tag=123)
 
     channel.basic_nack.assert_not_called()
 
@@ -118,11 +113,7 @@ def test_invalid_message_is_rejected() -> None:
 
 
 def test_handler_failure_rejects_message() -> None:
-    handler = MagicMock(
-        side_effect=RuntimeError(
-            "handler failure"
-        )
-    )
+    handler = MagicMock(side_effect=RuntimeError("handler failure"))
 
     consumer = RabbitMQRiskAlertConsumer(
         rabbitmq_url="amqp://localhost/",
@@ -156,14 +147,8 @@ def test_handler_failure_rejects_message() -> None:
     channel.basic_ack.assert_not_called()
 
 
-@patch(
-    "albus_hub.alerts.consumer."
-    "pika.BlockingConnection"
-)
-@patch(
-    "albus_hub.alerts.consumer."
-    "pika.URLParameters"
-)
+@patch("albus_hub.alerts.consumer.pika.BlockingConnection")
+@patch("albus_hub.alerts.consumer.pika.URLParameters")
 def test_start_configures_consumer(
     url_parameters_mock: MagicMock,
     blocking_connection_mock: MagicMock,
@@ -173,9 +158,7 @@ def test_start_configures_consumer(
 
     connection = MagicMock()
     connection.is_open = True
-    blocking_connection_mock.return_value = (
-        connection
-    )
+    blocking_connection_mock.return_value = connection
 
     channel = MagicMock()
     connection.channel.return_value = channel
@@ -192,9 +175,7 @@ def test_start_configures_consumer(
         durable=True,
     )
 
-    channel.basic_qos.assert_called_once_with(
-        prefetch_count=1
-    )
+    channel.basic_qos.assert_called_once_with(prefetch_count=1)
 
     channel.basic_consume.assert_called_once_with(
         queue="albus_alerts",

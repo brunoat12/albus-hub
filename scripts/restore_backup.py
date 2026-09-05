@@ -12,10 +12,7 @@ from albus_hub.storage.adls import download_directory
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description=(
-            "Restaura o backup mais recente do "
-            "Albus-Hub a partir do ADLS."
-        )
+        description=("Restaura o backup mais recente do Albus-Hub a partir do ADLS.")
     )
 
     parser.add_argument(
@@ -38,9 +35,7 @@ def main() -> None:
         else settings.absolute_path(args.destination)
     )
 
-    cloud_backup_cache = settings.absolute_path(
-        Path("artifacts/runtime/cloud_backup_restore")
-    )
+    cloud_backup_cache = settings.absolute_path(Path("artifacts/runtime/cloud_backup_restore"))
 
     backup_file_system = os.getenv(
         "AZURE_BACKUP_FILE_SYSTEM",
@@ -76,9 +71,7 @@ def main() -> None:
     )
 
     if report["status"] != "success":
-        raise SystemExit(
-            "Restore terminou com falha de integridade."
-        )
+        raise SystemExit("Restore terminou com falha de integridade.")
 
 
 if __name__ == "__main__":

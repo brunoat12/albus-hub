@@ -16,27 +16,15 @@ STORAGE_ACCOUNT_ENV = "AZURE_STORAGE_ACCOUNT_NAME"
 
 GOLD_FILE_SYSTEM = "gold"
 
-VOLUME_REMOTE_PATH = (
-    "analytics/daily_incident_volume.parquet"
-)
+VOLUME_REMOTE_PATH = "analytics/daily_incident_volume.parquet"
 
-BREAKDOWN_REMOTE_PATH = (
-    "analytics/daily_incident_breakdown.parquet"
-)
+BREAKDOWN_REMOTE_PATH = "analytics/daily_incident_breakdown.parquet"
 
-RUNTIME_DIR = Path(
-    "artifacts/runtime/dashboard_serving"
-)
+RUNTIME_DIR = Path("artifacts/runtime/dashboard_serving")
 
-LOCAL_VOLUME_PATH = (
-    RUNTIME_DIR
-    / "daily_incident_volume.parquet"
-)
+LOCAL_VOLUME_PATH = RUNTIME_DIR / "daily_incident_volume.parquet"
 
-LOCAL_BREAKDOWN_PATH = (
-    RUNTIME_DIR
-    / "daily_incident_breakdown.parquet"
-)
+LOCAL_BREAKDOWN_PATH = RUNTIME_DIR / "daily_incident_breakdown.parquet"
 
 
 def normalize_volume(
@@ -44,9 +32,7 @@ def normalize_volume(
 ) -> list[dict]:
     result = frame.copy()
 
-    result["reference_date"] = pd.to_datetime(
-        result["reference_date"]
-    ).dt.date
+    result["reference_date"] = pd.to_datetime(result["reference_date"]).dt.date
 
     numeric_columns = [
         "incident_count",
@@ -66,9 +52,7 @@ def normalize_volume(
             .astype(int)
         )
 
-    return result.to_dict(
-        orient="records"
-    )
+    return result.to_dict(orient="records")
 
 
 def normalize_breakdown(
@@ -76,9 +60,7 @@ def normalize_breakdown(
 ) -> list[dict]:
     result = frame.copy()
 
-    result["reference_date"] = pd.to_datetime(
-        result["reference_date"]
-    ).dt.date
+    result["reference_date"] = pd.to_datetime(result["reference_date"]).dt.date
 
     text_columns = [
         "dimension_name",
@@ -87,12 +69,7 @@ def normalize_breakdown(
     ]
 
     for column in text_columns:
-        result[column] = (
-            result[column]
-            .astype("string")
-            .fillna("N/A")
-            .astype(str)
-        )
+        result[column] = result[column].astype("string").fillna("N/A").astype(str)
 
     numeric_columns = [
         "incident_count",
@@ -110,25 +87,19 @@ def normalize_breakdown(
             .astype(int)
         )
 
-    return result.to_dict(
-        orient="records"
-    )
+    return result.to_dict(orient="records")
 
 
 def main() -> None:
     if not os.getenv(STORAGE_ACCOUNT_ENV):
-        raise RuntimeError(
-            f"{STORAGE_ACCOUNT_ENV} não está configurada."
-        )
+        raise RuntimeError(f"{STORAGE_ACCOUNT_ENV} não está configurada.")
 
     RUNTIME_DIR.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    print(
-        "=== REFRESH DASHBOARD SERVING ==="
-    )
+    print("=== REFRESH DASHBOARD SERVING ===")
 
     print("Baixando Gold analítico do ADLS...")
 
@@ -144,13 +115,9 @@ def main() -> None:
         local_path=LOCAL_BREAKDOWN_PATH,
     )
 
-    volume = pd.read_parquet(
-        LOCAL_VOLUME_PATH
-    )
+    volume = pd.read_parquet(LOCAL_VOLUME_PATH)
 
-    breakdown = pd.read_parquet(
-        LOCAL_BREAKDOWN_PATH
-    )
+    breakdown = pd.read_parquet(LOCAL_BREAKDOWN_PATH)
 
     print(
         "Volume:",
@@ -166,35 +133,21 @@ def main() -> None:
 
     settings = get_settings()
 
-    repository = MySQLRepository(
-        create_mysql_engine(settings)
-    )
+    repository = MySQLRepository(create_mysql_engine(settings))
 
     repository.ensure_dashboard_serving_tables()
 
     print()
-    print(
-        "Atualizando app_daily_incident_volume..."
-    )
+    print("Atualizando app_daily_incident_volume...")
 
-    repository.replace_daily_incident_volume(
-        normalize_volume(volume)
-    )
+    repository.replace_daily_incident_volume(normalize_volume(volume))
 
-    print(
-        "Atualizando app_daily_incident_breakdown..."
-    )
+    print("Atualizando app_daily_incident_breakdown...")
 
-    repository.replace_daily_incident_breakdown(
-        normalize_breakdown(
-            breakdown
-        )
-    )
+    repository.replace_daily_incident_breakdown(normalize_breakdown(breakdown))
 
     print()
-    print(
-        "DASHBOARD_SERVING_REFRESH=SUCCESS"
-    )
+    print("DASHBOARD_SERVING_REFRESH=SUCCESS")
 
 
 if __name__ == "__main__":

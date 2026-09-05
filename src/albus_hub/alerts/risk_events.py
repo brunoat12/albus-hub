@@ -60,18 +60,13 @@ def build_risk_alert_event(
     if not is_alert_eligible(
         str(row["risk_level"]),
     ):
-        raise ValueError(
-            "Score não elegível para alerta: "
-            f"{row['risk_level']}"
-        )
+        raise ValueError(f"Score não elegível para alerta: {row['risk_level']}")
 
     return RiskAlertEvent(
         incident_id=str(row["incident_id"]),
         scored_at=row["scored_at"],
         model_version=str(row["model_version"]),
-        breach_probability=float(
-            row["breach_probability"]
-        ),
+        breach_probability=float(row["breach_probability"]),
         risk_score=int(row["risk_score"]),
         risk_level=str(row["risk_level"]).strip().lower(),
         top_risk_factors=str(
@@ -80,7 +75,5 @@ def build_risk_alert_event(
                 "",
             )
         ),
-        recommended_action=str(
-            row["recommended_action"]
-        ),
+        recommended_action=str(row["recommended_action"]),
     )

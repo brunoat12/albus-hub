@@ -13,33 +13,15 @@ from albus_hub.integration.volume_predictions import (
 def build_valid_prediction_frame() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "reference_date": [
-                "2026-01-01"
-            ],
-            "generated_at": [
-                "2026-08-30T12:00:00"
-            ],
-            "horizon": [
-                "D+1"
-            ],
-            "priority_scope": [
-                "P4"
-            ],
-            "predicted_incident_count": [
-                367.0
-            ],
-            "lower_bound": [
-                300.25
-            ],
-            "upper_bound": [
-                433.75
-            ],
-            "model_name": [
-                "ultimo"
-            ],
-            "model_version": [
-                "volume_v3.2_2026-08-21"
-            ],
+            "reference_date": ["2026-01-01"],
+            "generated_at": ["2026-08-30T12:00:00"],
+            "horizon": ["D+1"],
+            "priority_scope": ["P4"],
+            "predicted_incident_count": [367.0],
+            "lower_bound": [300.25],
+            "upper_bound": [433.75],
+            "model_name": ["ultimo"],
+            "model_version": ["volume_v3.2_2026-08-21"],
         }
     )
 
@@ -47,15 +29,10 @@ def build_valid_prediction_frame() -> pd.DataFrame:
 def test_valid_volume_prediction_contract() -> None:
     frame = build_valid_prediction_frame()
 
-    result = validate_volume_predictions(
-        frame
-    )
+    result = validate_volume_predictions(frame)
 
     assert len(result) == 1
-    assert (
-        result.loc[0, "horizon"]
-        == "D+1"
-    )
+    assert result.loc[0, "horizon"] == "D+1"
     assert (
         result.loc[
             0,
@@ -77,9 +54,7 @@ def test_invalid_horizon_fails() -> None:
         VolumePredictionContractError,
         match="horizon",
     ):
-        validate_volume_predictions(
-            frame
-        )
+        validate_volume_predictions(frame)
 
 
 def test_invalid_priority_scope_fails() -> None:
@@ -94,9 +69,7 @@ def test_invalid_priority_scope_fails() -> None:
         VolumePredictionContractError,
         match="priority_scope",
     ):
-        validate_volume_predictions(
-            frame
-        )
+        validate_volume_predictions(frame)
 
 
 def test_negative_prediction_fails() -> None:
@@ -111,9 +84,7 @@ def test_negative_prediction_fails() -> None:
         VolumePredictionContractError,
         match="não negativo",
     ):
-        validate_volume_predictions(
-            frame
-        )
+        validate_volume_predictions(frame)
 
 
 def test_invalid_interval_fails() -> None:
@@ -128,9 +99,7 @@ def test_invalid_interval_fails() -> None:
         VolumePredictionContractError,
         match="Intervalo inválido",
     ):
-        validate_volume_predictions(
-            frame
-        )
+        validate_volume_predictions(frame)
 
 
 def test_missing_model_name_fails() -> None:
@@ -145,9 +114,7 @@ def test_missing_model_name_fails() -> None:
         VolumePredictionContractError,
         match="model_name",
     ):
-        validate_volume_predictions(
-            frame
-        )
+        validate_volume_predictions(frame)
 
 
 def test_duplicate_prediction_key_fails() -> None:
@@ -163,17 +130,12 @@ def test_duplicate_prediction_key_fails() -> None:
         VolumePredictionContractError,
         match="duplicidades",
     ):
-        validate_volume_predictions(
-            frame
-        )
+        validate_volume_predictions(frame)
 
 
 def test_missing_prediction_artifact_returns_none(
     tmp_path,
 ) -> None:
-    result = load_volume_predictions(
-        tmp_path
-        / "volume_predictions.parquet"
-    )
+    result = load_volume_predictions(tmp_path / "volume_predictions.parquet")
 
     assert result is None

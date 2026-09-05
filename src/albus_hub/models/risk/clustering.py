@@ -37,8 +37,7 @@ def evaluate_clusters(
             random_state=seed,
         )
         cluster_rates = {
-            str(label): float(sample_target[labels == label].mean())
-            for label in range(clusters)
+            str(label): float(sample_target[labels == label].mean()) for label in range(clusters)
         }
         candidates.append(
             {
@@ -60,9 +59,7 @@ def evaluate_clusters(
     validation_labels = cluster_model.predict(validation_values)
     identity = np.eye(selected_clusters, dtype=np.float32)
     augmented_train = np.column_stack([values, identity[train_labels]])
-    augmented_validation = np.column_stack(
-        [validation_values, identity[validation_labels]]
-    )
+    augmented_validation = np.column_stack([validation_values, identity[validation_labels]])
     comparison_model = LogisticRegression(
         class_weight="balanced",
         max_iter=1500,
@@ -70,9 +67,7 @@ def evaluate_clusters(
         solver="lbfgs",
     ).fit(augmented_train, target)
     augmented_probability = comparison_model.predict_proba(augmented_validation)[:, 1]
-    augmented_pr_auc = float(
-        average_precision_score(validation_target, augmented_probability)
-    )
+    augmented_pr_auc = float(average_precision_score(validation_target, augmented_probability))
     absolute_gain = augmented_pr_auc - baseline_validation_pr_auc
     useful = best["silhouette"] >= 0.10 and absolute_gain >= 0.005
     return {

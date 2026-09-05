@@ -71,12 +71,8 @@ class Settings(BaseSettings):
     locaweb_volume_predictions_file: Path = Path("data/gold/volume_predictions.parquet")
     locaweb_risk_features_file: Path = Path("data/gold/risk_features.parquet")
     locaweb_risk_scores_file: Path = Path("data/gold/risk_scores.parquet")
-    locaweb_risk_metrics_file: Path = Path(
-        "artifacts/metrics/risk_model_metrics.json"
-    )
-    locaweb_risk_eda_output_dir: Path = Path(
-        "artifacts/eda/risk"
-    )
+    locaweb_risk_metrics_file: Path = Path("artifacts/metrics/risk_model_metrics.json")
+    locaweb_risk_eda_output_dir: Path = Path("artifacts/eda/risk")
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",

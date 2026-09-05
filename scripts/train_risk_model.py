@@ -41,9 +41,7 @@ MODEL_ARTIFACTS = (
 
 def main() -> None:
     if not os.getenv(STORAGE_ACCOUNT_ENV):
-        raise RuntimeError(
-            f"{STORAGE_ACCOUNT_ENV} não está configurada."
-        )
+        raise RuntimeError(f"{STORAGE_ACCOUNT_ENV} não está configurada.")
 
     print("=== TREINO OPERACIONAL DL - RISK SCORE ===")
     print(
@@ -74,9 +72,7 @@ def main() -> None:
     )
 
     if opened_at.isna().all():
-        raise RuntimeError(
-            "Não foi possível determinar o período da Silver."
-        )
+        raise RuntimeError("Não foi possível determinar o período da Silver.")
 
     training_end_date = opened_at.max().date().isoformat()
 
@@ -104,39 +100,22 @@ def main() -> None:
 
     metrics = train_risk_model(config)
 
-    missing = [
-        name
-        for name in MODEL_ARTIFACTS
-        if not (LOCAL_MODEL_DIR / name).exists()
-    ]
+    missing = [name for name in MODEL_ARTIFACTS if not (LOCAL_MODEL_DIR / name).exists()]
 
     if missing:
-        raise RuntimeError(
-            f"Artefatos de modelo ausentes: {missing}"
-        )
+        raise RuntimeError(f"Artefatos de modelo ausentes: {missing}")
 
     if not LOCAL_METRICS_PATH.exists():
-        raise RuntimeError(
-            "metrics.json não foi gerado."
-        )
+        raise RuntimeError("metrics.json não foi gerado.")
 
     metadata_path = LOCAL_MODEL_DIR / "metadata.json"
 
-    metadata = json.loads(
-        metadata_path.read_text(
-            encoding="utf-8"
-        )
-    )
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
 
     if metadata["model_version"] != MODEL_VERSION:
-        raise RuntimeError(
-            "Versão divergente nos metadados."
-        )
+        raise RuntimeError("Versão divergente nos metadados.")
 
-    training_source = (
-        f"{TRUSTED_FILE_SYSTEM}/"
-        f"{TRUSTED_REMOTE_PATH}"
-    )
+    training_source = f"{TRUSTED_FILE_SYSTEM}/{TRUSTED_REMOTE_PATH}"
 
     metadata["training_source"] = training_source
     metadata["training_end_date"] = training_end_date
@@ -150,13 +129,9 @@ def main() -> None:
         encoding="utf-8",
     )
 
-    run_id = datetime.now(UTC).strftime(
-        "%Y%m%dT%H%M%SZ"
-    )
+    run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
-    remote_base = (
-        f"risk/{MODEL_VERSION}/{run_id}"
-    )
+    remote_base = f"risk/{MODEL_VERSION}/{run_id}"
 
     print()
     print("Publicando artefatos versionados...")
@@ -174,9 +149,7 @@ def main() -> None:
 
         artifact_paths[name] = remote_path
 
-    metrics_remote_path = (
-        f"{remote_base}/metrics.json"
-    )
+    metrics_remote_path = f"{remote_base}/metrics.json"
 
     upload_file(
         local_path=LOCAL_METRICS_PATH,
@@ -191,9 +164,7 @@ def main() -> None:
         "training_end_date": training_end_date,
         "training_source": training_source,
         "selected_ann": metrics["selected_ann"],
-        "selected_threshold": metrics[
-            "selected_threshold"
-        ],
+        "selected_threshold": metrics["selected_threshold"],
         "artifacts": {
             **artifact_paths,
             "metrics.json": metrics_remote_path,

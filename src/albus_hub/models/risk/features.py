@@ -44,7 +44,9 @@ def _known_group_outcomes_previous_30d(frame: pd.DataFrame) -> tuple[np.ndarray,
     ].copy()
     outcome_events["closed_at"] = pd.to_datetime(outcome_events["closed_at"])
 
-    for group, positions in frame.groupby("assigned_group", dropna=False, sort=False).indices.items():
+    for group, positions in frame.groupby(
+        "assigned_group", dropna=False, sort=False
+    ).indices.items():
         positions = np.asarray(positions, dtype=np.int64)
         opened = frame.iloc[positions]["opened_at"].to_numpy(dtype="datetime64[ns]")
         if pd.isna(group):
@@ -87,9 +89,7 @@ def build_risk_features(
         )
     frame["product_incidents_previous_7d"] = _strict_previous_counts(frame, "product", 7)
     frame["category_incidents_previous_7d"] = _strict_previous_counts(frame, "category", 7)
-    frame["priority_incidents_previous_7d"] = _strict_previous_counts(
-        frame, "priority_code", 7
-    )
+    frame["priority_incidents_previous_7d"] = _strict_previous_counts(frame, "priority_code", 7)
 
     known, breached = _known_group_outcomes_previous_30d(frame)
     frame["assigned_group_known_outcomes_previous_30d"] = known

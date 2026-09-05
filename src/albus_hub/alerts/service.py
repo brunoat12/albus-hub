@@ -21,21 +21,13 @@ def publish_risk_alerts(
     """Publica alertas apenas para scores alto ou crítico."""
     published = 0
 
-    for row in scores.to_dict(
-        orient="records"
-    ):
-        if not is_alert_eligible(
-            str(row["risk_level"])
-        ):
+    for row in scores.to_dict(orient="records"):
+        if not is_alert_eligible(str(row["risk_level"])):
             continue
 
-        event = build_risk_alert_event(
-            row
-        )
+        event = build_risk_alert_event(row)
 
-        publisher.publish(
-            event
-        )
+        publisher.publish(event)
 
         published += 1
 

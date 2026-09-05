@@ -50,4 +50,3 @@ def test_duplicate_incident_id_is_rejected() -> None:
 
     with pytest.raises(RiskDataContractError, match="único"):
         build_risk_features(sample)
-
