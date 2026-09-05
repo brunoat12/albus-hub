@@ -18,7 +18,7 @@ resource "azurerm_container_group" "app" {
 
   container {
     name  = "albus-hub"
-    image = "${azurerm_container_registry.app.login_server}/albus-hub:sprint4-7bca6fd"
+    image = "${azurerm_container_registry.app.login_server}/albus-hub:${var.container_image_tag}"
 
     cpu    = 1
     memory = 2
