@@ -48,3 +48,13 @@ Thumbs.db
 
 # Evidências / arquivos temporários
 *.log
+
+# Fora da imagem da aplicação
+dags
+docs
+evidencias_sprint3
+infra
+ml_volume
+powerbi
+scripts
+tests
