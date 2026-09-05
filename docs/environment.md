@@ -142,6 +142,10 @@ Porta publicada:
 O container executa o dashboard Streamlit e utiliza imagem privada
 armazenada no Azure Container Registry.
 
+A tag da imagem utilizada pelo ACI é parametrizada no Terraform por meio da
+variável `container_image_tag`, permitindo atualizar a versão implantada sem
+alterar diretamente a definição do recurso.
+
 O ACI pode permanecer parado fora das janelas de desenvolvimento e
 demonstração para reduzir consumo de recursos.
 
