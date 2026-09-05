@@ -185,15 +185,41 @@ def albus_hub_dl_inference():
             "no ADLS e MySQL."
         )
 
+    @task(
+        task_id="publish_risk_alerts",
+        retries=1,
+    )
+    def publish_risk_alerts(
+        inference_report: dict,
+    ) -> dict:
+        if (
+            inference_report.get("status")
+            != "success"
+        ):
+            raise ValueError(
+                "Inferência DL não terminou "
+                "com sucesso."
+            )
+
+        return run_project_script(
+            "scripts/publish_risk_alerts.py"
+        )
+
     validation = validate_environment()
 
     inference = run_risk_inference(
         validation
     )
 
-    validate_risk_scores(
+    validation_result = validate_risk_scores(
         inference
     )
+
+    alerts = publish_risk_alerts(
+        inference
+    )
+
+    validation_result >> alerts
 
 
 albus_hub_dl_inference()
