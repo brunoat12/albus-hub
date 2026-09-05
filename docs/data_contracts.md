@@ -140,6 +140,8 @@ assigned_group
 product
 category
 configuration_item
+critical_group
+parent_incident_id
 ```
 
 A chave lógica da tabela será:
@@ -220,7 +222,7 @@ A camada Gold de volume diário será utilizada por:
 4. análise de P2 e P3;
 5. identificação de picos operacionais;
 6. engenharia de features de pressão operacional;
-7. enriquecimento futuro do score de risco.
+7. suporte às análises de risco e pressão operacional.
 
 A Gold de volume representa fatos agregados. Ela não deverá conter:
 
@@ -236,20 +238,20 @@ Esses elementos serão mantidos em tabelas próprias.
 
 ## Contrato para features de risco
 
-Arquivo futuro:
+Arquivo:
 
 ```text
 data/gold/risk_features.parquet
 ```
 
-A tabela terá uma linha por incidente avaliado pelo modelo de risco.
+A tabela possui uma linha por incidente avaliado pelo modelo de risco.
 
-O objetivo será reunir informações disponíveis no momento da abertura do
+O objetivo é reunir informações disponíveis no momento da abertura do
 incidente e informações históricas anteriores à abertura.
 
 ### Identificação e contexto
 
-Campos planejados:
+Campos implementados:
 
 | Campo | Tipo | Uso |
 |---|---|---|
@@ -265,7 +267,7 @@ Campos planejados:
 
 ### Features temporais do incidente
 
-Campos planejados:
+Campos implementados:
 
 ```text
 opened_hour
@@ -274,25 +276,23 @@ opened_month
 is_weekend
 ```
 
-### Features históricas planejadas
+### Features históricas implementadas
 
-Exemplos:
+Campos utilizados:
 
 ```text
 assigned_group_incidents_previous_1d
 assigned_group_incidents_previous_7d
 assigned_group_incidents_previous_30d
-assigned_group_average_previous_7d
-assigned_group_average_previous_30d
+assigned_group_known_outcomes_previous_30d
+assigned_group_breaches_previous_30d
 assigned_group_breach_rate_previous_30d
 product_incidents_previous_7d
 category_incidents_previous_7d
 priority_incidents_previous_7d
-predicted_volume_d1
-operational_pressure
 ```
 
-Os nomes definitivos poderão ser ajustados durante a engenharia de features.
+Os campos listados acima correspondem ao contrato implementado na Sprint 4.
 
 Toda feature histórica deverá utilizar somente dados anteriores ao incidente.
 
@@ -303,18 +303,18 @@ o dia anterior:
 data da feature <= data de abertura - 1 dia
 ```
 
-Caso seja criada alguma feature intradiária, ela deverá considerar somente
-eventos com timestamp estritamente anterior a `opened_at`.
+As contagens intradiárias consideram somente eventos com timestamp
+estritamente anterior a `opened_at`.
 
 ### População de treinamento
 
-A população histórica inicial será:
+A população de treinamento é:
 
 ```text
 entered_kpi_source == True
 ```
 
-O target será:
+O target é:
 
 ```text
 kpi_breached_source
@@ -333,13 +333,19 @@ closed_at
 duration_seconds
 duration_hours
 calculated_duration_seconds
+duration_difference_seconds
+duration_mismatch
 closure_code
 solution_type
-status final
+status
 entered_kpi_source
 kpi_breached_source
+entered_kpi_raw
+kpi_breached_raw
 entered_kpi_recalculated_raw
 kpi_breached_recalculated_raw
+entered_kpi_rule_mismatch
+kpi_breached_rule_mismatch
 ```
 
 Essas informações são conhecidas depois da abertura ou estão diretamente
@@ -347,13 +353,13 @@ ligadas à definição do target.
 
 ## Contrato para o score de risco
 
-Arquivo futuro:
+Arquivo:
 
 ```text
 data/gold/risk_scores.parquet
 ```
 
-A tabela terá uma linha por incidente e execução de inferência.
+A tabela possui uma linha por incidente e execução de inferência.
 
 | Campo | Tipo | Regra |
 |---|---|---|
@@ -374,7 +380,7 @@ A chave lógica será:
 incident_id + scored_at + model_version
 ```
 
-Os níveis iniciais planejados serão:
+Os níveis oficiais são:
 
 | Score | Nível |
 |---:|---|
@@ -383,12 +389,12 @@ Os níveis iniciais planejados serão:
 | 50 a 74 | Alto |
 | 75 a 100 | Crítico |
 
-Os limites são provisórios e poderão ser recalibrados após a avaliação do
-modelo e da quantidade de alertas gerados.
+As faixas de risco fazem parte do contrato operacional da Sprint 4 e são
+validadas automaticamente junto ao `risk_score`.
 
 ### Componentes do score
 
-A primeira versão do score poderá combinar:
+O score combina:
 
 ```text
 probabilidade de violação
@@ -396,7 +402,7 @@ impacto da prioridade
 pressão operacional
 ```
 
-Uma fórmula inicial de referência será:
+A fórmula oficial é:
 
 ```text
 risk_score =
@@ -407,35 +413,57 @@ risk_score =
 )
 ```
 
-Os pesos são provisórios e deverão ser documentados, testados e ajustados.
+Os pesos 70/20/10 fazem parte do contrato oficial. Scores que não respeitem
+essa composição são rejeitados pela validação.
 
 O score não substituirá a probabilidade produzida pelo modelo. Os dois campos
 serão mantidos para permitir auditoria e interpretação.
 
 ## Contrato para eventos de alerta
 
-Scores classificados como altos ou críticos poderão gerar eventos para o
-RabbitMQ.
+Após a inferência e validação dos scores, incidentes classificados como
+`alto` ou `crítico` são elegíveis para publicação no RabbitMQ.
 
-Estrutura inicial planejada:
+O contrato implementado é o `RiskAlertEvent`:
 
 ```json
 {
   "event_type": "ola_risk_alert",
   "incident_id": "INC1234567",
-  "scored_at": "2025-10-15T10:00:00",
-  "model_version": "risk-model-v1",
-  "breach_probability": 0.74,
-  "risk_score": 82,
-  "risk_level": "critical",
-  "priority": 2,
-  "assigned_group": "Grupo A",
-  "recommended_action": "Priorizar atendimento e revisar capacidade da equipe"
+  "scored_at": "2026-09-04T21:00:00Z",
+  "model_version": "risk-ann-v1-20260820",
+  "breach_probability": 0.93,
+  "risk_score": 94,
+  "risk_level": "crítico",
+  "top_risk_factors": "prioridade alta; pressão operacional",
+  "recommended_action": "Priorizar atendimento e avaliar escalonamento imediato."
 }
 ```
 
-O RabbitMQ transportará eventos e alertas após a inferência. Ele não será
-utilizado como armazenamento da base histórica completa.
+Campos obrigatórios:
+
+- `event_type`;
+- `incident_id`;
+- `scored_at`;
+- `model_version`;
+- `breach_probability`;
+- `risk_score`;
+- `risk_level`;
+- `top_risk_factors`;
+- `recommended_action`.
+
+Os únicos níveis aceitos para eventos de alerta são `alto` e `crítico`.
+
+Scores `baixo` ou `moderado` não geram eventos.
+
+A fila operacional é `albus_alerts`, declarada como durável. As mensagens
+são publicadas como persistentes.
+
+O consumer valida o contrato recebido e utiliza ACK após processamento
+bem-sucedido. Mensagens inválidas recebem NACK sem requeue.
+
+O RabbitMQ é utilizado como transporte de eventos operacionais e não como
+armazenamento da base histórica completa.
 
 ## Versionamento dos contratos
 
@@ -452,39 +480,63 @@ deverão ser sobrescritos por cálculos derivados.
 
 ## Contrato para previsões de volume
 
-Arquivo futuro:
+Arquivo:
 
 `data/gold/volume_predictions.parquet`
 
-A tabela terá uma linha por data de referência, horizonte, escopo de prioridade e versão do modelo.
+A tabela possui uma linha por data de referência, horizonte, escopo de
+prioridade e versão do modelo.
 
 | Campo | Tipo | Regra |
 |---|---|---|
 | reference_date | date | Data utilizada como referência da previsão |
 | generated_at | datetime | Momento em que a inferência foi executada |
-| horizon | string | Apenas `D+1` ou `D+7` |
-| priority_scope | string | Apenas `ALL`, `P2` ou `P3` |
-| predicted_incident_count | decimal | Quantidade prevista de incidentes; valor não negativo |
+| horizon | string | `D+1` ou `D+7` |
+| priority_scope | string | `ALL`, `P1`, `P2`, `P3`, `P4` ou `P5` |
+| predicted_incident_count | decimal | Quantidade prevista; valor não negativo |
+| lower_bound | decimal | Limite inferior; valor não negativo |
+| upper_bound | decimal | Limite superior; valor não negativo |
+| model_name | string | Nome do modelo utilizado |
 | model_version | string | Versão do modelo responsável pela inferência |
 
-A chave lógica será:
+A chave lógica é:
 
 `reference_date + horizon + priority_scope + model_version`
 
+O intervalo de previsão deve respeitar:
+
+```text
+lower_bound <= predicted_incident_count <= upper_bound
+```
+
 ### Regras de integração
 
-A camada Gold histórica não deverá ser sobrescrita pelas previsões.
+A camada Gold histórica não é sobrescrita pelas previsões.
 
 `data/gold/daily_incident_volume.parquet` representa fatos observados.
 
-`data/gold/volume_predictions.parquet` representa resultados de inferência produzidos pelo modelo.
+`data/gold/volume_predictions.parquet` representa resultados de inferência
+produzidos pelo modelo.
 
-Os horizontes suportados inicialmente serão `D+1` e `D+7`.
+Os horizontes suportados são `D+1` e `D+7`.
 
-Os escopos suportados serão `ALL`, `P2` e `P3`.
+Os escopos suportados são `ALL`, `P1`, `P2`, `P3`, `P4` e `P5`.
 
-O dashboard deverá consumir esse contrato sem depender da implementação interna do modelo.
+Cada execução operacional gera 12 previsões: seis escopos para cada um dos
+dois horizontes.
 
-A ausência temporária do artefato de previsão não deverá impedir o funcionamento das demais funcionalidades do Albus-Hub.
+A inferência valida valores não negativos, consistência dos intervalos,
+domínio dos horizontes e escopos, identificação do modelo e unicidade da
+chave lógica antes da publicação.
 
-Mudanças incompatíveis nesse contrato deverão ser documentadas e versionadas.
+O artefato operacional é publicado na camada Gold do ADLS e as previsões
+vigentes também são persistidas na tabela MySQL
+`ml_volume_predictions_current`.
+
+O dashboard consome esse contrato sem depender da implementação interna do
+modelo.
+
+A ausência temporária do artefato de previsão não impede o funcionamento das
+demais funcionalidades do Albus-Hub.
+
+Mudanças incompatíveis nesse contrato devem ser documentadas e versionadas.
