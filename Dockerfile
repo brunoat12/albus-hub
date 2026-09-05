@@ -15,7 +15,8 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync \
     --locked \
     --no-dev \
-    --no-install-project
+    --no-install-project \
+    && rm -rf /root/.cache/uv
 
 COPY src ./src
 
