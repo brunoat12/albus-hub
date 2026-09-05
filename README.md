@@ -236,8 +236,10 @@ Antes da entrega final ainda devem ser registradas evidências de:
 - atualização da documentação arquitetural;
 - apresentação e demais materiais exigidos pela entrega.
 
-A integração automática de alertas via RabbitMQ permanece como evolução
-adicional e não faz parte do caminho crítico da entrega analítica.
+A integração automática de alertas via RabbitMQ está implementada na
+Sprint 4. Scores classificados como alto ou crítico podem gerar eventos
+operacionais após a inferência DL, utilizando publisher e consumer
+desacoplados por uma fila durável.
 
 ## Ambiente
 

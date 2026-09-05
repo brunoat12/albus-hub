@@ -169,8 +169,20 @@ Os dados consumidos pelo Streamlit são materializados no Azure MySQL.
 
 ### RabbitMQ
 
-O RabbitMQ permanece como evolução para integração orientada a eventos
-e alertas críticos, fora do caminho crítico da entrega analítica.
+O RabbitMQ está integrado ao fluxo operacional de alertas da Sprint 4.
+
+Após a inferência e validação dos scores de risco, apenas incidentes
+classificados como `alto` ou `crítico` geram eventos `RiskAlertEvent`.
+
+O publisher envia mensagens persistentes para a fila durável
+`albus_alerts`. O consumer valida o contrato do evento e utiliza ACK
+após processamento bem-sucedido ou NACK quando a mensagem é inválida.
+
+O fluxo implementado é:
+
+`DL inference -> validação -> alto/crítico -> RabbitMQ -> consumer -> ACK`
+
+Scores classificados como `baixo` ou `moderado` não geram alertas.
 
 ## Portabilidade
 
