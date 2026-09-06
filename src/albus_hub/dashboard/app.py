@@ -1421,7 +1421,7 @@ with tab_risk:
             level_filter = st.multiselect(
                 "Nível de risco",
                 options=["baixo", "moderado", "alto", "crítico"],
-                default=["alto", "crítico"],
+                default=["moderado", "alto", "crítico"],
                 format_func=str.title,
             )
 
