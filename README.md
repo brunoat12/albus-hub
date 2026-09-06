@@ -226,12 +226,19 @@ A Sprint 4 consolida as frentes analíticas do projeto:
 - integração das previsões e scores ao dashboard Streamlit;
 - orquestração operacional dos pipelines de ML e DL.
 
-### Evidências finais pendentes
+### Evidências finais
 
-Antes da entrega final ainda devem ser registradas evidências de:
+A versão integrada do dashboard está publicada no Azure Container Instances:
 
-- deploy da versão integrada do dashboard no Azure;
-- screenshots do dashboard;
+`http://albus-hub-dev-fiap2026.hebqdtbjhzdxgrbk.eastus2.azurecontainer.io:8501`
+
+Imagem implantada:
+
+`acralbushubfiap2026dev.azurecr.io/albus-hub:sprint4-66741ee`
+
+Antes da entrega final ainda devem ser concluídos:
+
+- screenshots finais do dashboard;
 - apresentação e demais materiais exigidos pela entrega.
 
 A integração automática de alertas via RabbitMQ está implementada na
