@@ -20,6 +20,7 @@ RUN uv sync \
     && rm -rf /root/.cache/uv
 
 COPY src ./src
+COPY .streamlit ./.streamlit
 
 RUN mkdir -p /app/data/gold
 
