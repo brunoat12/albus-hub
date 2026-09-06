@@ -96,7 +96,6 @@ data/restore_test/
 # --------------------------------------------------------------------------- #
 # Power BI
 # --------------------------------------------------------------------------- #
-# A fonte da verdade é o projeto .pbip em powerbi/AlbusHub-PowerBI/ — relatório
 # em JSON e modelo em TMDL, ambos versionáveis, com diff e merge legíveis.
 
 # Estado local por usuário (última página aberta, zoom): gera conflito a cada save
@@ -112,4 +111,4 @@ powerbi/*.tgz
 
 # O .pbix é artefato de distribuição, não de código: 5,5 MB binários por versão,
 # sem diff e sem merge. Publique como release do GitHub quando for entregar.
-powerbi/*.pbix
+

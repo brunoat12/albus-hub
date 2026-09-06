@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from pathlib import Path
 
 import pandas as pd
@@ -19,11 +22,18 @@ from albus_hub.observability import configure_observability
 settings = get_settings()
 settings.create_local_directories()
 
+try:
+    APP_VERSION = package_version("albus-hub")
+except PackageNotFoundError:
+    APP_VERSION = "dev"
+
+FAVICON_PATH = Path(__file__).parent / "assets" / "favicon.png"
+
 configure_observability()
 
 st.set_page_config(
-    page_title="Albus-Hub · AIOps",
-    page_icon="🔴",
+    page_title="AlbusHub · AIOps",
+    page_icon=str(FAVICON_PATH) if FAVICON_PATH.exists() else "🔴",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -46,32 +56,11 @@ AXIS_LINE = "#333139"
 
 SERIES_1 = "#3987e5"  # azul — realizado
 SERIES_2 = BRAND  # vermelho Locaweb — previsto / alerta
-SERIES_3 = "#1eae72"  # verde — positivo
-SERIES_4 = "#f2b705"  # âmbar — atenção
-SERIES_1_SOFT = "#7fb3ee"  # azul claro — série de apoio
-
-SEVERITY = {
-    1: "#f2434f",
-    2: "#f5803e",
-    3: "#f2b705",
-    4: "#4a9fe8",
-    5: "#1eae72",
-}
 
 STATUS_GOOD = "#1eae72"
 STATUS_WARNING = "#f2b705"
 STATUS_SERIOUS = "#f5803e"
 STATUS_CRITICAL = "#f2434f"
-
-# Volume é série neutra: escala azul. O vermelho fica reservado ao que exige
-# atenção — se tudo é vermelho, nada é urgente.
-SEQUENTIAL_BLUE = [
-    [0.00, "#1d1c23"],
-    [0.25, "#173a5e"],
-    [0.50, "#215d9c"],
-    [0.75, "#3987e5"],
-    [1.00, "#7fb3ee"],
-]
 
 REGIME_CHANGE_DATE = pd.Timestamp("2025-09-01")
 REGIME_TRANSITION_DATE = pd.Timestamp("2025-01-01")
@@ -83,14 +72,6 @@ REGIMES = (
     (REGIME_TRANSITION_DATE, REGIME_CHANGE_DATE, "Transição (jan–ago/2025)"),
     (REGIME_CHANGE_DATE, pd.Timestamp.max, "Regime atual (set/2025+)"),
 )
-
-
-def regime_of(moment: pd.Timestamp) -> str:
-    """Devolve o nome do patamar de volume a que uma data pertence."""
-    for start, end, label in REGIMES:
-        if start <= moment < end:
-            return label
-    return REGIMES[-1][2]
 
 
 def regimes_between(start: pd.Timestamp, end: pd.Timestamp) -> list[str]:
@@ -107,13 +88,6 @@ PRIORITY_SCOPE_LABELS = {
     "P3": "P3 — Média",
 }
 
-DIMENSION_LABELS = {
-    "assigned_group": "Grupo designado",
-    "product": "Produto",
-    "category": "Categoria",
-    "configuration_item": "Item de configuração",
-}
-
 CHECK_LABELS = {
     "mandatory_nulls": "Nulos em campos obrigatórios",
     "duplicate_incident_ids": "Números de incidente duplicados",
@@ -124,32 +98,7 @@ CHECK_LABELS = {
     "duration_mismatch": "Duração informada diverge da calculada",
     "subcategory_without_category": "Subcategoria sem categoria",
     "entered_kpi_rule_mismatch": "Entrada no KPI diverge da regra",
-    "kpi_breached_rule_mismatch": "Violação de SLA diverge da regra",
-}
-
-MONTH_LABELS = {
-    1: "jan",
-    2: "fev",
-    3: "mar",
-    4: "abr",
-    5: "mai",
-    6: "jun",
-    7: "jul",
-    8: "ago",
-    9: "set",
-    10: "out",
-    11: "nov",
-    12: "dez",
-}
-
-WEEKDAY_LABELS = {
-    0: "Segunda",
-    1: "Terça",
-    2: "Quarta",
-    3: "Quinta",
-    4: "Sexta",
-    5: "Sábado",
-    6: "Domingo",
+    "kpi_breached_rule_mismatch": "Violação de OLA diverge da regra",
 }
 
 STYLE = f"""
@@ -211,6 +160,8 @@ section[data-testid="stSidebar"] * {{ color: var(--ink-2); }}
 .ah-card {{
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 6px; padding: 16px 18px; height: 100%;
+    min-height: 128px; display: flex; flex-direction: column;
+    justify-content: space-between;
 }}
 .ah-card-accent {{ border-top: 2px solid var(--brand); }}
 .ah-card-label {{
@@ -371,31 +322,20 @@ def format_integer(value: int | float) -> str:
     return f"{int(value):,}".replace(",", ".")
 
 
-def format_percentage(value: float, decimals: int = 1) -> str:
-    """Formata percentual no padrão visual pt-BR."""
-    return f"{value:.{decimals}f}%".replace(".", ",")
-
-
-def format_hours(value: float) -> str:
-    """Formata uma quantidade de horas no padrão visual pt-BR."""
-    if value < 1:
-        return f"{value * 60:.0f} min".replace(".", ",")
-
-    return f"{value:.1f} h".replace(".", ",")
-
-
 # --------------------------------------------------------------------------- #
 # Carregamento
 # --------------------------------------------------------------------------- #
 
 
-@st.cache_data(show_spinner=False)
+# TTL de 15 minutos: em produção o processo fica no ar por dias, e sem TTL o
+# cache congelaria a primeira leitura até o container reiniciar.
+@st.cache_data(show_spinner=False, ttl=900)
 def load_parquet(path: str) -> pd.DataFrame:
     """Carrega um arquivo Parquet utilizado pelo dashboard."""
     return pd.read_parquet(path)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=900)
 def load_json_report(path: str) -> dict | None:
     """Carrega um relatório de qualidade gerado pelo pipeline."""
     report_path = Path(path)
@@ -407,13 +347,13 @@ def load_json_report(path: str) -> dict | None:
         return json.load(file)
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl=900)
 def load_incident_profile(path: str) -> pd.DataFrame | None:
     """
     Carrega um recorte enxuto da camada Silver.
 
     A Gold responde pelo volume diário. As análises de duração, hora de
-    abertura e aderência a SLA precisam do grão de incidente, por isso são
+    abertura e aderência a OLA precisam do grão de incidente, por isso são
     lidas da Silver e permanecem opcionais: se o arquivo não existir, o
     dashboard continua funcionando apenas com a Gold.
     """
@@ -530,9 +470,9 @@ gold_report_path = settings.absolute_path(settings.locaweb_gold_daily_volume_rep
 
 st.sidebar.markdown(
     '<div class="ah-brand">'
-    '<span class="ah-brand-mark">locaweb</span>'
+    '<span class="ah-brand-mark">AH</span>'
     '<span><span class="ah-brand-name">AlbusHub</span><br>'
-    '<span class="ah-brand-sub">AIOps · Sprint 3</span></span>'
+    '<span class="ah-brand-sub">AIOps Platform</span></span>'
     "</div>",
     unsafe_allow_html=True,
 )
@@ -546,12 +486,58 @@ if not daily_volume_path.exists() or not breakdown_path.exists():
     st.stop()
 
 daily_volume = load_parquet(str(daily_volume_path))
-breakdown = load_parquet(str(breakdown_path))
-
 daily_volume["reference_date"] = pd.to_datetime(daily_volume["reference_date"])
-breakdown["reference_date"] = pd.to_datetime(breakdown["reference_date"])
 
 incidents = load_incident_profile(str(silver_path))
+
+# Artefatos das frentes de modelagem, carregados uma única vez. As abas
+# decidem como degradar quando o artefato falta ou fere o contrato.
+predictions: pd.DataFrame | None = None
+predictions_error: str | None = None
+
+try:
+    predictions = load_volume_predictions(
+        settings.absolute_path(settings.locaweb_volume_predictions_file)
+    )
+except VolumePredictionContractError as exc:
+    predictions_error = str(exc)
+
+risk_scores: pd.DataFrame | None = None
+risk_error: str | None = None
+
+try:
+    risk_scores = load_risk_scores(settings.absolute_path(settings.locaweb_risk_scores_file))
+except RiskScoreContractError as exc:
+    risk_error = str(exc)
+
+latest_scores: pd.DataFrame | None = None
+
+if risk_scores is not None:
+    latest_scores = risk_scores.sort_values("scored_at").drop_duplicates(
+        subset=["incident_id"], keep="last"
+    )
+
+    # O contrato tabela os níveis capitalizados e o exemplo de evento usa
+    # inglês. Sem normalizar, uma variante de caixa zera os cartões em
+    # silêncio, sem erro nenhum na tela.
+    latest_scores = latest_scores.assign(
+        risk_level=latest_scores["risk_level"].map(normalize_risk_level)
+    )
+
+
+def latest_predictions_for(scope: str) -> pd.DataFrame | None:
+    """Última previsão publicada por horizonte, para um escopo de prioridade."""
+    if predictions is None:
+        return None
+
+    scoped = predictions.loc[predictions["priority_scope"].eq(scope)]
+
+    if scoped.empty:
+        return None
+
+    return scoped.sort_values(["reference_date", "generated_at"]).drop_duplicates(
+        subset=["horizon"], keep="last"
+    )
 
 min_date = daily_volume["reference_date"].min()
 max_date = daily_volume["reference_date"].max()
@@ -562,19 +548,38 @@ max_date = daily_volume["reference_date"].max()
 
 st.sidebar.markdown('<div class="ah-kicker">Recorte</div>', unsafe_allow_html=True)
 
+# Janelas curtas, de operação. Recortes longos e análises históricas moram no
+# Power BI — aqui o interesse é o que está acontecendo e o que vem a seguir.
 PERIOD_PRESETS = {
+    "Últimos 7 dias": 7,
+    "Últimos 14 dias": 14,
     "Últimos 30 dias": 30,
-    "Últimos 90 dias": 90,
     "Regime atual (desde set/2025)": "regime",
-    "Últimos 12 meses": 365,
-    "Todo o período": None,
     "Personalizado": "custom",
 }
+
+# O recorte e o escopo vivem na URL: um link colado no chat da equipe abre a
+# mesma tela para todo mundo.
+PERIOD_SLUGS = {
+    "7d": "Últimos 7 dias",
+    "14d": "Últimos 14 dias",
+    "30d": "Últimos 30 dias",
+    "regime": "Regime atual (desde set/2025)",
+    "custom": "Personalizado",
+}
+SLUG_BY_PERIOD = {label: slug for slug, label in PERIOD_SLUGS.items()}
+
+url_period = st.query_params.get("periodo", "")
+default_period_index = (
+    list(PERIOD_PRESETS).index(PERIOD_SLUGS[url_period])
+    if url_period in PERIOD_SLUGS
+    else 1
+)
 
 preset = st.sidebar.radio(
     "Período",
     options=list(PERIOD_PRESETS),
-    index=2,
+    index=default_period_index,
     label_visibility="collapsed",
 )
 
@@ -607,17 +612,24 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
+SCOPE_OPTIONS = ["ALL", "P2", "P3"]
+url_scope = st.query_params.get("escopo", "").upper()
+
 priority_scope = st.sidebar.selectbox(
     "Escopo de prioridade",
-    options=["ALL", "P2", "P3"],
+    options=SCOPE_OPTIONS,
+    index=SCOPE_OPTIONS.index(url_scope) if url_scope in SCOPE_OPTIONS else 0,
     format_func=lambda value: PRIORITY_SCOPE_LABELS[value],
     label_visibility="collapsed",
 )
 
+st.query_params["periodo"] = SLUG_BY_PERIOD[preset]
+st.query_params["escopo"] = priority_scope
+
 st.sidebar.markdown(
     f'<div class="ah-card-foot" style="margin-top:26px;border-top:1px solid {BORDER};'
     f'padding-top:14px">base {min_date:%d/%m/%Y} — {max_date:%d/%m/%Y}<br>'
-    f"ambiente {settings.app_env} · cloud {settings.cloud_provider}</div>",
+    f"leitura às {datetime.now():%H:%M} · atualização a cada 15 min</div>",
     unsafe_allow_html=True,
 )
 
@@ -627,7 +639,6 @@ previous_start = previous_end - pd.Timedelta(days=period_days - 1)
 
 daily_period = filter_period(daily_volume, "reference_date", start_date, end_date)
 daily_previous = filter_period(daily_volume, "reference_date", previous_start, previous_end)
-breakdown_period = filter_period(breakdown, "reference_date", start_date, end_date)
 
 has_previous = not daily_previous.empty
 
@@ -644,7 +655,7 @@ comparable_previous = (
 
 st.markdown(
     '<div class="ah-kicker">Operação · Locaweb</div>'
-    '<div class="ah-title">Albus-Hub</div>'
+    '<div class="ah-title">AlbusHub</div>'
     '<div class="ah-sub">Previsão de incidentes, risco operacional e priorização preventiva</div>',
     unsafe_allow_html=True,
 )
@@ -657,48 +668,65 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-tab_overview, tab_operations, tab_forecast, tab_risk, tab_quality = st.tabs(
-    ["Visão Geral", "Operação", "Previsões", "Risco", "Qualidade"]
+tab_ops, tab_alerts, tab_forecast, tab_risk, tab_quality = st.tabs(
+    ["Operação", "Alertas", "Previsões", "Risco", "Qualidade"]
 )
 
 # --------------------------------------------------------------------------- #
-# Visão Geral
+# Operação — o pulso do recorte
 # --------------------------------------------------------------------------- #
 
-with tab_overview:
-    total_incidents = scope_sum(daily_period, "ALL", "incident_count")
-    p2_incidents = scope_sum(daily_period, "P2", "incident_count")
-    p3_incidents = scope_sum(daily_period, "P3", "incident_count")
-    entered_kpi = scope_sum(daily_period, "ALL", "entered_kpi_count")
-    kpi_breaches = scope_sum(daily_period, "ALL", "kpi_breach_count")
-    monitoring = scope_sum(daily_period, "ALL", "monitoring_incident_count")
+with tab_ops:
+    section("Pulso do recorte")
 
-    no_intervention = (
-        scope_sum(daily_period, "ALL", "no_intervention_count")
-        if "no_intervention_count" in daily_period.columns
-        else None
-    )
-
-    breach_rate = 100 * kpi_breaches / entered_kpi if entered_kpi else 0.0
-    monitoring_rate = 100 * monitoring / total_incidents if total_incidents else 0.0
-    no_intervention_rate = (
-        100 * no_intervention / total_incidents
-        if no_intervention is not None and total_incidents
-        else None
-    )
+    total_incidents = scope_sum(daily_period, priority_scope, "incident_count")
     daily_average = total_incidents / period_days if period_days else 0.0
+    previous_total = (
+        scope_sum(daily_previous, priority_scope, "incident_count") if has_previous else 0
+    )
 
-    previous_total = scope_sum(daily_previous, "ALL", "incident_count") if has_previous else 0
-    previous_p2 = scope_sum(daily_previous, "P2", "incident_count") if has_previous else 0
-    previous_entered = scope_sum(daily_previous, "ALL", "entered_kpi_count") if has_previous else 0
-    previous_breaches = scope_sum(daily_previous, "ALL", "kpi_breach_count") if has_previous else 0
-    previous_rate = 100 * previous_breaches / previous_entered if previous_entered else 0.0
+    latest = latest_predictions_for(priority_scope)
+
+    def prediction_row(horizon: str) -> pd.Series | None:
+        if latest is None:
+            return None
+
+        rows = latest.loc[latest["horizon"].eq(horizon)]
+
+        return rows.iloc[-1] if not rows.empty else None
+
+    next_prediction = prediction_row("D+1")
+    predicted_next = (
+        float(next_prediction["predicted_incident_count"])
+        if next_prediction is not None
+        else None
+    )
+
+    high_or_critical = (
+        int(latest_scores["risk_level"].isin(["alto", "crítico"]).sum())
+        if latest_scores is not None
+        else None
+    )
+
+    # Violações de OLA no recorte, no grão de incidente. Nulos contam como
+    # não violado — a decisão explícita evita que o pandas decida sozinho.
+    ola_breaches: int | None = None
+
+    if incidents is not None and "kpi_breached_source" in incidents.columns:
+        profile_period = filter_period(incidents, "opened_date", start_date, end_date)
+
+        if priority_scope != "ALL" and "priority_code" in profile_period.columns:
+            profile_period = profile_period.loc[
+                profile_period["priority_code"].eq(int(priority_scope[1]))
+            ]
+
+        ola_breaches = int(profile_period["kpi_breached_source"].fillna(False).astype(bool).sum())
 
     cards = st.columns(5)
 
     cards[0].markdown(
         kpi_card(
-            "Incidentes",
+            "Incidentes no recorte",
             format_integer(total_incidents),
             foot=trend_foot(total_incidents, previous_total, comparable=comparable_previous),
             accent=True,
@@ -708,557 +736,295 @@ with tab_overview:
     cards[1].markdown(
         kpi_card(
             "Média diária",
-            format_integer(round(daily_average)),
-            foot="incidentes por dia",
+            f"{daily_average:,.0f}".replace(",", "."),
+            foot="por dia no recorte",
         ),
         unsafe_allow_html=True,
     )
     cards[2].markdown(
         kpi_card(
-            "P2 — Alta",
-            format_integer(p2_incidents),
-            foot=trend_foot(p2_incidents, previous_p2, comparable=comparable_previous),
+            "Previsão D+1",
+            format_integer(round(predicted_next)) if predicted_next is not None else "—",
+            foot=(
+                f"para {next_prediction['reference_date']:%d/%m/%Y}"
+                if next_prediction is not None
+                else "sem previsão publicada"
+            ),
         ),
         unsafe_allow_html=True,
     )
     cards[3].markdown(
         kpi_card(
-            "KPI violado",
-            format_integer(kpi_breaches),
-            foot=f"de {format_integer(entered_kpi)} no KPI",
-            alert=kpi_breaches > 0,
+            "Alto ou crítico",
+            format_integer(high_or_critical) if high_or_critical is not None else "—",
+            foot="risco ativo" if high_or_critical is not None else "sem pontuação publicada",
+            alert=bool(high_or_critical),
         ),
         unsafe_allow_html=True,
     )
-
-    if not comparable_previous:
-        rate_delta = "período anterior em outro patamar"
-    elif previous_entered:
-        rate_delta = (
-            f'<span class="{"ah-up" if breach_rate >= previous_rate else "ah-down"}">'
-            f"{breach_rate - previous_rate:+.2f} p.p.</span> vs anterior".replace(".", ",")
-        )
-    else:
-        rate_delta = "sem base de comparação"
-
     cards[4].markdown(
         kpi_card(
-            "Taxa de violação",
-            format_percentage(breach_rate, 2).replace("%", ""),
-            unit="%",
-            foot=rate_delta,
-            alert=breach_rate > 1,
+            "Violações de OLA",
+            format_integer(ola_breaches) if ola_breaches is not None else "—",
+            foot="no recorte" if ola_breaches is not None else "sem dados disponíveis",
+            alert=bool(ola_breaches),
         ),
         unsafe_allow_html=True,
     )
 
-    if len(current_regimes) > 1:
-        st.markdown(
-            '<div class="ah-note" style="margin-top:18px">'
-            f"<strong>O recorte atravessa mais de um regime de volume "
-            f"({' · '.join(current_regimes)}).</strong> "
-            "A base tem três patamares: até dez/2024 são poucas dezenas de incidentes por mês, "
-            "de jan/2025 a ago/2025 são cerca de 3,5 mil por mês, e a partir de 01/09/2025 o "
-            "volume salta para cerca de 22 mil por mês — provável ampliação da cobertura de "
-            "monitoramento, não aumento real de falhas. Médias que misturam esses patamares não "
-            "descrevem a operação atual."
-            "</div>",
-            unsafe_allow_html=True,
-        )
+    st.markdown("<div style='height:22px'></div>", unsafe_allow_html=True)
+    section("Realizado recente e previsão")
 
-    st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
-
-    section("Evolução diária")
-
-    # A média móvel é calculada sobre a série inteira e só depois recortada.
-    # Calculá-la sobre a série já filtrada criaria uma rampa artificial nos
-    # primeiros seis dias — justamente onde o regime atual começa.
-    full_series = (
-        daily_volume.loc[
-            daily_volume["priority_scope"].eq(priority_scope),
-            ["reference_date", "incident_count"],
-        ]
+    history = (
+        daily_period.loc[daily_period["priority_scope"].eq(priority_scope)]
         .sort_values("reference_date")
-        .reset_index(drop=True)
-    )
-    full_series["moving_average"] = full_series["incident_count"].rolling(7, min_periods=7).mean()
-
-    trend = filter_period(full_series, "reference_date", start_date, end_date).reset_index(
-        drop=True
     )
 
-    figure = go.Figure()
+    pulse_figure = go.Figure()
 
-    figure.add_trace(
+    pulse_figure.add_trace(
         go.Scatter(
-            x=trend["reference_date"],
-            y=trend["incident_count"],
-            name="Incidentes por dia",
+            x=history["reference_date"],
+            y=history["incident_count"],
+            name="Realizado",
             mode="lines",
-            line={"color": SERIES_1, "width": 1},
-            opacity=0.35,
+            line={"color": SERIES_1, "width": 2},
             hovertemplate="%{x|%d/%m/%Y}<br>%{y} incidentes<extra></extra>",
         )
     )
 
-    figure.add_trace(
-        go.Scatter(
-            x=trend["reference_date"],
-            y=trend["moving_average"],
-            name="Média móvel de 7 dias",
-            mode="lines",
-            line={"color": SERIES_1_SOFT, "width": 2.5},
-            hovertemplate="%{x|%d/%m/%Y}<br>%{y:.0f} (média 7d)<extra></extra>",
-        )
-    )
+    if latest is not None and not history.empty:
+        # A projeção parte do último realizado e segue tracejada até os
+        # horizontes previstos — pontos soltos no meio do gráfico não contam
+        # história nenhuma.
+        anchor = history.iloc[-1]
+        projection = latest.sort_values("reference_date")
 
-    if start_date <= REGIME_CHANGE_DATE <= end_date:
-        figure.add_vline(x=REGIME_CHANGE_DATE, line={"color": INK_MUTED, "width": 1, "dash": "dot"})
-        figure.add_annotation(
-            x=REGIME_CHANGE_DATE,
-            yref="paper",
-            y=1.0,
-            text="mudança de regime",
-            showarrow=False,
-            xanchor="left",
-            font={"color": INK_MUTED, "size": 10},
-        )
-
-    layout = base_layout(height=340, showlegend=True)
-    layout["hovermode"] = "x unified"
-    figure.update_layout(**layout)
-
-    chart(figure)
-
-    col_left, col_right = st.columns(2)
-
-    with col_left:
-        section("Composição por prioridade")
-
-        other_incidents = max(total_incidents - p2_incidents - p3_incidents, 0)
-
-        composition = pd.DataFrame(
-            {
-                "escopo": ["P2 — Alta", "P3 — Média", "Demais"],
-                "incidentes": [p2_incidents, p3_incidents, other_incidents],
-                "cor": [SEVERITY[2], SEVERITY[3], SEVERITY[4]],
-            }
-        )
-
-        bars = go.Figure(
-            go.Bar(
-                x=composition["escopo"],
-                y=composition["incidentes"],
-                marker={"color": composition["cor"], "cornerradius": 3},
-                text=[format_integer(value) for value in composition["incidentes"]],
-                textposition="outside",
-                textfont={"color": INK_SECONDARY, "size": 12},
-                hovertemplate="%{x}<br>%{y} incidentes<extra></extra>",
-            )
-        )
-
-        bars.update_layout(**base_layout(height=290))
-        bars.update_yaxes(visible=False)
-
-        chart(bars)
-
-    with col_right:
-        section("Incidentes por dia da semana")
-
-        seasonal = daily_period.loc[daily_period["priority_scope"].eq(priority_scope)].copy()
-        seasonal["dia"] = seasonal["reference_date"].dt.dayofweek
-
-        weekday_profile = (
-            seasonal.groupby("dia", as_index=False)["incident_count"].sum().sort_values("dia")
-        )
-
-        weekday_figure = go.Figure(
-            go.Bar(
-                x=[WEEKDAY_LABELS[day] for day in weekday_profile["dia"]],
-                y=weekday_profile["incident_count"],
-                marker={"color": SERIES_1, "cornerradius": 3},
-                text=[format_integer(value) for value in weekday_profile["incident_count"]],
-                textposition="outside",
-                textfont={"color": INK_SECONDARY, "size": 12},
-                hovertemplate="%{x}<br>%{y} incidentes<extra></extra>",
-            )
-        )
-
-        weekday_figure.update_layout(**base_layout(height=290))
-        weekday_figure.update_yaxes(visible=False)
-
-        chart(weekday_figure)
-
-    st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
-
-    section("Sazonalidade por mês")
-
-    # Os dois visuais da Página 1 são obrigatórios: o perfil por dia da semana
-    # acima e a sazonalidade aqui. Antes eles se excluíam conforme o recorte.
-    if seasonal.empty:
-        st.info("Não há dados no período selecionado.")
-    elif seasonal["reference_date"].dt.year.nunique() > 1:
-        seasonal["ano"] = seasonal["reference_date"].dt.year
-        seasonal["mes"] = seasonal["reference_date"].dt.month
-
-        pivot = seasonal.pivot_table(
-            index="ano", columns="mes", values="incident_count", aggfunc="sum", fill_value=0
-        )
-
-        heatmap = go.Figure(
-            go.Heatmap(
-                z=pivot.values,
-                x=[f"{month:02d}" for month in pivot.columns],
-                y=[str(year) for year in pivot.index],
-                colorscale=SEQUENTIAL_BLUE,
-                hovertemplate="%{y}/%{x}<br>%{z} incidentes<extra></extra>",
-                colorbar={
-                    "outlinewidth": 0,
-                    "tickfont": {"color": INK_MUTED, "size": 10},
-                    "thickness": 10,
-                },
-            )
-        )
-
-        heatmap.update_layout(**base_layout(height=290))
-        heatmap.update_xaxes(showgrid=False, type="category")
-        heatmap.update_yaxes(showgrid=False, type="category")
-
-        chart(heatmap)
-    else:
-        monthly = (
-            seasonal.assign(mes=seasonal["reference_date"].dt.month)
-            .groupby("mes", as_index=False)["incident_count"]
-            .sum()
-            .sort_values("mes")
-        )
-
-        monthly_figure = go.Figure(
-            go.Bar(
-                x=[MONTH_LABELS[month] for month in monthly["mes"]],
-                y=monthly["incident_count"],
-                marker={"color": SERIES_1, "cornerradius": 3},
-                text=[format_integer(value) for value in monthly["incident_count"]],
-                textposition="outside",
-                textfont={"color": INK_SECONDARY, "size": 12},
-                hovertemplate="%{x}<br>%{y} incidentes<extra></extra>",
-            )
-        )
-
-        monthly_figure.update_layout(**base_layout(height=290))
-        monthly_figure.update_yaxes(visible=False)
-
-        chart(monthly_figure)
-
-    st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
-
-    with st.expander("Série consolidada"):
-        st.dataframe(
-            daily_period.sort_values(["reference_date", "priority_scope"]),
-            width="stretch",
-            hide_index=True,
-        )
-
-# --------------------------------------------------------------------------- #
-# Operação
-# --------------------------------------------------------------------------- #
-
-with tab_operations:
-    section("Perfil operacional do recorte")
-
-    # Ambas vêm da camada Gold, então continuam na tela mesmo sem a Silver.
-    gold_cards = st.columns(4)
-
-    gold_cards[0].markdown(
-        kpi_card("Incidentes", format_integer(total_incidents), accent=True),
-        unsafe_allow_html=True,
-    )
-    gold_cards[1].markdown(
-        kpi_card("Média diária", format_integer(round(daily_average)), foot="incidentes por dia"),
-        unsafe_allow_html=True,
-    )
-    gold_cards[2].markdown(
-        kpi_card(
-            "Aberto por monitoramento",
-            format_percentage(monitoring_rate, 1).replace("%", ""),
-            unit="%",
-            foot="restante é abertura manual",
-        ),
-        unsafe_allow_html=True,
-    )
-    gold_cards[3].markdown(
-        kpi_card(
-            "Sem intervenção",
-            format_percentage(no_intervention_rate, 1).replace("%", "")
-            if no_intervention_rate is not None
-            else "—",
-            unit="%" if no_intervention_rate is not None else "",
-            foot="encerrados sem ação humana"
-            if no_intervention_rate is not None
-            else "coluna ausente na camada Gold",
-        ),
-        unsafe_allow_html=True,
-    )
-
-    st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
-
-    section("Concentração por dimensão")
-
-    col_dimension, col_top = st.columns([2, 1])
-
-    selected_dimension = col_dimension.selectbox(
-        "Dimensão",
-        options=list(DIMENSION_LABELS),
-        format_func=lambda value: DIMENSION_LABELS[value],
-    )
-
-    top_n = col_top.slider("Itens exibidos", min_value=5, max_value=30, value=12, step=1)
-
-    operational = breakdown_period.loc[
-        breakdown_period["dimension_name"].eq(selected_dimension)
-        & breakdown_period["priority_scope"].eq(priority_scope)
-    ].copy()
-
-    operational["dimension_value"] = (
-        operational["dimension_value"].astype("string").replace("__MISSING__", "Sem informação")
-    )
-
-    ranking = (
-        operational.groupby("dimension_value", as_index=False, dropna=False)
-        .agg(
-            incident_count=("incident_count", "sum"),
-            entered_kpi_count=("entered_kpi_count", "sum"),
-            kpi_breach_count=("kpi_breach_count", "sum"),
-        )
-        .sort_values("incident_count", ascending=False)
-        .reset_index(drop=True)
-    )
-
-    if ranking.empty:
-        st.info("Não há dados para os filtros selecionados.")
-    else:
-        grand_total = ranking["incident_count"].sum()
-
-        ranking["share"] = 100 * ranking["incident_count"] / grand_total
-        ranking["cumulative_share"] = ranking["share"].cumsum()
-        ranking["breach_rate"] = (
-            100 * ranking["kpi_breach_count"] / ranking["entered_kpi_count"]
-        ).fillna(0.0)
-
-        pareto = ranking.head(top_n)
-
-        figure = go.Figure()
-
-        figure.add_trace(
-            go.Bar(
-                x=pareto["dimension_value"],
-                y=pareto["share"],
-                name="Participação",
-                marker={"color": SERIES_1, "cornerradius": 3},
-                hovertemplate="%{x}<br>%{y:.1f}% do total<extra></extra>",
-            )
-        )
-
-        figure.add_trace(
+        pulse_figure.add_trace(
             go.Scatter(
-                x=pareto["dimension_value"],
-                y=pareto["cumulative_share"],
-                name="Acumulado",
-                mode="lines+markers",
-                line={"color": SERIES_2, "width": 2},
-                marker={"size": 7},
-                hovertemplate="%{x}<br>%{y:.1f}% acumulado<extra></extra>",
+                x=[anchor["reference_date"], *projection["reference_date"]],
+                y=[anchor["incident_count"], *projection["predicted_incident_count"]],
+                mode="lines",
+                line={"color": SERIES_2, "width": 2, "dash": "dot"},
+                hoverinfo="skip",
+                showlegend=False,
             )
         )
 
-        layout = base_layout(height=360, showlegend=True)
-        figure.update_layout(**layout)
-        figure.update_yaxes(ticksuffix="%")
-
-        chart(figure)
-
-        concentration = min(
-            ranking.loc[ranking["cumulative_share"] <= 80].shape[0] + 1, len(ranking)
+        pulse_figure.add_trace(
+            go.Scatter(
+                x=projection["reference_date"],
+                y=projection["predicted_incident_count"],
+                name="Previsto",
+                mode="markers+text",
+                text=list(projection["horizon"]),
+                textposition="top center",
+                textfont={"color": INK_SECONDARY, "size": 11},
+                marker={
+                    "size": 10,
+                    "color": SERIES_2,
+                    "line": {"color": SURFACE, "width": 2},
+                },
+                hovertemplate="%{x|%d/%m/%Y}<br>%{y:.0f} previstos<extra></extra>",
+            )
         )
 
-        label = DIMENSION_LABELS[selected_dimension].lower()
-        verb = "concentra" if concentration == 1 else "concentram"
-        noun = label if concentration == 1 else f"valores de {label}"
-
-        st.markdown(
-            f'<div class="ah-card-foot">{format_integer(concentration)} {noun} {verb} 80% dos '
-            f"incidentes, de {format_integer(len(ranking))} no total · participação e acumulado "
-            f"na mesma escala percentual, sem eixo secundário</div>",
-            unsafe_allow_html=True,
+        pulse_figure.add_vline(
+            x=anchor["reference_date"],
+            line_color=AXIS_LINE,
+            line_dash="dot",
+            annotation_text="última leitura",
+            annotation_position="top left",
+            annotation_font={"color": INK_MUTED, "size": 10},
         )
 
-        st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
+    layout = base_layout(height=320, showlegend=True)
+    layout["hovermode"] = "x unified"
+    pulse_figure.update_layout(**layout)
 
-        section("Taxa de violação de KPI")
+    chart(pulse_figure)
 
-        breach_ranking = (
-            ranking.loc[ranking["entered_kpi_count"] >= 30]
-            .sort_values("breach_rate", ascending=False)
-            .head(top_n)
+
+# --------------------------------------------------------------------------- #
+# Alertas — o que exige ação agora
+# --------------------------------------------------------------------------- #
+
+with tab_alerts:
+    section("Painel de alertas críticos")
+
+    # Os limiares são interativos de propósito: a operação calibra a régua
+    # conforme o dia, sem depender de redeploy.
+    threshold_columns = st.columns(2)
+
+    with threshold_columns[0]:
+        forecast_threshold = st.slider(
+            "Alerta quando a previsão superar a média do recorte em (%)",
+            min_value=0,
+            max_value=100,
+            value=0,
+            step=5,
         )
 
-        if breach_ranking.empty:
-            st.info("Nenhum valor com volume suficiente (mínimo de 30 incidentes no KPI).")
-        else:
-            breach_figure = go.Figure(
-                go.Bar(
-                    x=breach_ranking["breach_rate"],
-                    y=breach_ranking["dimension_value"],
-                    orientation="h",
-                    marker={"color": BRAND, "cornerradius": 3},
-                    text=[format_percentage(value) for value in breach_ranking["breach_rate"]],
-                    textposition="outside",
-                    textfont={"color": INK_SECONDARY, "size": 11},
-                    hovertemplate="%{y}<br>%{x:.2f}% de violação<extra></extra>",
+    with threshold_columns[1]:
+        attention_score = st.slider(
+            "Score mínimo para exigir atenção",
+            min_value=0,
+            max_value=100,
+            value=0,
+            step=5,
+        )
+
+    ALERT_COLORS = {
+        "crítico": STATUS_CRITICAL,
+        "sério": STATUS_SERIOUS,
+        "atenção": STATUS_WARNING,
+    }
+
+    alerts: list[tuple[str, str, str]] = []
+
+    reference_average = (
+        scope_sum(daily_period, priority_scope, "incident_count") / period_days
+        if period_days
+        else 0.0
+    )
+    latest_alert = latest_predictions_for(priority_scope)
+
+    if latest_alert is not None and reference_average > 0:
+        for horizon, severity in (("D+1", "crítico"), ("D+7", "sério")):
+            rows = latest_alert.loc[latest_alert["horizon"].eq(horizon)]
+
+            if rows.empty:
+                continue
+
+            predicted = float(rows.iloc[-1]["predicted_incident_count"])
+            ceiling = reference_average * (1 + forecast_threshold / 100)
+
+            if predicted > ceiling:
+                excess = 100 * (predicted / reference_average - 1)
+                alerts.append(
+                    (
+                        severity,
+                        f"Previsão {horizon} acima do limiar",
+                        f"{predicted:.0f} incidentes previstos para "
+                        f"{rows.iloc[-1]['reference_date']:%d/%m/%Y} — "
+                        f"{excess:.0f}% acima da média do recorte "
+                        f"({reference_average:.0f}/dia).",
+                    )
+                )
+    elif predictions_error:
+        alerts.append(("sério", "Artefato de previsão fora do contrato", predictions_error))
+
+    if latest_scores is not None:
+        critical_incidents = int(latest_scores["risk_level"].eq("crítico").sum())
+        above_score = int((latest_scores["risk_score"] >= attention_score).sum())
+
+        if critical_incidents:
+            alerts.append(
+                (
+                    "crítico",
+                    f"{format_integer(critical_incidents)} incidentes em risco crítico",
+                    "A fila priorizada da aba Risco ordena por score e traz a ação recomendada.",
                 )
             )
 
-            breach_figure.update_layout(**base_layout(height=360))
-            breach_figure.update_xaxes(ticksuffix="%")
-            breach_figure.update_yaxes(autorange="reversed")
+        if above_score:
+            alerts.append(
+                (
+                    "atenção",
+                    f"{format_integer(above_score)} incidentes com score ≥ {attention_score}",
+                    "Régua definida pelo controle acima.",
+                )
+            )
+    elif risk_error:
+        alerts.append(("sério", "Artefato de risco fora do contrato", risk_error))
 
-            chart(breach_figure)
+    if incidents is not None and "kpi_breached_source" in incidents.columns:
+        recent_start = incidents["opened_date"].max() - pd.Timedelta(days=6)
+        recent = incidents.loc[incidents["opened_date"] >= recent_start]
+        recent_breaches = int(recent["kpi_breached_source"].fillna(False).astype(bool).sum())
 
+        if recent_breaches:
+            alerts.append(
+                (
+                    "sério",
+                    f"{format_integer(recent_breaches)} violações de OLA nos últimos 7 dias",
+                    f"Janela {recent_start:%d/%m/%Y} — "
+                    f"{incidents['opened_date'].max():%d/%m/%Y}, no grão de incidente da Silver.",
+                )
+            )
+
+    quality_alert_report = load_json_report(str(ingestion_report_path))
+
+    if quality_alert_report and quality_alert_report.get("quality_status") == "failed":
+        alerts.append(
+            (
+                "crítico",
+                "Pipeline reprovado nas checagens de qualidade",
+                "Os números exibidos podem não ser confiáveis. Detalhes na aba Qualidade.",
+            )
+        )
+
+    if not alerts:
+        st.markdown(
+            f'<div class="ah-note" style="border-left-color:{STATUS_GOOD}">'
+            "Nenhum alerta ativo nos critérios atuais.</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        severity_rank = {"crítico": 0, "sério": 1, "atenção": 2}
+
+        for severity, title, detail in sorted(alerts, key=lambda item: severity_rank[item[0]]):
             st.markdown(
-                '<div class="ah-card-foot">considera apenas valores com pelo menos 30 '
-                "incidentes no KPI</div>",
+                f'<div class="ah-note" style="border-left-color:{ALERT_COLORS[severity]};'
+                f'margin-bottom:10px"><strong>{title}</strong> · '
+                f'<span style="color:{ALERT_COLORS[severity]};text-transform:uppercase;'
+                f'font-size:11px;letter-spacing:.12em">{severity}</span><br>'
+                f"{detail}</div>",
                 unsafe_allow_html=True,
             )
 
-        with st.expander("Tabela completa"):
-            table = ranking.copy()
-            table["share"] = table["share"].map(format_percentage)
-            table["cumulative_share"] = table["cumulative_share"].map(format_percentage)
-            table["breach_rate"] = table["breach_rate"].map(lambda v: format_percentage(v, 2))
+    st.markdown("<div style='height:22px'></div>", unsafe_allow_html=True)
+    section("Incidentes que exigem atenção")
+
+    if latest_scores is None:
+        st.markdown(
+            '<div class="ah-note">Nenhuma pontuação de risco publicada no momento. '
+            "Os incidentes que exigem atenção aparecem aqui assim que o serviço de "
+            "modelagem publicar novos scores.</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        attention = latest_scores.loc[
+            latest_scores["risk_level"].isin(["alto", "crítico"])
+            | (latest_scores["risk_score"] >= attention_score)
+        ]
+
+        if attention.empty:
+            st.info("Nenhum incidente acima da régua de atenção no momento.")
+        else:
+            attention_ranking = attention.sort_values("risk_score", ascending=False).copy()
+            attention_ranking["risk_level"] = attention_ranking["risk_level"].str.title()
 
             st.dataframe(
-                table.rename(
-                    columns={
-                        "dimension_value": DIMENSION_LABELS[selected_dimension],
-                        "incident_count": "Incidentes",
-                        "entered_kpi_count": "Entraram no KPI",
-                        "kpi_breach_count": "KPI violado",
-                        "share": "Participação",
-                        "cumulative_share": "Acumulado",
-                        "breach_rate": "Taxa de violação",
-                    }
-                ),
+                attention_ranking[
+                    [
+                        "incident_id",
+                        "risk_score",
+                        "risk_level",
+                        "breach_probability",
+                        "top_risk_factors",
+                        "recommended_action",
+                    ]
+                ],
                 width="stretch",
                 hide_index=True,
             )
 
-    st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
-
-    section("Perfil de abertura e atendimento")
-
-    if incidents is None:
-        st.info(
-            "As análises de hora de abertura e duração dependem da camada Silver. "
-            "Execute `uv run python scripts/ingest_locaweb.py` para gerá-la."
-        )
-    else:
-        scope_code = {"ALL": None, "P2": 2, "P3": 3}[priority_scope]
-
-        profile = filter_period(incidents, "opened_date", start_date, end_date)
-
-        if scope_code is not None:
-            profile = profile.loc[profile["priority_code"].eq(scope_code)]
-
-        if profile.empty:
-            st.info("Não há incidentes no período e escopo selecionados.")
-        else:
-            median_duration = float(profile["duration_hours"].median())
-            p90_duration = float(profile["duration_hours"].quantile(0.90))
-
-            in_kpi = profile.loc[profile["entered_kpi_source"].fillna(False).astype(bool)]
-
-            # kpi_breached_source é booleano anulável no contrato. Comparar com
-            # False faria o nulo contar como violação em dtype object e ser
-            # descartado em BooleanDtype — o número mudaria conforme o Parquet.
-            breached = (
-                in_kpi["kpi_breached_source"].map({True: 1.0, False: 0.0}).astype("float64")
-            )
-            breached = breached.dropna()
-
-            sla_compliance = 100 * (1 - float(breached.mean())) if not breached.empty else 0.0
-            sla_unknown = int(len(in_kpi) - len(breached))
-
-            monitoring_share = 100 * float(profile["opened_by"].eq("Monitoramento").mean())
-
-            profile_cards = st.columns(4)
-
-            profile_cards[0].markdown(
-                kpi_card("Duração mediana", format_hours(median_duration)),
-                unsafe_allow_html=True,
-            )
-            profile_cards[1].markdown(
-                kpi_card("Duração P90", format_hours(p90_duration), foot="90% resolvidos até aqui"),
-                unsafe_allow_html=True,
-            )
-            profile_cards[2].markdown(
-                kpi_card(
-                    "Aderência a SLA",
-                    format_percentage(sla_compliance, 2).replace("%", ""),
-                    unit="%",
-                    foot=(
-                        "entre os que entraram no KPI"
-                        if not sla_unknown
-                        else f"entre os que entraram no KPI · {format_integer(sla_unknown)} sem marcação"
-                    ),
-                ),
-                unsafe_allow_html=True,
-            )
-            profile_cards[3].markdown(
-                kpi_card(
-                    "Aberto por monitoramento",
-                    format_percentage(monitoring_share, 1).replace("%", ""),
-                    unit="%",
-                    foot="restante é abertura manual",
-                ),
-                unsafe_allow_html=True,
-            )
-
-            st.markdown("<div style='height:22px'></div>", unsafe_allow_html=True)
-
-            grid = (
-                profile.groupby(["opened_day_of_week", "opened_hour"], dropna=True)
-                .size()
-                .reset_index(name="incidentes")
-            )
-
-            pivot_hours = grid.pivot(
-                index="opened_day_of_week", columns="opened_hour", values="incidentes"
-            ).reindex(index=range(7), columns=range(24), fill_value=0)
-
-            hour_heatmap = go.Figure(
-                go.Heatmap(
-                    z=pivot_hours.values,
-                    x=[f"{hour:02d}h" for hour in pivot_hours.columns],
-                    y=[WEEKDAY_LABELS[day] for day in pivot_hours.index],
-                    colorscale=SEQUENTIAL_BLUE,
-                    hovertemplate="%{y}, %{x}<br>%{z} incidentes<extra></extra>",
-                    colorbar={
-                        "outlinewidth": 0,
-                        "tickfont": {"color": INK_MUTED, "size": 10},
-                        "thickness": 10,
-                    },
-                )
-            )
-
-            hour_heatmap.update_layout(**base_layout(height=320))
-            hour_heatmap.update_xaxes(showgrid=False, type="category")
-            hour_heatmap.update_yaxes(showgrid=False, type="category")
-
-            chart(hour_heatmap)
-
-            st.markdown(
-                '<div class="ah-card-foot">abertura por dia da semana e hora</div>',
-                unsafe_allow_html=True,
+            st.download_button(
+                "Baixar lista de atenção (CSV)",
+                attention_ranking.to_csv(index=False).encode("utf-8-sig"),
+                file_name="incidentes_atencao.csv",
+                mime="text/csv",
             )
 
 # --------------------------------------------------------------------------- #
@@ -1268,34 +1034,27 @@ with tab_operations:
 with tab_forecast:
     section("Previsão de volume")
 
-    predictions_path = settings.absolute_path(settings.locaweb_volume_predictions_file)
-
-    try:
-        predictions = load_volume_predictions(predictions_path)
-    except VolumePredictionContractError as exc:
-        st.error(f"O artefato de previsão não respeita o contrato: {exc}")
-        predictions = None
+    if predictions_error:
+        st.error(f"O artefato de previsão não respeita o contrato: {predictions_error}")
 
     if predictions is None:
         forecast_cards = st.columns(3)
 
         forecast_cards[0].markdown(
-            kpi_card("Previsão D+1", "—", foot="aguardando modelo", accent=True),
+            kpi_card("Previsão D+1", "—", foot="sem previsão publicada", accent=True),
             unsafe_allow_html=True,
         )
         forecast_cards[1].markdown(
-            kpi_card("Previsão D+7", "—", foot="aguardando modelo"), unsafe_allow_html=True
+            kpi_card("Previsão D+7", "—", foot="sem previsão publicada"), unsafe_allow_html=True
         )
         forecast_cards[2].markdown(
-            kpi_card("Contrato", "OK", foot="interface pronta e validada"), unsafe_allow_html=True
+            kpi_card("Modelo", "—", foot="nenhuma versão publicada"), unsafe_allow_html=True
         )
 
         st.markdown(
             '<div class="ah-note" style="margin-top:18px">'
-            "A interface de previsão está pronta e validada pelo contrato de dados, aguardando o "
-            "artefato da frente de modelagem em <strong>data/gold/volume_predictions.parquet</strong> "
-            "com as colunas reference_date, generated_at, horizon, priority_scope, "
-            "predicted_incident_count e model_version.</div>",
+            "Nenhuma previsão publicada no momento. Os horizontes D+1 e D+7 aparecem "
+            "nesta aba assim que o serviço de modelagem publicar novos resultados.</div>",
             unsafe_allow_html=True,
         )
     else:
@@ -1323,11 +1082,11 @@ with tab_forecast:
                 linhas = latest.loc[latest["horizon"].eq(horizonte)]
 
                 if linhas.empty:
-                    return "aguardando modelo"
+                    return "sem previsão publicada"
 
                 return f"para {linhas.iloc[-1]['reference_date']:%d/%m/%Y}"
 
-            forecast_cards = st.columns(4)
+            forecast_cards = st.columns(3)
 
             forecast_cards[0].markdown(
                 kpi_card("Previsão D+1", previsao("D+1"), foot=data_prevista("D+1"), accent=True),
@@ -1360,15 +1119,6 @@ with tab_forecast:
                     unsafe_allow_html=True,
                 )
 
-            forecast_cards[3].markdown(
-                kpi_card(
-                    "Versão do modelo",
-                    str(latest.iloc[-1]["model_version"]),
-                    foot=f"publicado em {latest.iloc[-1]['generated_at']:%d/%m/%Y}",
-                ),
-                unsafe_allow_html=True,
-            )
-
             horizontes = sorted(scoped["horizon"].dropna().unique())
 
             horizonte = st.radio(
@@ -1380,10 +1130,11 @@ with tab_forecast:
 
             serie = scoped.loc[scoped["horizon"].eq(horizonte)].sort_values("reference_date")
 
+            # O realizado obedece ao recorte da barra lateral; a previsão é
+            # sempre futura e não é recortada.
             history = (
-                daily_volume.loc[daily_volume["priority_scope"].eq(priority_scope)]
+                daily_period.loc[daily_period["priority_scope"].eq(priority_scope)]
                 .sort_values("reference_date")
-                .tail(120)
             )
 
             forecast_figure = go.Figure()
@@ -1449,8 +1200,10 @@ with tab_forecast:
             chart(forecast_figure)
 
             st.markdown(
-                '<div class="ah-card-foot">a faixa vermelha é o intervalo conformal do modelo · '
-                "os pontos cheios à direita são a previsão ainda sem valor realizado</div>",
+                f'<div class="ah-card-foot">a faixa vermelha é o intervalo conformal do modelo · '
+                f"os pontos cheios à direita são a previsão ainda sem valor realizado · "
+                f"modelo {latest.iloc[-1]['model_version']}, publicado em "
+                f"{latest.iloc[-1]['generated_at']:%d/%m/%Y}</div>",
                 unsafe_allow_html=True,
             )
 
@@ -1482,48 +1235,38 @@ with tab_forecast:
 with tab_risk:
     section("Risco operacional")
 
-    risk_score_path = settings.absolute_path(settings.locaweb_risk_scores_file)
+    st.markdown(
+        '<div class="ah-card-foot" style="margin:-4px 0 14px 0">'
+        "retrato mais recente publicado pelo serviço de modelagem · "
+        "independe do recorte de datas</div>",
+        unsafe_allow_html=True,
+    )
 
-    try:
-        risk_scores = load_risk_scores(risk_score_path)
-    except RiskScoreContractError as exc:
-        st.error(f"O artefato de risco não respeita o contrato: {exc}")
-        risk_scores = None
+    if risk_error:
+        st.error(f"O artefato de risco não respeita o contrato: {risk_error}")
 
     if risk_scores is None:
         risk_cards = st.columns(3)
 
         risk_cards[0].markdown(
-            kpi_card("Score médio", "—", foot="aguardando modelo", accent=True),
+            kpi_card("Score médio", "—", foot="sem pontuação publicada", accent=True),
             unsafe_allow_html=True,
         )
         risk_cards[1].markdown(
-            kpi_card("Alto ou crítico", "—", foot="aguardando modelo"), unsafe_allow_html=True
+            kpi_card("Alto ou crítico", "—", foot="sem pontuação publicada"), unsafe_allow_html=True
         )
         risk_cards[2].markdown(
-            kpi_card("Contrato", "OK", foot="interface pronta e validada"), unsafe_allow_html=True
+            kpi_card("Críticos", "—", foot="sem pontuação publicada"), unsafe_allow_html=True
         )
 
         st.markdown(
             '<div class="ah-note" style="margin-top:18px">'
-            "O score de risco de 0 a 100 e os níveis baixo, moderado, alto e crítico já estão "
-            "contratados. Assim que a frente de modelagem publicar "
-            "<strong>data/gold/risk_scores.parquet</strong>, esta aba passa a exibir a "
-            "distribuição e a fila priorizada.</div>",
+            "Nenhuma pontuação de risco publicada no momento. A distribuição por nível e a "
+            "fila priorizada aparecem nesta aba assim que o serviço de modelagem publicar "
+            "novos scores.</div>",
             unsafe_allow_html=True,
         )
     else:
-        latest_scores = risk_scores.sort_values("scored_at").drop_duplicates(
-            subset=["incident_id"], keep="last"
-        )
-
-        # O contrato tabela os níveis capitalizados e o exemplo de evento usa
-        # inglês. Sem normalizar, uma variante de caixa zera os cartões em
-        # silêncio, sem erro nenhum na tela.
-        latest_scores = latest_scores.assign(
-            risk_level=latest_scores["risk_level"].map(normalize_risk_level)
-        )
-
         average_score = latest_scores["risk_score"].mean()
         critical_count = int(latest_scores["risk_level"].eq("crítico").sum())
         high_or_critical = int(latest_scores["risk_level"].isin(["alto", "crítico"]).sum())
@@ -1531,14 +1274,29 @@ with tab_risk:
         risk_cards = st.columns(3)
 
         risk_cards[0].markdown(
-            kpi_card("Score médio", f"{average_score:.1f}".replace(".", ","), accent=True),
+            kpi_card(
+                "Score médio",
+                f"{average_score:.1f}".replace(".", ","),
+                foot="entre os incidentes pontuados",
+                accent=True,
+            ),
             unsafe_allow_html=True,
         )
         risk_cards[1].markdown(
-            kpi_card("Alto ou crítico", format_integer(high_or_critical)), unsafe_allow_html=True
+            kpi_card(
+                "Alto ou crítico",
+                format_integer(high_or_critical),
+                foot="requerem priorização",
+            ),
+            unsafe_allow_html=True,
         )
         risk_cards[2].markdown(
-            kpi_card("Críticos", format_integer(critical_count), alert=critical_count > 0),
+            kpi_card(
+                "Críticos",
+                format_integer(critical_count),
+                foot="exigem ação imediata",
+                alert=critical_count > 0,
+            ),
             unsafe_allow_html=True,
         )
 
@@ -1581,23 +1339,61 @@ with tab_risk:
 
         section("Fila priorizada")
 
-        ranking = latest_scores.sort_values("risk_score", ascending=False).head(20).copy()
-        ranking["risk_level"] = ranking["risk_level"].str.title()
+        filter_columns = st.columns([2, 2])
 
-        st.dataframe(
-            ranking[
-                [
-                    "incident_id",
-                    "risk_score",
-                    "risk_level",
-                    "breach_probability",
-                    "top_risk_factors",
-                    "recommended_action",
-                ]
-            ],
-            width="stretch",
-            hide_index=True,
-        )
+        with filter_columns[0]:
+            level_filter = st.multiselect(
+                "Nível de risco",
+                options=["baixo", "moderado", "alto", "crítico"],
+                default=["alto", "crítico"],
+                format_func=str.title,
+            )
+
+        with filter_columns[1]:
+            incident_query = st.text_input(
+                "Buscar incidente",
+                placeholder="INC0000000",
+            )
+
+        queue = latest_scores
+
+        if level_filter:
+            queue = queue.loc[queue["risk_level"].isin(level_filter)]
+
+        if incident_query.strip():
+            queue = queue.loc[
+                queue["incident_id"]
+                .astype(str)
+                .str.contains(incident_query.strip(), case=False, regex=False)
+            ]
+
+        if queue.empty:
+            st.info("Nenhum incidente para os filtros selecionados.")
+        else:
+            ranking = queue.sort_values("risk_score", ascending=False).head(50).copy()
+            ranking["risk_level"] = ranking["risk_level"].str.title()
+
+            st.dataframe(
+                ranking[
+                    [
+                        "incident_id",
+                        "risk_score",
+                        "risk_level",
+                        "breach_probability",
+                        "top_risk_factors",
+                        "recommended_action",
+                    ]
+                ],
+                width="stretch",
+                hide_index=True,
+            )
+
+            st.download_button(
+                "Baixar fila priorizada (CSV)",
+                ranking.to_csv(index=False).encode("utf-8-sig"),
+                file_name="fila_priorizada.csv",
+                mime="text/csv",
+            )
 
 # --------------------------------------------------------------------------- #
 # Qualidade
@@ -1606,11 +1402,17 @@ with tab_risk:
 with tab_quality:
     section("Qualidade dos dados")
 
+    st.markdown(
+        '<div class="ah-card-foot" style="margin:-4px 0 14px 0">'
+        "retrato da última execução do pipeline · independe do recorte de datas</div>",
+        unsafe_allow_html=True,
+    )
+
     ingestion_report = load_json_report(str(ingestion_report_path))
     gold_report = load_json_report(str(gold_report_path))
 
     if ingestion_report is None and gold_report is None:
-        st.info("Nenhum relatório de qualidade encontrado. Execute o pipeline de dados.")
+        st.info("Nenhum relatório de qualidade disponível para esta base.")
     else:
         STATUS_TEXT = {
             "passed": ("Aprovado", STATUS_GOOD),
@@ -1691,18 +1493,6 @@ with tab_quality:
 
                 st.dataframe(warnings_frame, width="stretch", hide_index=True)
 
-            mismatch = ingestion_report["warning_checks"].get("kpi_breached_rule_mismatch", 0)
-
-            if mismatch:
-                st.markdown(
-                    f'<div class="ah-note" style="margin-top:14px">'
-                    f"O pipeline recalculou as regras de KPI e encontrou "
-                    f"<strong>{format_integer(mismatch)}</strong> incidentes em que a marcação de "
-                    f"violação da fonte diverge da regra de SLA por prioridade. Vale confirmar a "
-                    f"regra com a Locaweb antes de tratar o campo original como verdade.</div>",
-                    unsafe_allow_html=True,
-                )
-
         if gold_report:
             st.markdown("<div style='height:26px'></div>", unsafe_allow_html=True)
             section("Reconciliação por escopo")
@@ -1715,7 +1505,7 @@ with tab_quality:
 
 st.markdown(
     f'<div class="ah-card-foot" style="margin-top:34px;border-top:1px solid {BORDER};'
-    f'padding-top:14px">Albus-Hub · FIAP / Locaweb Challenge 2026 · '
-    f"dados processados pelo pipeline Bronze → Silver → Gold</div>",
+    f'padding-top:14px">AlbusHub {APP_VERSION} · plataforma de operações preditivas · '
+    f"© 2026 AlbusHub</div>",
     unsafe_allow_html=True,
 )
