@@ -234,7 +234,7 @@ A versão integrada do dashboard está publicada no Azure Container Instances:
 
 Imagem implantada:
 
-`acralbushubfiap2026dev.azurecr.io/albus-hub:sprint4-66741ee`
+`acralbushubfiap2026dev.azurecr.io/albus-hub:sprint4-241b81d`
 
 Antes da entrega final ainda devem ser concluídos:
 
