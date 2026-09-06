@@ -947,7 +947,7 @@ with tab_alerts:
             "Score mínimo para exigir atenção",
             min_value=0,
             max_value=100,
-            value=0,
+            value=25,
             step=5,
         )
 
@@ -1082,24 +1082,35 @@ with tab_alerts:
             attention_ranking = attention.sort_values("risk_score", ascending=False).copy()
             attention_ranking["risk_level"] = attention_ranking["risk_level"].str.title()
 
+            attention_display = attention_ranking[
+                [
+                    "incident_id",
+                    "risk_score",
+                    "risk_level",
+                    "breach_probability",
+                    "top_risk_factors",
+                    "recommended_action",
+                ]
+            ].rename(
+                columns={
+                    "incident_id": "Incidente",
+                    "risk_score": "Score de risco",
+                    "risk_level": "Nível",
+                    "breach_probability": "Prob. de violação",
+                    "top_risk_factors": "Fatores principais",
+                    "recommended_action": "Ação recomendada",
+                }
+            )
+
             st.dataframe(
-                attention_ranking[
-                    [
-                        "incident_id",
-                        "risk_score",
-                        "risk_level",
-                        "breach_probability",
-                        "top_risk_factors",
-                        "recommended_action",
-                    ]
-                ],
+                attention_display,
                 width="stretch",
                 hide_index=True,
             )
 
             st.download_button(
                 "Baixar lista de atenção (CSV)",
-                attention_ranking.to_csv(index=False).encode("utf-8-sig"),
+                attention_display.to_csv(index=False).encode("utf-8-sig"),
                 file_name="incidentes_atencao.csv",
                 mime="text/csv",
             )
@@ -1192,7 +1203,7 @@ with tab_forecast:
                 )
             else:
                 forecast_cards[2].markdown(
-                    kpi_card("Erro no backtest", "—", foot="artefato sem histórico"),
+                    kpi_card("Backtest", "—", foot="não disponível neste artefato"),
                     unsafe_allow_html=True,
                 )
 
@@ -1449,24 +1460,35 @@ with tab_risk:
             ranking = queue.sort_values("risk_score", ascending=False).head(50).copy()
             ranking["risk_level"] = ranking["risk_level"].str.title()
 
+            ranking_display = ranking[
+                [
+                    "incident_id",
+                    "risk_score",
+                    "risk_level",
+                    "breach_probability",
+                    "top_risk_factors",
+                    "recommended_action",
+                ]
+            ].rename(
+                columns={
+                    "incident_id": "Incidente",
+                    "risk_score": "Score de risco",
+                    "risk_level": "Nível",
+                    "breach_probability": "Prob. de violação",
+                    "top_risk_factors": "Fatores principais",
+                    "recommended_action": "Ação recomendada",
+                }
+            )
+
             st.dataframe(
-                ranking[
-                    [
-                        "incident_id",
-                        "risk_score",
-                        "risk_level",
-                        "breach_probability",
-                        "top_risk_factors",
-                        "recommended_action",
-                    ]
-                ],
+                ranking_display,
                 width="stretch",
                 hide_index=True,
             )
 
             st.download_button(
                 "Baixar fila priorizada (CSV)",
-                ranking.to_csv(index=False).encode("utf-8-sig"),
+                ranking_display.to_csv(index=False).encode("utf-8-sig"),
                 file_name="fila_priorizada.csv",
                 mime="text/csv",
             )
