@@ -36,9 +36,10 @@ LOCAL_OUTPUT_PATH = RUNTIME_DIR / "risk_scores.parquet"
 LOCAL_STREAMLIT_OUTPUT = Path("data/gold/risk_scores.parquet")
 
 REQUIRED_ARTIFACTS = (
-    "ann.weights.h5",
     "preprocessor.joblib",
-    "calibrator.joblib",
+    "baseline_logistic.joblib",
+    "baseline_calibrator.joblib",
+    "predictive_reference.npy",
     "metadata.json",
 )
 
@@ -104,6 +105,7 @@ def _to_mysql_rows(
                 "scored_at": (scored_at.to_pydatetime()),
                 "model_version": str(row.model_version),
                 "breach_probability": float(row.breach_probability),
+                "predictive_risk_index": float(row.predictive_risk_index),
                 "priority_impact": float(row.priority_impact),
                 "operational_pressure": float(row.operational_pressure),
                 "risk_score": int(row.risk_score),
@@ -120,7 +122,7 @@ def main() -> None:
     if not os.getenv(STORAGE_ACCOUNT_ENV):
         raise RuntimeError(f"{STORAGE_ACCOUNT_ENV} não está configurada.")
 
-    print("=== INFERENCIA OPERACIONAL DL - RISK SCORE ===")
+    print("=== INFERENCIA OPERACIONAL CHAMPION - RISK SCORE ===")
 
     if RUNTIME_DIR.exists():
         shutil.rmtree(RUNTIME_DIR)
@@ -304,6 +306,7 @@ def main() -> None:
             "risk_score",
             "risk_level",
             "breach_probability",
+            "predictive_risk_index",
         ]
     ]
 

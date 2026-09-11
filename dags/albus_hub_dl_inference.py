@@ -63,7 +63,7 @@ def run_project_script(
 
 @dag(
     dag_id="albus_hub_dl_inference",
-    description=("Scoring diário de risco dos incidentes usando o modelo DL vigente."),
+    description=("Scoring diário de risco dos incidentes usando o modelo champion vigente."),
     schedule=INFERENCE_SCHEDULE,
     start_date=pendulum.datetime(
         2026,
@@ -77,7 +77,7 @@ def run_project_script(
         "albus-hub",
         "fiap",
         "sprint4",
-        "deep-learning",
+        "risk-model",
         "risk-score",
         "inference",
     ],
@@ -125,7 +125,7 @@ def albus_hub_dl_inference():
         inference_report: dict,
     ) -> None:
         if inference_report.get("status") != "success":
-            raise ValueError("Inferência DL não terminou com sucesso.")
+            raise ValueError("Inferência de risco não terminou com sucesso.")
 
         stdout = inference_report.get(
             "stdout",
@@ -140,9 +140,11 @@ def albus_hub_dl_inference():
         missing_markers = [marker for marker in required_markers if marker not in stdout]
 
         if missing_markers:
-            raise ValueError("Inferência DL terminou sem confirmar: " + ", ".join(missing_markers))
+            raise ValueError(
+                "Inferência de risco terminou sem confirmar: " + ", ".join(missing_markers)
+            )
 
-        print("Scores DL publicados com sucesso no ADLS e MySQL.")
+        print("Scores de risco publicados com sucesso no ADLS e MySQL.")
 
     @task(
         task_id="publish_risk_alerts",
@@ -152,7 +154,7 @@ def albus_hub_dl_inference():
         inference_report: dict,
     ) -> dict:
         if inference_report.get("status") != "success":
-            raise ValueError("Inferência DL não terminou com sucesso.")
+            raise ValueError("Inferência de risco não terminou com sucesso.")
 
         return run_project_script("scripts/publish_risk_alerts.py")
 

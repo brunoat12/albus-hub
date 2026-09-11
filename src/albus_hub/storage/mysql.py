@@ -122,6 +122,11 @@ dl_risk_scores_current_table = Table(
         nullable=False,
     ),
     Column(
+        "predictive_risk_index",
+        Numeric(10, 8),
+        nullable=False,
+    ),
+    Column(
         "priority_impact",
         Numeric(5, 4),
         nullable=False,
@@ -387,6 +392,28 @@ class MySQLRepository:
                 dl_risk_scores_current_table,
             ],
         )
+
+        # create_all não altera tabelas existentes.
+        # Risk Score v2 adiciona o percentil histórico do risco
+        # preditivo ao contrato operacional.
+        if self.engine.dialect.name == "mysql":
+            with self.engine.begin() as connection:
+                existing_columns = {
+                    row["Field"]
+                    for row in connection.execute(
+                        text("SHOW COLUMNS FROM dl_risk_scores_current")
+                    ).mappings()
+                }
+
+                if "predictive_risk_index" not in existing_columns:
+                    connection.execute(
+                        text(
+                            "ALTER TABLE dl_risk_scores_current "
+                            "ADD COLUMN predictive_risk_index "
+                            "DECIMAL(10,8) NOT NULL DEFAULT 0 "
+                            "AFTER breach_probability"
+                        )
+                    )
 
     def replace_dl_risk_scores(
         self,

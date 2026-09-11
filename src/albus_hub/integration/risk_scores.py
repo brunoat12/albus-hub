@@ -10,6 +10,7 @@ REQUIRED_RISK_COLUMNS = {
     "scored_at",
     "model_version",
     "breach_probability",
+    "predictive_risk_index",
     "priority_impact",
     "operational_pressure",
     "risk_score",
@@ -25,33 +26,50 @@ RISK_LEVELS = {
     "crítico",
 }
 
+# O Risk Score é um índice operacional, não uma probabilidade.
+#
+# O componente preditivo usa o percentil histórico da probabilidade
+# calibrada, evitando que uma probabilidade-base rara (~1%) seja
+# numericamente anulada pelos demais componentes.
 RISK_SCORE_WEIGHTS = {
-    "breach_probability": 0.70,
-    "priority_impact": 0.20,
-    "operational_pressure": 0.10,
+    "predictive_risk_index": 0.80,
+    "priority_impact": 0.15,
+    "operational_pressure": 0.05,
 }
 
 
 def calculate_risk_score(
-    breach_probability,
+    predictive_risk_index,
     priority_impact,
     operational_pressure,
 ) -> np.ndarray:
-    """Calcula o score operacional oficial e aplica arredondamento para 0–100."""
+    """Calcula o Risk Score v2 operacional na escala de 0 a 100."""
+
     weighted = 100 * (
-        RISK_SCORE_WEIGHTS["breach_probability"] * np.asarray(breach_probability)
-        + RISK_SCORE_WEIGHTS["priority_impact"] * np.asarray(priority_impact)
-        + RISK_SCORE_WEIGHTS["operational_pressure"] * np.asarray(operational_pressure)
+        RISK_SCORE_WEIGHTS["predictive_risk_index"] * np.asarray(predictive_risk_index, dtype=float)
+        + RISK_SCORE_WEIGHTS["priority_impact"] * np.asarray(priority_impact, dtype=float)
+        + RISK_SCORE_WEIGHTS["operational_pressure"] * np.asarray(operational_pressure, dtype=float)
     )
+
     return np.floor(weighted + 0.5).clip(0, 100).astype("int64")
 
 
 def risk_level_from_score(score) -> np.ndarray:
-    """Converte scores nos níveis em português aceitos pelo dashboard."""
+    """Converte o Risk Score v2 nos níveis operacionais."""
+
     values = np.asarray(score, dtype=float)
+
     return np.select(
-        [values <= 24, values <= 49, values <= 74],
-        ["baixo", "moderado", "alto"],
+        [
+            values <= 39,
+            values <= 59,
+            values <= 79,
+        ],
+        [
+            "baixo",
+            "moderado",
+            "alto",
+        ],
         default="crítico",
     )
 
@@ -85,6 +103,7 @@ def validate_risk_scores(
 
     numeric_columns = [
         "breach_probability",
+        "predictive_risk_index",
         "priority_impact",
         "operational_pressure",
         "risk_score",
@@ -105,13 +124,14 @@ def validate_risk_scores(
     if result["model_version"].isna().any():
         raise RiskScoreContractError("model_version possui valores nulos.")
 
-    probability_columns = [
+    unit_interval_columns = [
         "breach_probability",
+        "predictive_risk_index",
         "priority_impact",
         "operational_pressure",
     ]
 
-    for column in probability_columns:
+    for column in unit_interval_columns:
         invalid = result[column].isna() | ~result[column].between(
             0,
             1,
@@ -142,19 +162,33 @@ def validate_risk_scores(
         )
 
     expected_scores = calculate_risk_score(
-        result["breach_probability"],
+        result["predictive_risk_index"],
         result["priority_impact"],
         result["operational_pressure"],
     )
-    if not np.array_equal(result["risk_score"].to_numpy(), expected_scores):
-        raise RiskScoreContractError("risk_score não respeita a fórmula oficial 70/20/10.")
+
+    if not np.array_equal(
+        result["risk_score"].to_numpy(),
+        expected_scores,
+    ):
+        raise RiskScoreContractError(
+            "risk_score não respeita a fórmula oficial Risk Score v2 80/15/5."
+        )
 
     expected_levels = risk_level_from_score(result["risk_score"])
-    if not np.array_equal(result["risk_level"].to_numpy(dtype=str), expected_levels):
+
+    if not np.array_equal(
+        result["risk_level"].to_numpy(dtype=str),
+        expected_levels,
+    ):
         raise RiskScoreContractError("risk_level não corresponde à faixa do risk_score.")
 
-    for column in ["top_risk_factors", "recommended_action"]:
+    for column in [
+        "top_risk_factors",
+        "recommended_action",
+    ]:
         result[column] = result[column].astype("string").str.strip()
+
         if result[column].isna().any() or result[column].eq("").any():
             raise RiskScoreContractError(f"{column} deve ser preenchido.")
 
@@ -181,9 +215,8 @@ def load_risk_scores(
     """
     Carrega o artefato de score.
 
-    Retorna None quando o modelo ainda não entregou
-    o artefato, permitindo que consumidores como
-    Streamlit funcionem sem depender do modelo.
+    Retorna None quando o modelo ainda não entregou o artefato,
+    permitindo que consumidores funcionem sem depender do modelo.
     """
 
     if not path.exists():

@@ -17,7 +17,11 @@ def test_score_formula_and_levels() -> None:
     )
 
     assert scores.tolist() == [0, 74, 100]
-    assert risk_level_from_score(scores).tolist() == ["baixo", "alto", "crítico"]
+    assert risk_level_from_score(scores).tolist() == [
+        "baixo",
+        "alto",
+        "crítico",
+    ]
 
 
 def test_preprocessor_accepts_unknown_categories() -> None:

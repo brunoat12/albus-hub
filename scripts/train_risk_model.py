@@ -19,7 +19,7 @@ MODELS_FILE_SYSTEM = "models"
 TRUSTED_REMOTE_PATH = "ml/locaweb_incidents.parquet"
 CURRENT_REMOTE_PATH = "risk/current.json"
 
-MODEL_VERSION = "risk-ann-v1-20260820"
+MODEL_VERSION = "risk-logistic-v2-20260910"
 
 RUNTIME_DIR = Path("artifacts/runtime/dl_risk_training")
 LOCAL_SOURCE_PATH = RUNTIME_DIR / "locaweb_incidents.parquet"
@@ -31,11 +31,15 @@ LOCAL_FIGURES_DIR = RUNTIME_DIR / "figures"
 LOCAL_CURRENT_PATH = RUNTIME_DIR / "current.json"
 
 MODEL_ARTIFACTS = (
-    "ann.weights.h5",
+    # Champion operacional
     "preprocessor.joblib",
-    "calibrator.joblib",
-    "metadata.json",
     "baseline_logistic.joblib",
+    "baseline_calibrator.joblib",
+    "predictive_reference.npy",
+    "metadata.json",
+    # ANN preservada como challenger de Deep Learning
+    "ann.weights.h5",
+    "calibrator.joblib",
 )
 
 
@@ -43,7 +47,7 @@ def main() -> None:
     if not os.getenv(STORAGE_ACCOUNT_ENV):
         raise RuntimeError(f"{STORAGE_ACCOUNT_ENV} não está configurada.")
 
-    print("=== TREINO OPERACIONAL DL - RISK SCORE ===")
+    print("=== TREINO OPERACIONAL CHAMPION - RISK SCORE ===")
     print(
         "Fonte oficial:",
         f"{TRUSTED_FILE_SYSTEM}/{TRUSTED_REMOTE_PATH}",
@@ -159,12 +163,14 @@ def main() -> None:
 
     current = {
         "model_version": MODEL_VERSION,
-        "artifact_format": "keras-weights+joblib",
+        "artifact_format": "sklearn-joblib+npy+keras-challenger",
         "trained_at": metadata["created_at_utc"],
         "training_end_date": training_end_date,
         "training_source": training_source,
-        "selected_ann": metrics["selected_ann"],
-        "selected_threshold": metrics["selected_threshold"],
+        "champion_model": "logistic_regression",
+        "champion_config": metrics["champion"]["selected_config"],
+        "selected_ann_challenger": metrics["selected_ann"],
+        "selected_threshold": metrics["baseline"]["selected_threshold"],
         "artifacts": {
             **artifact_paths,
             "metrics.json": metrics_remote_path,
@@ -188,12 +194,13 @@ def main() -> None:
     )
 
     print()
-    print("DL_TREINO_ADLS=SUCCESS")
+    print("RISK_TREINO_ADLS=SUCCESS")
     print("Modelo:", MODEL_VERSION)
-    print("ANN:", metrics["selected_ann"])
+    print("Champion: regressão logística")
+    print("ANN challenger:", metrics["selected_ann"])
     print(
-        "Threshold:",
-        metrics["selected_threshold"],
+        "Threshold champion:",
+        metrics["baseline"]["selected_threshold"],
     )
     print(
         "Artefatos:",

@@ -1088,6 +1088,7 @@ with tab_alerts:
                     "risk_score",
                     "risk_level",
                     "breach_probability",
+                    "predictive_risk_index",
                     "top_risk_factors",
                     "recommended_action",
                 ]
@@ -1097,6 +1098,7 @@ with tab_alerts:
                     "risk_score": "Score de risco",
                     "risk_level": "Nível",
                     "breach_probability": "Prob. de violação",
+                    "predictive_risk_index": "Índice preditivo",
                     "top_risk_factors": "Fatores principais",
                     "recommended_action": "Ação recomendada",
                 }
@@ -1329,6 +1331,13 @@ with tab_risk:
         unsafe_allow_html=True,
     )
 
+    st.caption(
+        "O Score de risco é um índice operacional de 0 a 100. "
+        "A Prob. de violação representa a probabilidade calibrada "
+        "estimada pelo modelo; o Índice preditivo representa a posição "
+        "relativa dessa probabilidade no histórico pré-teste."
+    )
+
     if risk_error:
         st.error(f"O artefato de risco não respeita o contrato: {risk_error}")
 
@@ -1466,6 +1475,7 @@ with tab_risk:
                     "risk_score",
                     "risk_level",
                     "breach_probability",
+                    "predictive_risk_index",
                     "top_risk_factors",
                     "recommended_action",
                 ]
@@ -1475,6 +1485,7 @@ with tab_risk:
                     "risk_score": "Score de risco",
                     "risk_level": "Nível",
                     "breach_probability": "Prob. de violação",
+                    "predictive_risk_index": "Índice preditivo",
                     "top_risk_factors": "Fatores principais",
                     "recommended_action": "Ação recomendada",
                 }

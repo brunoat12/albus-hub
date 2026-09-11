@@ -63,7 +63,7 @@ def run_project_script(
 
 @dag(
     dag_id="albus_hub_dl_training",
-    description=("Retreino periódico do modelo ANN de score de risco do Albus-Hub."),
+    description=("Retreino periódico do modelo champion de risco do Albus-Hub."),
     schedule=TRAIN_SCHEDULE,
     start_date=pendulum.datetime(
         2026,
@@ -77,7 +77,7 @@ def run_project_script(
         "albus-hub",
         "fiap",
         "sprint4",
-        "deep-learning",
+        "risk-model",
         "risk-score",
         "training",
     ],
@@ -128,10 +128,12 @@ def albus_hub_dl_training():
             "",
         )
 
-        if "DL_TREINO_ADLS=SUCCESS" not in stdout:
-            raise ValueError("Treinamento DL terminou sem confirmar publicação no ADLS.")
+        if "RISK_TREINO_ADLS=SUCCESS" not in stdout:
+            raise ValueError(
+                "Treinamento do modelo de risco terminou sem confirmar publicação no ADLS."
+            )
 
-        print("Modelo DL publicado e risk/current.json atualizado.")
+        print("Modelo champion publicado e risk/current.json atualizado.")
 
         return {
             "validation": "passed",

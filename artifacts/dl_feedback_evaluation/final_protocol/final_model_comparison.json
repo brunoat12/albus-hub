@@ -1,0 +1,148 @@
+{
+  "bootstrap": {
+    "iterations": 5000,
+    "seed": 42,
+    "method": "stratified paired bootstrap",
+    "rows": 5183,
+    "positives": 50
+  },
+  "point_estimates": {
+    "logistic_pr_auc": 0.21939046571746065,
+    "ann_pr_auc": 0.24709072815974356,
+    "logistic_roc_auc": 0.8882018312877459,
+    "ann_roc_auc": 0.8583323592441068,
+    "logistic_brier": 0.009010283231114764,
+    "ann_brier": 0.009214534562082275,
+    "delta_pr_auc": 0.027700262442282908,
+    "delta_roc_auc": -0.0298694720436391,
+    "delta_brier_advantage_ann": -0.00020425133096751112,
+    "logistic_recall_at_5": 0.5,
+    "ann_recall_at_5": 0.42,
+    "delta_recall_at_5": -0.08000000000000002,
+    "logistic_recall_at_10": 0.68,
+    "ann_recall_at_10": 0.56,
+    "delta_recall_at_10": -0.12,
+    "logistic_recall_at_20": 0.8,
+    "ann_recall_at_20": 0.76,
+    "delta_recall_at_20": -0.040000000000000036,
+    "logistic_recall_at_30": 0.86,
+    "ann_recall_at_30": 0.82,
+    "delta_recall_at_30": -0.040000000000000036
+  },
+  "confidence_intervals": {
+    "logistic_pr_auc": {
+      "mean": 0.22636243191554495,
+      "low": 0.11971014393220808,
+      "high": 0.34420839905708445
+    },
+    "ann_pr_auc": {
+      "mean": 0.2530761208952402,
+      "low": 0.137568057628324,
+      "high": 0.37555310908030415
+    },
+    "delta_pr_auc": {
+      "mean": 0.02671368897969519,
+      "low": -0.034590372420563835,
+      "high": 0.09357156753489136
+    },
+    "logistic_roc_auc": {
+      "mean": 0.8890043249561661,
+      "low": 0.8479169101889732,
+      "high": 0.9262825832846289
+    },
+    "ann_roc_auc": {
+      "mean": 0.8589028517436198,
+      "low": 0.8114211474771088,
+      "high": 0.9027746931618936
+    },
+    "delta_roc_auc": {
+      "mean": -0.030101473212546272,
+      "low": -0.061108123904149554,
+      "high": -0.0015104227547242726
+    },
+    "logistic_brier": {
+      "mean": 0.009007932983853143,
+      "low": 0.008787221082293118,
+      "high": 0.009214898220222648
+    },
+    "ann_brier": {
+      "mean": 0.009213398010515435,
+      "low": 0.009084429892274409,
+      "high": 0.009337873482131078
+    },
+    "delta_brier_advantage_ann": {
+      "mean": -0.00020546502666229328,
+      "low": -0.0003350081836498859,
+      "high": -8.94420887354354e-05
+    },
+    "logistic_recall_at_5": {
+      "mean": 0.5080319999999999,
+      "low": 0.38,
+      "high": 0.64
+    },
+    "ann_recall_at_5": {
+      "mean": 0.41485199999999994,
+      "low": 0.28,
+      "high": 0.54
+    },
+    "delta_recall_at_5": {
+      "mean": -0.09318,
+      "low": -0.22000000000000003,
+      "high": 0.03999999999999998
+    },
+    "logistic_recall_at_10": {
+      "mean": 0.6725080000000001,
+      "low": 0.54,
+      "high": 0.8
+    },
+    "ann_recall_at_10": {
+      "mean": 0.5475120000000001,
+      "low": 0.41950000000000015,
+      "high": 0.68
+    },
+    "delta_recall_at_10": {
+      "mean": -0.12499600000000001,
+      "low": -0.24000000000000005,
+      "high": 0.0
+    },
+    "logistic_recall_at_20": {
+      "mean": 0.800916,
+      "low": 0.68,
+      "high": 0.9
+    },
+    "ann_recall_at_20": {
+      "mean": 0.747572,
+      "low": 0.62,
+      "high": 0.86
+    },
+    "delta_recall_at_20": {
+      "mean": -0.053344,
+      "low": -0.18000000000000005,
+      "high": 0.06000000000000005
+    },
+    "logistic_recall_at_30": {
+      "mean": 0.8499200000000001,
+      "low": 0.74,
+      "high": 0.94
+    },
+    "ann_recall_at_30": {
+      "mean": 0.8214959999999999,
+      "low": 0.72,
+      "high": 0.92
+    },
+    "delta_recall_at_30": {
+      "mean": -0.028424,
+      "low": -0.1399999999999999,
+      "high": 0.07999999999999996
+    }
+  },
+  "probability_ann_beats_logistic": {
+    "pr_auc": 0.7874,
+    "roc_auc": 0.0176,
+    "brier": 0.0,
+    "recall_at_5": 0.0588,
+    "recall_at_10": 0.0142,
+    "recall_at_20": 0.141,
+    "recall_at_30": 0.2286
+  }
+}

@@ -110,3 +110,11 @@ entrega_data_protection_sprint3.zip
 !evidencias_sprint3/02_data_protection/*.log
 ml_volume/outputs/
 ml_volume/plots/
+
+# Avaliação final ML/DL - manter apenas resumos JSON e figuras versionáveis
+artifacts/dl_feedback_evaluation/**/*.parquet
+artifacts/dl_feedback_evaluation/**/*.joblib
+artifacts/dl_feedback_evaluation/**/*.h5
+
+# Modelos experimentais locais
+artifacts/dl_feedback_evaluation/model/
