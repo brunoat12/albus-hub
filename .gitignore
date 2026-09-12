@@ -118,3 +118,6 @@ artifacts/dl_feedback_evaluation/**/*.h5
 
 # Modelos experimentais locais
 artifacts/dl_feedback_evaluation/model/
+
+# Artefatos experimentais de avaliação de risco
+artifacts/dl_feedback_evaluation/

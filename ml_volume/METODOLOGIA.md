@@ -239,8 +239,7 @@ quando ela compra acerto.
 ### O que descartamos, e por quê
 
 - **LSTM / redes neurais para volume:** ~122 dias de regime pleno. Rede neural com esse volume de
-  dado **decora** (overfit) e não é interpretável. Seria canhão para matar mosca. *(ANN faz
-  sentido na frente de risco — Integrante 3 — onde o problema é outro.)*
+  dado **decora** (overfit) e não é interpretável. Seria canhão para matar mosca.
 - **ARIMA / Prophet como carro-chefe:** são bons em série temporal, mas incorporam com menos
   naturalidade as features externas (exposição de CIs, Black Friday) e entregam menos
   interpretabilidade **por variável**, que é o que a disciplina cobra. Cabem como comparação
@@ -442,7 +441,7 @@ teste. Os números desta seção são menores e **defensáveis**.
 
 ## 12. Ferramentas, arquivos e como rodar
 
-**Stack:** Python 3.14 · pandas (tabelas) · scikit-learn (modelos) · matplotlib (gráficos) ·
+**Stack:** Python 3.12+ · pandas (tabelas) · scikit-learn (modelos) · matplotlib (gráficos) ·
 `holidays` (feriados BR) · pyarrow (parquet) · streamlit (painel).
 
 ```bash

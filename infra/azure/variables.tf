@@ -28,9 +28,8 @@ variable "mysql_admin_password" {
   sensitive   = true
 }
 
-
 variable "container_image_tag" {
   description = "Tag da imagem Docker do Albus Hub publicada no Azure Container Registry."
   type        = string
-  default     = "sprint4-241b81d"
+  default     = "sprint4-risk-v2-20260911"
 }
