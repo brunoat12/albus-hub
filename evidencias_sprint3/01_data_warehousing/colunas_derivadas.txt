@@ -1,0 +1,145 @@
+ALBUS-HUB - CHALLENGE LOCAWEB 2026
+SPRINT 3
+DATA WAREHOUSING & ADVANCED DATA INTEGRATION
+
+AZURE DATA FACTORY
+Data Flow: df_locaweb_transform
+Transformação: deriveBusinessColumns
+
+
+============================================================
+1. COLUNAS DERIVADAS
+============================================================
+
+1.1 incident_id
+
+Expressão ADF:
+incident_id = {Número}
+
+Descrição:
+Cria um identificador técnico padronizado para o incidente a partir
+da coluna original "Número". Essa coluna é utilizada nas etapas
+posteriores do fluxo para facilitar a manipulação e persistência
+dos registros.
+
+
+------------------------------------------------------------
+
+1.2 priority_code
+
+Expressão ADF:
+priority_code = left(Prioridade, 1)
+
+Descrição:
+Extrai o primeiro caractere da coluna "Prioridade", permitindo
+obter de forma padronizada o código associado à prioridade do
+incidente.
+
+Exemplo:
+"2 - Alta" -> "2"
+
+
+------------------------------------------------------------
+
+1.3 is_monitoring
+
+Expressão ADF:
+is_monitoring = lower(trim({Aberto por})) == 'monitoramento'
+
+Descrição:
+Cria uma variável booleana que identifica se o incidente foi aberto
+pelo processo de monitoramento. A função trim() remove espaços
+adicionais e lower() padroniza o texto em letras minúsculas antes
+da comparação.
+
+
+------------------------------------------------------------
+
+1.4 is_no_intervention
+
+Expressão ADF:
+is_no_intervention = lower(trim(Status)) == 'sem intervenção'
+
+Descrição:
+Cria uma variável booleana para identificar incidentes classificados
+com o status "sem intervenção". A expressão também realiza
+padronização textual com trim() e lower() antes da comparação.
+
+
+------------------------------------------------------------
+
+1.5 processed_at
+
+Expressão ADF:
+processed_at = currentTimestamp()
+
+Descrição:
+Registra a data e hora em que o registro foi processado pelo
+Mapping Data Flow do Azure Data Factory, permitindo rastreabilidade
+sobre o momento da transformação.
+
+
+============================================================
+2. PADRONIZAÇÃO DAS COLUNAS
+============================================================
+
+Após a transformação deriveBusinessColumns, o fluxo utiliza
+selectMySQLColumns para selecionar e padronizar os nomes das
+colunas utilizadas na persistência.
+
+Mapeamentos realizados:
+
+Número                  -> incident_number
+Grupo designado         -> Grupo_designado
+Item de configuração    -> Item_configuracao
+Duração                 -> Duracao
+Código de fechamento    -> Codigo_de_fechamento
+Descrição resumida      -> Descricao_resumida
+Solução                 -> Solucao
+Aberto por              -> Aberto_por
+Incidente Pai           -> Incidente_Pai
+Entrou para KPI?        -> Entrou_para_KPI
+KPI Violado?            -> KPI_Violado
+
+
+============================================================
+3. FLUXO DE TRANSFORMAÇÃO
+============================================================
+
+sourceRawLocaweb
+        |
+        v
+deriveBusinessColumns
+        |
+        +--------------------------+
+        |                          |
+        v                          v
+selectMySQLColumns          sinkTrustedLocaweb
+        |
+        v
+    sinkMySQL
+
+
+============================================================
+4. DESTINOS
+============================================================
+
+sinkTrustedLocaweb:
+Recebe os dados após a criação das colunas derivadas e realiza
+a persistência dos dados transformados na camada Trusted.
+
+sinkMySQL:
+Recebe os dados após a seleção e padronização das colunas por
+selectMySQLColumns e realiza sua persistência no banco de dados
+MySQL utilizado pela solução Albus-Hub.
+
+
+============================================================
+5. OBJETIVO DAS TRANSFORMAÇÕES
+============================================================
+
+As transformações aplicadas no Azure Data Factory realizam
+padronização, limpeza e enriquecimento dos dados de incidentes
+antes de sua persistência. As colunas derivadas adicionam
+informações técnicas e de negócio relevantes para as etapas
+analíticas posteriores da solução AIOps Albus-Hub.

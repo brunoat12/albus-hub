@@ -17,6 +17,8 @@ BREAKDOWN_DIMENSIONS = [
     "product",
     "category",
     "configuration_item",
+    "critical_group",
+    "parent_incident_id",
 ]
 
 REQUIRED_COLUMNS = [
@@ -27,6 +29,7 @@ REQUIRED_COLUMNS = [
     "product",
     "category",
     "configuration_item",
+    "parent_incident_id",
     "entered_kpi_source",
     "kpi_breached_source",
     "opened_by",
@@ -91,6 +94,24 @@ def _prepare_base(frame: pd.DataFrame) -> pd.DataFrame:
     base["_monitoring"] = base["opened_by"].astype("string").eq("Monitoramento").fillna(False)
 
     base["_no_intervention"] = base["status"].astype("string").eq("Sem Intervenção").fillna(False)
+
+    product = base["product"].astype("string").str.strip()
+    product = product.mask(
+        product.isna() | product.eq(""),
+        MISSING_DIMENSION_VALUE,
+    )
+
+    category = base["category"].astype("string").str.strip()
+    category = category.mask(
+        category.isna() | category.eq(""),
+        MISSING_DIMENSION_VALUE,
+    )
+
+    priority = base["priority_code"].map(
+        lambda value: f"P{int(value)}" if pd.notna(value) else MISSING_DIMENSION_VALUE
+    )
+
+    base["critical_group"] = product + " | " + category + " | " + priority
 
     return base
 

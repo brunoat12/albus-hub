@@ -15,13 +15,20 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync \
     --locked \
     --no-dev \
-    --no-install-project
+    --no-install-package tensorflow \
+    --no-install-project \
+    && rm -rf /root/.cache/uv
 
 COPY src ./src
+COPY .streamlit ./.streamlit
+
+RUN mkdir -p /app/data/gold
+
 
 RUN uv sync \
     --locked \
-    --no-dev
+    --no-dev \
+    --no-install-package tensorflow
 
 EXPOSE 8501
 

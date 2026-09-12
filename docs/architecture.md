@@ -6,161 +6,193 @@ O Albus-Hub é uma solução de AIOps voltada à análise operacional de
 incidentes, previsão de volume e avaliação de risco de violação de
 indicadores operacionais.
 
-A implementação da Sprint 3 utiliza Azure como plataforma cloud principal,
-mantendo os componentes da aplicação desacoplados da infraestrutura por
-meio de Python e Docker.
+A implementação consolidada da Sprint 4 utiliza Azure como plataforma cloud
+principal, com componentes de ingestão, processamento, modelagem,
+persistência, visualização e observabilidade.
 
 ## Arquitetura implementada
 
 ```text
-Fonte de incidentes
-        |
-        v
-Azure Data Factory
-        |
-        +----------------------+
-        |                      |
-        v                      v
-Azure Data Lake Gen2     Azure Database for MySQL
-raw/trusted/gold         incidents_trusted
-        |                      |
-        +----------+-----------+
-                   |
-                   v
-             Python / Airflow
-                   |
-          +--------+---------+
-          |                  |
-          v                  v
-   Dados operacionais   Contratos de modelos
-          |                  |
-          +--------+---------+
-                   |
-                   v
-               Streamlit
-                   |
-                Docker
-                   |
-                   v
-       Azure Container Registry
-                   |
-                   v
-      Azure Container Instances
-                   |
-          +--------+---------+
-          |                  |
-          v                  v
- Azure Monitor /        Application Insights
- Log Analytics          OpenTelemetry
+Fonte histórica de incidentes
+            |
+            v
+    Azure Data Factory
+            |
+            v
+Azure Data Lake Storage Gen2
+ Raw / Trusted / Gold / Models
+            |
+            v
+       Apache Airflow
+Orquestração de modelagem e inferência
+       /              \
+      v                v
+Previsão de        Risco Operacional
+Volume D+1/D+7     Regressão Logística
+      |                |
+      v                v
+Previsões          Probabilidade calibrada
+                   Índice preditivo
+                   Risk Score 0-100
+      \                /
+       \              /
+            v
+Azure Database for MySQL
+            |
+       +----+----+
+       |         |
+       v         v
+   Streamlit   Power BI
+       |
+       v
+ Operações / Gestor
 
-```
-
-## Camada de dados
-
-### Raw
+ Camada de dados
+Raw
 
 Mantém os arquivos recebidos sem transformação funcional.
 
-### Trusted / Silver
+Trusted
 
 Contém os registros padronizados e enriquecidos utilizados pelas etapas
 posteriores da solução.
 
-### Gold
+Gold
 
 Contém estruturas agregadas voltadas ao consumo analítico e aos modelos,
-incluindo volume diário de incidentes e cortes operacionais.
+incluindo volume diário de incidentes, cortes operacionais e features
+derivadas.
 
-Os contratos completos estão documentados em:
+Models
 
-`docs/data_contracts.md`
+Mantém artefatos versionados utilizados pelos pipelines de inferência.
 
-## Orquestração
+Orquestração
 
-O Azure Data Factory é utilizado como orquestrador central do fluxo de
-Data Warehousing requerido na Sprint 3.
+O Azure Data Factory é responsável pela ingestão e transformação dos dados.
 
-O Airflow é utilizado pela solução para pipelines de processamento,
-validação, geração da camada Gold, backup e recuperação.
+O Apache Airflow é utilizado para orquestrar os pipelines de modelagem e
+inferência da Sprint 4:
 
-## Persistência
+treinamento dos modelos de previsão de volume;
+inferência D+1 e D+7;
+treinamento do modelo de risco;
+inferência do risco operacional;
+publicação dos resultados no Azure Data Lake e Azure MySQL.
+Persistência
 
-A solução utiliza dois destinos principais para os dados processados:
+A solução utiliza:
 
-- Azure Data Lake Storage Gen2;
-- Azure Database for MySQL Flexible Server.
+Azure Data Lake Storage Gen2;
+Azure Database for MySQL Flexible Server.
 
-A camada de exports também mantém saídas TXT exigidas pela Sprint 3.
+O Azure Data Lake mantém dados analíticos e artefatos versionados.
 
-## Aplicação
+O Azure MySQL mantém os dados utilizados pela aplicação operacional.
 
-O dashboard é desenvolvido em Streamlit e empacotado como imagem Docker.
+Componentes analíticos
+Previsão de volume
 
-A imagem é armazenada no Azure Container Registry e executada em Azure
-Container Instances.
+A solução produz previsões para:
 
-A aplicação possui healthcheck e pode ser publicada temporariamente para
-validação e demonstração.
+D+1;
+D+7;
+ALL;
+P1;
+P2;
+P3;
+P4;
+P5.
 
-## Observabilidade
+Versão operacional:
 
-A solução utiliza duas frentes complementares.
+volume_v3.2_2026-08-21
 
-### Azure Monitor / Log Analytics
+Os resultados incluem quantidade prevista e intervalo de previsão.
 
-Recebe eventos operacionais do Azure Container Instance, permitindo
-acompanhar criação, download da imagem e inicialização do container.
+Risco operacional
 
-### Application Insights
+O modelo utilizado para risco operacional é uma regressão logística calibrada.
 
-A aplicação Python utiliza Azure Monitor OpenTelemetry para envio de
-telemetria da aplicação.
+Versão operacional:
 
-O serviço é identificado como:
+risk-logistic-v2-20260910
 
-`albus-hub`
+O fluxo operacional é:
 
-## Componentes com contrato pronto e integração pendente
+Features operacionais e históricas
+            |
+            v
+Regressão logística calibrada
+            |
+            v
+Probabilidade de violação
+            |
+            v
+Índice preditivo histórico
+            |
+            v
+Risk Score 0-100
 
-Alguns componentes dependem da conclusão dos artefatos de modelagem das
-demais frentes do projeto.
+O Risk Score combina:
 
-### Previsão de volume
+80% índice preditivo
+15% impacto da prioridade
+5% pressão operacional
 
-Contrato preparado para previsões:
+Faixas:
 
-- D+1;
-- D+7;
-- ALL;
-- P2;
-- P3.
+0-39   Baixo
+40-59  Moderado
+60-79  Alto
+80-100 Crítico
 
-### Risco operacional
+A probabilidade de violação é mantida separadamente do Risk Score.
 
-Contrato preparado para:
+O Risk Score é um índice operacional de priorização, e não uma probabilidade.
 
-- probabilidade de violação;
-- score operacional de 0 a 100;
-- classificação de nível de risco;
-- principais fatores;
-- ação recomendada.
+O cálculo ocorre após a triagem inicial, quando atributos operacionais como
+grupo responsável, produto e categoria podem estar disponíveis.
 
-### RabbitMQ
+O modelo não utiliza informações futuras de resolução, fechamento ou duração
+do mesmo incidente.
 
-O RabbitMQ faz parte da arquitetura de integração para publicação de
-eventos críticos.
+Aplicação
 
-Quando a integração do modelo de risco estiver concluída, previsões
-classificadas como críticas poderão gerar eventos para consumo pelo
-serviço de alertas.
+O dashboard operacional é desenvolvido em Streamlit.
 
-Esse componente não é apresentado como deploy Azure concluído nesta etapa.
+A aplicação apresenta:
 
-## Portabilidade
+previsões D+1 e D+7;
+indicadores operacionais;
+risco por incidente;
+probabilidade de violação;
+Risk Score;
+classificação de risco;
+fila priorizada;
+recomendações operacionais.
+
+A aplicação é empacotada em Docker, armazenada no Azure Container Registry
+e executada em Azure Container Instances.
+
+Power BI
+
+O Power BI é utilizado como camada analítica complementar para:
+
+análise histórica;
+agrupamentos;
+tendências;
+filtros exploratórios;
+acompanhamento visual de indicadores.
+Observabilidade
+
+A solução utiliza:
+
+Azure Monitor;
+Log Analytics;
+Application Insights;
+OpenTelemetry.
+Portabilidade
 
 A aplicação é empacotada em Docker e suas principais configurações são
 fornecidas por variáveis de ambiente.
-
-Essa abordagem reduz o acoplamento entre aplicação e provedor de cloud e
-permite execução local ou em outra infraestrutura compatível com
-containers.

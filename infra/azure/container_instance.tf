@@ -18,7 +18,7 @@ resource "azurerm_container_group" "app" {
 
   container {
     name  = "albus-hub"
-    image = "${azurerm_container_registry.app.login_server}/albus-hub:sprint3-appinsights"
+    image = "${azurerm_container_registry.app.login_server}/albus-hub:${var.container_image_tag}"
 
     cpu    = 1
     memory = 2
@@ -32,11 +32,16 @@ resource "azurerm_container_group" "app" {
       APP_ENV           = "azure"
       CLOUD_PROVIDER    = "azure"
       OTEL_SERVICE_NAME = "albus-hub"
+      MYSQL_HOST        = azurerm_mysql_flexible_server.main.fqdn
+      MYSQL_PORT        = "3306"
+      MYSQL_USER        = var.mysql_admin_username
+      MYSQL_DB          = azurerm_mysql_flexible_database.main.name
     }
 
 
     secure_environment_variables = {
       APPLICATIONINSIGHTS_CONNECTION_STRING = azurerm_application_insights.main.connection_string
+      MYSQL_PASSWORD                        = var.mysql_admin_password
     }
   }
 

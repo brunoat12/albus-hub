@@ -13,12 +13,15 @@ from albus_hub.integration.volume_predictions import (
 def build_valid_prediction_frame() -> pd.DataFrame:
     return pd.DataFrame(
         {
-            "reference_date": ["2026-08-09"],
-            "generated_at": ["2026-08-09T12:00:00"],
+            "reference_date": ["2026-01-01"],
+            "generated_at": ["2026-08-30T12:00:00"],
             "horizon": ["D+1"],
-            "priority_scope": ["P2"],
-            "predicted_incident_count": [145.3],
-            "model_version": ["volume-model-v1"],
+            "priority_scope": ["P4"],
+            "predicted_incident_count": [367.0],
+            "lower_bound": [300.25],
+            "upper_bound": [433.75],
+            "model_name": ["ultimo"],
+            "model_version": ["volume_v3.2_2026-08-21"],
         }
     )
 
@@ -35,13 +38,17 @@ def test_valid_volume_prediction_contract() -> None:
             0,
             "priority_scope",
         ]
-        == "P2"
+        == "P4"
     )
 
 
 def test_invalid_horizon_fails() -> None:
     frame = build_valid_prediction_frame()
-    frame.loc[0, "horizon"] = "D+30"
+
+    frame.loc[
+        0,
+        "horizon",
+    ] = "D+30"
 
     with pytest.raises(
         VolumePredictionContractError,
@@ -52,10 +59,11 @@ def test_invalid_horizon_fails() -> None:
 
 def test_invalid_priority_scope_fails() -> None:
     frame = build_valid_prediction_frame()
+
     frame.loc[
         0,
         "priority_scope",
-    ] = "P4"
+    ] = "P6"
 
     with pytest.raises(
         VolumePredictionContractError,
@@ -66,6 +74,7 @@ def test_invalid_priority_scope_fails() -> None:
 
 def test_negative_prediction_fails() -> None:
     frame = build_valid_prediction_frame()
+
     frame.loc[
         0,
         "predicted_incident_count",
@@ -74,6 +83,36 @@ def test_negative_prediction_fails() -> None:
     with pytest.raises(
         VolumePredictionContractError,
         match="não negativo",
+    ):
+        validate_volume_predictions(frame)
+
+
+def test_invalid_interval_fails() -> None:
+    frame = build_valid_prediction_frame()
+
+    frame.loc[
+        0,
+        "lower_bound",
+    ] = 400
+
+    with pytest.raises(
+        VolumePredictionContractError,
+        match="Intervalo inválido",
+    ):
+        validate_volume_predictions(frame)
+
+
+def test_missing_model_name_fails() -> None:
+    frame = build_valid_prediction_frame()
+
+    frame.loc[
+        0,
+        "model_name",
+    ] = ""
+
+    with pytest.raises(
+        VolumePredictionContractError,
+        match="model_name",
     ):
         validate_volume_predictions(frame)
 

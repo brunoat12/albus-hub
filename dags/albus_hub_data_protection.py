@@ -75,7 +75,10 @@ def run_project_script(
     description=(
         "Pipeline de ingestão, validação, carga analítica e proteção de dados do projeto Albus-Hub."
     ),
-    schedule=None,
+    schedule=os.environ.get(
+        "ALBUS_DATA_PIPELINE_SCHEDULE",
+        "0 3 * * *",
+    ),
     start_date=pendulum.datetime(
         2026,
         8,
@@ -156,6 +159,76 @@ def albus_hub_data_protection():
         }
 
     @task(
+        task_id="publish_analytics_gold",
+        retries=1,
+    )
+    def publish_analytics_gold(
+        gold_validation: dict,
+    ) -> dict:
+        """Publica o Gold analítico oficial no ADLS."""
+
+        if gold_validation.get("validation") != "passed":
+            raise ValueError("Gold não validado para publicação.")
+
+        return run_project_script("scripts/gold/publish_analytics_gold.py")
+
+    @task(
+        task_id="refresh_dashboard_serving",
+        retries=1,
+    )
+    def refresh_dashboard_serving(
+        publish_report: dict,
+    ) -> dict:
+        """Atualiza as tabelas serving utilizadas pelo Streamlit."""
+
+        if publish_report.get("status") != "success":
+            raise ValueError("Gold analítico não foi publicado.")
+
+        return run_project_script("scripts/serving/refresh_dashboard_serving.py")
+
+    @task(
+        task_id="build_dimensional_model",
+        retries=1,
+    )
+    def build_dimensional_model(
+        gold_validation: dict,
+    ) -> dict:
+        """Reconstrói FATO e DIMs a partir da Silver validada."""
+
+        if gold_validation.get("validation") != "passed":
+            raise ValueError("Gold não validado para construção do DW.")
+
+        return run_project_script("scripts/dw/build_dimensional_model.py")
+
+    @task(
+        task_id="publish_dimensional_model",
+        retries=1,
+    )
+    def publish_dimensional_model(
+        build_report: dict,
+    ) -> dict:
+        """Publica FATO e DIMs em gold/dw no ADLS."""
+
+        if build_report.get("status") != "success":
+            raise ValueError("Modelo dimensional não foi gerado.")
+
+        return run_project_script("scripts/dw/publish_dimensional_model.py")
+
+    @task(
+        task_id="refresh_dimensional_dw",
+        retries=0,
+    )
+    def refresh_dimensional_dw(
+        publish_report: dict,
+    ) -> dict:
+        """Atualiza o Star Schema no Azure MySQL via ADF."""
+
+        if publish_report.get("status") != "success":
+            raise ValueError("Modelo dimensional não foi publicado.")
+
+        return run_project_script("scripts/dw/refresh_dimensional_dw.py")
+
+    @task(
         task_id="backup_data",
         retries=1,
     )
@@ -182,12 +255,22 @@ def albus_hub_data_protection():
     )
     def pipeline_complete(
         backup_report: dict,
+        serving_report: dict,
+        dimensional_report: dict,
     ) -> None:
-        """Marca a conclusão lógica do pipeline."""
-        if backup_report.get("status") != "success":
-            raise ValueError("O backup não foi concluído.")
+        """Confirma a conclusão integral do pipeline diário."""
 
-        print("Pipeline Albus-Hub concluído com sucesso.")
+        reports = {
+            "backup": backup_report,
+            "serving": serving_report,
+            "dimensional": dimensional_report,
+        }
+
+        for name, report in reports.items():
+            if report.get("status") != "success":
+                raise ValueError(f"Etapa {name} não terminou com sucesso.")
+
+        print("Pipeline diário Albus-Hub concluído com sucesso.")
 
     ingestion = extract_transform_locaweb()
 
@@ -197,9 +280,23 @@ def albus_hub_data_protection():
 
     gold_ok = validate_gold(gold)
 
+    analytics_publish = publish_analytics_gold(gold_ok)
+
+    serving_refresh = refresh_dashboard_serving(analytics_publish)
+
+    dimensional_build = build_dimensional_model(gold_ok)
+
+    dimensional_publish = publish_dimensional_model(dimensional_build)
+
+    dimensional_refresh = refresh_dimensional_dw(dimensional_publish)
+
     backup_ok = backup_data(gold_ok)
 
-    pipeline_complete(backup_ok)
+    pipeline_complete(
+        backup_ok,
+        serving_refresh,
+        dimensional_refresh,
+    )
 
 
 albus_hub_data_protection()

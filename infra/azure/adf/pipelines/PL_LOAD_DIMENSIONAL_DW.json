@@ -1,0 +1,1149 @@
+{
+  "activities": [
+    {
+      "additionalProperties": null,
+      "dataIntegrationUnits": null,
+      "dependsOn": [],
+      "description": null,
+      "enableSkipIncompatibleRow": null,
+      "enableStaging": false,
+      "inputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_DW_DIM_PRIORIDADE_PARQUET",
+          "type": "DatasetReference"
+        }
+      ],
+      "linkedServiceName": null,
+      "logSettings": null,
+      "logStorageSettings": null,
+      "name": "Copy_DIM_PRIORIDADE",
+      "onInactiveMarkAs": null,
+      "outputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_MYSQL_DIM_PRIORIDADE",
+          "type": "DatasetReference"
+        }
+      ],
+      "parallelCopies": null,
+      "policy": {
+        "additionalProperties": null,
+        "retry": 0,
+        "retryIntervalInSeconds": 30,
+        "secureInput": false,
+        "secureOutput": false,
+        "timeout": "0.12:00:00"
+      },
+      "preserve": null,
+      "preserveRules": null,
+      "redirectIncompatibleRowSettings": null,
+      "sink": {
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "maxConcurrentConnections": null,
+        "preCopyScript": null,
+        "sinkRetryCount": null,
+        "sinkRetryWait": null,
+        "type": "AzureMySqlSink",
+        "writeBatchSize": 10000,
+        "writeBatchTimeout": "00:00:30"
+      },
+      "skipErrorFile": null,
+      "source": {
+        "additionalColumns": null,
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "formatSettings": {
+          "additionalProperties": null,
+          "compressionProperties": null,
+          "type": "ParquetReadSettings"
+        },
+        "maxConcurrentConnections": null,
+        "sourceRetryCount": null,
+        "sourceRetryWait": null,
+        "storeSettings": {
+          "additionalProperties": null,
+          "deleteFilesAfterCompletion": null,
+          "disableMetricsCollection": null,
+          "enablePartitionDiscovery": false,
+          "fileListPath": null,
+          "maxConcurrentConnections": null,
+          "modifiedDatetimeEnd": null,
+          "modifiedDatetimeStart": null,
+          "partitionRootPath": null,
+          "recursive": true,
+          "type": "AzureBlobFSReadSettings",
+          "wildcardFileName": null,
+          "wildcardFolderPath": null
+        },
+        "type": "ParquetSource"
+      },
+      "stagingSettings": null,
+      "state": null,
+      "translator": {
+        "mappings": [
+          {
+            "sink": {
+              "name": "sk_prioridade",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_prioridade",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "priority_code",
+              "physicalType": "tinyint",
+              "type": "SByte"
+            },
+            "source": {
+              "name": "priority_code",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "priority_label",
+              "physicalType": "varchar",
+              "type": "String"
+            },
+            "source": {
+              "name": "priority_label",
+              "physicalType": "UTF8",
+              "type": "String"
+            }
+          }
+        ],
+        "type": "TabularTranslator",
+        "typeConversion": true,
+        "typeConversionSettings": {
+          "allowDataTruncation": true,
+          "treatBooleanAsNumber": false
+        }
+      },
+      "type": "Copy",
+      "userProperties": [],
+      "validateDataConsistency": null
+    },
+    {
+      "additionalProperties": null,
+      "dataIntegrationUnits": null,
+      "dependsOn": [],
+      "description": null,
+      "enableSkipIncompatibleRow": null,
+      "enableStaging": false,
+      "inputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_DW_DIM_TEMPO_PARQUET",
+          "type": "DatasetReference"
+        }
+      ],
+      "linkedServiceName": null,
+      "logSettings": null,
+      "logStorageSettings": null,
+      "name": "Copy_DIM_TEMPO",
+      "onInactiveMarkAs": null,
+      "outputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_MYSQL_DIM_TEMPO",
+          "type": "DatasetReference"
+        }
+      ],
+      "parallelCopies": null,
+      "policy": {
+        "additionalProperties": null,
+        "retry": 0,
+        "retryIntervalInSeconds": 30,
+        "secureInput": false,
+        "secureOutput": false,
+        "timeout": "0.12:00:00"
+      },
+      "preserve": null,
+      "preserveRules": null,
+      "redirectIncompatibleRowSettings": null,
+      "sink": {
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "maxConcurrentConnections": null,
+        "preCopyScript": null,
+        "sinkRetryCount": null,
+        "sinkRetryWait": null,
+        "type": "AzureMySqlSink",
+        "writeBatchSize": 10000,
+        "writeBatchTimeout": "00:00:30"
+      },
+      "skipErrorFile": null,
+      "source": {
+        "additionalColumns": null,
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "formatSettings": {
+          "additionalProperties": null,
+          "compressionProperties": null,
+          "type": "ParquetReadSettings"
+        },
+        "maxConcurrentConnections": null,
+        "sourceRetryCount": null,
+        "sourceRetryWait": null,
+        "storeSettings": {
+          "additionalProperties": null,
+          "deleteFilesAfterCompletion": null,
+          "disableMetricsCollection": null,
+          "enablePartitionDiscovery": false,
+          "fileListPath": null,
+          "maxConcurrentConnections": null,
+          "modifiedDatetimeEnd": null,
+          "modifiedDatetimeStart": null,
+          "partitionRootPath": null,
+          "recursive": true,
+          "type": "AzureBlobFSReadSettings",
+          "wildcardFileName": null,
+          "wildcardFolderPath": null
+        },
+        "type": "ParquetSource"
+      },
+      "stagingSettings": null,
+      "state": null,
+      "translator": {
+        "mappings": [
+          {
+            "sink": {
+              "name": "sk_tempo",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_tempo",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "data",
+              "physicalType": "date",
+              "type": "DateTime"
+            },
+            "source": {
+              "name": "data",
+              "physicalType": "UTF8",
+              "type": "String"
+            }
+          },
+          {
+            "sink": {
+              "name": "ano",
+              "physicalType": "smallint",
+              "type": "Int16"
+            },
+            "source": {
+              "name": "ano",
+              "physicalType": "INT32",
+              "type": "Int32"
+            }
+          },
+          {
+            "sink": {
+              "name": "mes",
+              "physicalType": "tinyint",
+              "type": "SByte"
+            },
+            "source": {
+              "name": "mes",
+              "physicalType": "INT32",
+              "type": "Int32"
+            }
+          },
+          {
+            "sink": {
+              "name": "dia",
+              "physicalType": "tinyint",
+              "type": "SByte"
+            },
+            "source": {
+              "name": "dia",
+              "physicalType": "INT32",
+              "type": "Int32"
+            }
+          },
+          {
+            "sink": {
+              "name": "dia_semana",
+              "physicalType": "tinyint",
+              "type": "SByte"
+            },
+            "source": {
+              "name": "dia_semana",
+              "physicalType": "INT32",
+              "type": "Int32"
+            }
+          },
+          {
+            "sink": {
+              "name": "semana_ano",
+              "physicalType": "tinyint",
+              "type": "SByte"
+            },
+            "source": {
+              "name": "semana_ano",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "trimestre",
+              "physicalType": "tinyint",
+              "type": "SByte"
+            },
+            "source": {
+              "name": "trimestre",
+              "physicalType": "INT32",
+              "type": "Int32"
+            }
+          },
+          {
+            "sink": {
+              "name": "fim_semana",
+              "physicalType": "tinyint",
+              "type": "Boolean"
+            },
+            "source": {
+              "name": "fim_semana",
+              "physicalType": "BOOLEAN",
+              "type": "Boolean"
+            }
+          }
+        ],
+        "type": "TabularTranslator",
+        "typeConversion": true,
+        "typeConversionSettings": {
+          "allowDataTruncation": true,
+          "treatBooleanAsNumber": false
+        }
+      },
+      "type": "Copy",
+      "userProperties": [],
+      "validateDataConsistency": null
+    },
+    {
+      "additionalProperties": null,
+      "dataIntegrationUnits": null,
+      "dependsOn": [],
+      "description": null,
+      "enableSkipIncompatibleRow": null,
+      "enableStaging": false,
+      "inputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_DW_DIM_PRODUTO_PARQUET",
+          "type": "DatasetReference"
+        }
+      ],
+      "linkedServiceName": null,
+      "logSettings": null,
+      "logStorageSettings": null,
+      "name": "Copy_DIM_PRODUTO",
+      "onInactiveMarkAs": null,
+      "outputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_MYSQL_DIM_PRODUTO",
+          "type": "DatasetReference"
+        }
+      ],
+      "parallelCopies": null,
+      "policy": {
+        "additionalProperties": null,
+        "retry": 0,
+        "retryIntervalInSeconds": 30,
+        "secureInput": false,
+        "secureOutput": false,
+        "timeout": "0.12:00:00"
+      },
+      "preserve": null,
+      "preserveRules": null,
+      "redirectIncompatibleRowSettings": null,
+      "sink": {
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "maxConcurrentConnections": null,
+        "preCopyScript": null,
+        "sinkRetryCount": null,
+        "sinkRetryWait": null,
+        "type": "AzureMySqlSink",
+        "writeBatchSize": 10000,
+        "writeBatchTimeout": "00:00:30"
+      },
+      "skipErrorFile": null,
+      "source": {
+        "additionalColumns": null,
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "formatSettings": {
+          "additionalProperties": null,
+          "compressionProperties": null,
+          "type": "ParquetReadSettings"
+        },
+        "maxConcurrentConnections": null,
+        "sourceRetryCount": null,
+        "sourceRetryWait": null,
+        "storeSettings": {
+          "additionalProperties": null,
+          "deleteFilesAfterCompletion": null,
+          "disableMetricsCollection": null,
+          "enablePartitionDiscovery": false,
+          "fileListPath": null,
+          "maxConcurrentConnections": null,
+          "modifiedDatetimeEnd": null,
+          "modifiedDatetimeStart": null,
+          "partitionRootPath": null,
+          "recursive": true,
+          "type": "AzureBlobFSReadSettings",
+          "wildcardFileName": null,
+          "wildcardFolderPath": null
+        },
+        "type": "ParquetSource"
+      },
+      "stagingSettings": null,
+      "state": null,
+      "translator": {
+        "mappings": [
+          {
+            "sink": {
+              "name": "sk_produto",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_produto",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "produto",
+              "physicalType": "varchar",
+              "type": "String"
+            },
+            "source": {
+              "name": "produto",
+              "physicalType": "UTF8",
+              "type": "String"
+            }
+          }
+        ],
+        "type": "TabularTranslator",
+        "typeConversion": true,
+        "typeConversionSettings": {
+          "allowDataTruncation": true,
+          "treatBooleanAsNumber": false
+        }
+      },
+      "type": "Copy",
+      "userProperties": [],
+      "validateDataConsistency": null
+    },
+    {
+      "additionalProperties": null,
+      "dataIntegrationUnits": null,
+      "dependsOn": [],
+      "description": null,
+      "enableSkipIncompatibleRow": null,
+      "enableStaging": false,
+      "inputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_DW_DIM_CATEGORIA_PARQUET",
+          "type": "DatasetReference"
+        }
+      ],
+      "linkedServiceName": null,
+      "logSettings": null,
+      "logStorageSettings": null,
+      "name": "Copy_DIM_CATEGORIA",
+      "onInactiveMarkAs": null,
+      "outputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_MYSQL_DIM_CATEGORIA",
+          "type": "DatasetReference"
+        }
+      ],
+      "parallelCopies": null,
+      "policy": {
+        "additionalProperties": null,
+        "retry": 0,
+        "retryIntervalInSeconds": 30,
+        "secureInput": false,
+        "secureOutput": false,
+        "timeout": "0.12:00:00"
+      },
+      "preserve": null,
+      "preserveRules": null,
+      "redirectIncompatibleRowSettings": null,
+      "sink": {
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "maxConcurrentConnections": null,
+        "preCopyScript": null,
+        "sinkRetryCount": null,
+        "sinkRetryWait": null,
+        "type": "AzureMySqlSink",
+        "writeBatchSize": 10000,
+        "writeBatchTimeout": "00:00:30"
+      },
+      "skipErrorFile": null,
+      "source": {
+        "additionalColumns": null,
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "formatSettings": {
+          "additionalProperties": null,
+          "compressionProperties": null,
+          "type": "ParquetReadSettings"
+        },
+        "maxConcurrentConnections": null,
+        "sourceRetryCount": null,
+        "sourceRetryWait": null,
+        "storeSettings": {
+          "additionalProperties": null,
+          "deleteFilesAfterCompletion": null,
+          "disableMetricsCollection": null,
+          "enablePartitionDiscovery": false,
+          "fileListPath": null,
+          "maxConcurrentConnections": null,
+          "modifiedDatetimeEnd": null,
+          "modifiedDatetimeStart": null,
+          "partitionRootPath": null,
+          "recursive": true,
+          "type": "AzureBlobFSReadSettings",
+          "wildcardFileName": null,
+          "wildcardFolderPath": null
+        },
+        "type": "ParquetSource"
+      },
+      "stagingSettings": null,
+      "state": null,
+      "translator": {
+        "mappings": [
+          {
+            "sink": {
+              "name": "sk_categoria",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_categoria",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "categoria",
+              "physicalType": "varchar",
+              "type": "String"
+            },
+            "source": {
+              "name": "categoria",
+              "physicalType": "UTF8",
+              "type": "String"
+            }
+          },
+          {
+            "sink": {
+              "name": "subcategoria",
+              "physicalType": "varchar",
+              "type": "String"
+            },
+            "source": {
+              "name": "subcategoria",
+              "physicalType": "UTF8",
+              "type": "String"
+            }
+          }
+        ],
+        "type": "TabularTranslator",
+        "typeConversion": true,
+        "typeConversionSettings": {
+          "allowDataTruncation": true,
+          "treatBooleanAsNumber": false
+        }
+      },
+      "type": "Copy",
+      "userProperties": [],
+      "validateDataConsistency": null
+    },
+    {
+      "additionalProperties": null,
+      "dataIntegrationUnits": null,
+      "dependsOn": [],
+      "description": null,
+      "enableSkipIncompatibleRow": null,
+      "enableStaging": false,
+      "inputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_DW_DIM_GRUPO_PARQUET",
+          "type": "DatasetReference"
+        }
+      ],
+      "linkedServiceName": null,
+      "logSettings": null,
+      "logStorageSettings": null,
+      "name": "Copy_DIM_GRUPO",
+      "onInactiveMarkAs": null,
+      "outputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_MYSQL_DIM_GRUPO",
+          "type": "DatasetReference"
+        }
+      ],
+      "parallelCopies": null,
+      "policy": {
+        "additionalProperties": null,
+        "retry": 0,
+        "retryIntervalInSeconds": 30,
+        "secureInput": false,
+        "secureOutput": false,
+        "timeout": "0.12:00:00"
+      },
+      "preserve": null,
+      "preserveRules": null,
+      "redirectIncompatibleRowSettings": null,
+      "sink": {
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "maxConcurrentConnections": null,
+        "preCopyScript": null,
+        "sinkRetryCount": null,
+        "sinkRetryWait": null,
+        "type": "AzureMySqlSink",
+        "writeBatchSize": 10000,
+        "writeBatchTimeout": "00:00:30"
+      },
+      "skipErrorFile": null,
+      "source": {
+        "additionalColumns": null,
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "formatSettings": {
+          "additionalProperties": null,
+          "compressionProperties": null,
+          "type": "ParquetReadSettings"
+        },
+        "maxConcurrentConnections": null,
+        "sourceRetryCount": null,
+        "sourceRetryWait": null,
+        "storeSettings": {
+          "additionalProperties": null,
+          "deleteFilesAfterCompletion": null,
+          "disableMetricsCollection": null,
+          "enablePartitionDiscovery": false,
+          "fileListPath": null,
+          "maxConcurrentConnections": null,
+          "modifiedDatetimeEnd": null,
+          "modifiedDatetimeStart": null,
+          "partitionRootPath": null,
+          "recursive": true,
+          "type": "AzureBlobFSReadSettings",
+          "wildcardFileName": null,
+          "wildcardFolderPath": null
+        },
+        "type": "ParquetSource"
+      },
+      "stagingSettings": null,
+      "state": null,
+      "translator": {
+        "mappings": [
+          {
+            "sink": {
+              "name": "sk_grupo",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_grupo",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "grupo",
+              "physicalType": "varchar",
+              "type": "String"
+            },
+            "source": {
+              "name": "grupo",
+              "physicalType": "UTF8",
+              "type": "String"
+            }
+          }
+        ],
+        "type": "TabularTranslator",
+        "typeConversion": true,
+        "typeConversionSettings": {
+          "allowDataTruncation": true,
+          "treatBooleanAsNumber": false
+        }
+      },
+      "type": "Copy",
+      "userProperties": [],
+      "validateDataConsistency": null
+    },
+    {
+      "additionalProperties": null,
+      "dataIntegrationUnits": null,
+      "dependsOn": [],
+      "description": null,
+      "enableSkipIncompatibleRow": null,
+      "enableStaging": false,
+      "inputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_DW_DIM_ITEM_CONFIGURACAO_PARQUET",
+          "type": "DatasetReference"
+        }
+      ],
+      "linkedServiceName": null,
+      "logSettings": null,
+      "logStorageSettings": null,
+      "name": "Copy_DIM_ITEM_CONFIGURACAO",
+      "onInactiveMarkAs": null,
+      "outputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_MYSQL_DIM_ITEM_CONFIGURACAO",
+          "type": "DatasetReference"
+        }
+      ],
+      "parallelCopies": null,
+      "policy": {
+        "additionalProperties": null,
+        "retry": 0,
+        "retryIntervalInSeconds": 30,
+        "secureInput": false,
+        "secureOutput": false,
+        "timeout": "0.12:00:00"
+      },
+      "preserve": null,
+      "preserveRules": null,
+      "redirectIncompatibleRowSettings": null,
+      "sink": {
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "maxConcurrentConnections": null,
+        "preCopyScript": null,
+        "sinkRetryCount": null,
+        "sinkRetryWait": null,
+        "type": "AzureMySqlSink",
+        "writeBatchSize": 10000,
+        "writeBatchTimeout": "00:00:30"
+      },
+      "skipErrorFile": null,
+      "source": {
+        "additionalColumns": null,
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "formatSettings": {
+          "additionalProperties": null,
+          "compressionProperties": null,
+          "type": "ParquetReadSettings"
+        },
+        "maxConcurrentConnections": null,
+        "sourceRetryCount": null,
+        "sourceRetryWait": null,
+        "storeSettings": {
+          "additionalProperties": null,
+          "deleteFilesAfterCompletion": null,
+          "disableMetricsCollection": null,
+          "enablePartitionDiscovery": false,
+          "fileListPath": null,
+          "maxConcurrentConnections": null,
+          "modifiedDatetimeEnd": null,
+          "modifiedDatetimeStart": null,
+          "partitionRootPath": null,
+          "recursive": true,
+          "type": "AzureBlobFSReadSettings",
+          "wildcardFileName": null,
+          "wildcardFolderPath": null
+        },
+        "type": "ParquetSource"
+      },
+      "stagingSettings": null,
+      "state": null,
+      "translator": {
+        "mappings": [
+          {
+            "sink": {
+              "name": "sk_item_configuracao",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_item_configuracao",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "item_configuracao",
+              "physicalType": "varchar",
+              "type": "String"
+            },
+            "source": {
+              "name": "item_configuracao",
+              "physicalType": "UTF8",
+              "type": "String"
+            }
+          }
+        ],
+        "type": "TabularTranslator",
+        "typeConversion": true,
+        "typeConversionSettings": {
+          "allowDataTruncation": true,
+          "treatBooleanAsNumber": false
+        }
+      },
+      "type": "Copy",
+      "userProperties": [],
+      "validateDataConsistency": null
+    },
+    {
+      "additionalProperties": null,
+      "dataIntegrationUnits": null,
+      "dependsOn": [
+        {
+          "activity": "Copy_DIM_TEMPO",
+          "additionalProperties": null,
+          "dependencyConditions": [
+            "Succeeded"
+          ]
+        },
+        {
+          "activity": "Copy_DIM_ITEM_CONFIGURACAO",
+          "additionalProperties": null,
+          "dependencyConditions": [
+            "Succeeded"
+          ]
+        },
+        {
+          "activity": "Copy_DIM_CATEGORIA",
+          "additionalProperties": null,
+          "dependencyConditions": [
+            "Succeeded"
+          ]
+        },
+        {
+          "activity": "Copy_DIM_PRODUTO",
+          "additionalProperties": null,
+          "dependencyConditions": [
+            "Succeeded"
+          ]
+        },
+        {
+          "activity": "Copy_DIM_PRIORIDADE",
+          "additionalProperties": null,
+          "dependencyConditions": [
+            "Succeeded"
+          ]
+        },
+        {
+          "activity": "Copy_DIM_GRUPO",
+          "additionalProperties": null,
+          "dependencyConditions": [
+            "Succeeded"
+          ]
+        }
+      ],
+      "description": null,
+      "enableSkipIncompatibleRow": null,
+      "enableStaging": false,
+      "inputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_DW_FATO_INCIDENTE",
+          "type": "DatasetReference"
+        }
+      ],
+      "linkedServiceName": null,
+      "logSettings": null,
+      "logStorageSettings": null,
+      "name": "Copy_FATO_INCIDENTE",
+      "onInactiveMarkAs": null,
+      "outputs": [
+        {
+          "parameters": {},
+          "referenceName": "DS_MYSQL_FATO_INCIDENTE",
+          "type": "DatasetReference"
+        }
+      ],
+      "parallelCopies": null,
+      "policy": {
+        "additionalProperties": null,
+        "retry": 0,
+        "retryIntervalInSeconds": 30,
+        "secureInput": false,
+        "secureOutput": false,
+        "timeout": "0.12:00:00"
+      },
+      "preserve": null,
+      "preserveRules": null,
+      "redirectIncompatibleRowSettings": null,
+      "sink": {
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "maxConcurrentConnections": null,
+        "preCopyScript": null,
+        "sinkRetryCount": null,
+        "sinkRetryWait": null,
+        "type": "AzureMySqlSink",
+        "writeBatchSize": 10000,
+        "writeBatchTimeout": "00:00:30"
+      },
+      "skipErrorFile": null,
+      "source": {
+        "additionalColumns": null,
+        "additionalProperties": null,
+        "disableMetricsCollection": null,
+        "formatSettings": {
+          "additionalProperties": null,
+          "compressionProperties": null,
+          "type": "ParquetReadSettings"
+        },
+        "maxConcurrentConnections": null,
+        "sourceRetryCount": null,
+        "sourceRetryWait": null,
+        "storeSettings": {
+          "additionalProperties": null,
+          "deleteFilesAfterCompletion": null,
+          "disableMetricsCollection": null,
+          "enablePartitionDiscovery": false,
+          "fileListPath": null,
+          "maxConcurrentConnections": null,
+          "modifiedDatetimeEnd": null,
+          "modifiedDatetimeStart": null,
+          "partitionRootPath": null,
+          "recursive": true,
+          "type": "AzureBlobFSReadSettings",
+          "wildcardFileName": null,
+          "wildcardFolderPath": null
+        },
+        "type": "ParquetSource"
+      },
+      "stagingSettings": null,
+      "state": null,
+      "translator": {
+        "mappings": [
+          {
+            "sink": {
+              "name": "incident_id",
+              "physicalType": "varchar",
+              "type": "String"
+            },
+            "source": {
+              "name": "incident_id",
+              "physicalType": "UTF8",
+              "type": "String"
+            }
+          },
+          {
+            "sink": {
+              "name": "sk_tempo",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_tempo",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "sk_prioridade",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_prioridade",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "sk_produto",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_produto",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "sk_categoria",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_categoria",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "sk_grupo",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_grupo",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "sk_item_configuracao",
+              "physicalType": "int",
+              "type": "Int32"
+            },
+            "source": {
+              "name": "sk_item_configuracao",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "qtd_incidente",
+              "physicalType": "tinyint",
+              "type": "SByte"
+            },
+            "source": {
+              "name": "qtd_incidente",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "duration_seconds",
+              "physicalType": "bigint",
+              "type": "Int64"
+            },
+            "source": {
+              "name": "duration_seconds",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "duration_hours",
+              "physicalType": "decimal",
+              "type": "Decimal"
+            },
+            "source": {
+              "name": "duration_hours",
+              "physicalType": "DOUBLE",
+              "type": "Double"
+            }
+          },
+          {
+            "sink": {
+              "name": "entered_kpi",
+              "physicalType": "tinyint",
+              "type": "Boolean"
+            },
+            "source": {
+              "name": "entered_kpi",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "kpi_breached",
+              "physicalType": "tinyint",
+              "type": "Boolean"
+            },
+            "source": {
+              "name": "kpi_breached",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          },
+          {
+            "sink": {
+              "name": "is_monitoring_opened",
+              "physicalType": "tinyint",
+              "type": "Boolean"
+            },
+            "source": {
+              "name": "is_monitoring_opened",
+              "physicalType": "BOOLEAN",
+              "type": "Boolean"
+            }
+          },
+          {
+            "sink": {
+              "name": "is_no_intervention",
+              "physicalType": "tinyint",
+              "type": "Boolean"
+            },
+            "source": {
+              "name": "is_no_intervention",
+              "physicalType": "BOOLEAN",
+              "type": "Boolean"
+            }
+          },
+          {
+            "sink": {
+              "name": "opened_hour",
+              "physicalType": "tinyint",
+              "type": "SByte"
+            },
+            "source": {
+              "name": "opened_hour",
+              "physicalType": "INT64",
+              "type": "Int64"
+            }
+          }
+        ],
+        "type": "TabularTranslator",
+        "typeConversion": true,
+        "typeConversionSettings": {
+          "allowDataTruncation": true,
+          "treatBooleanAsNumber": true
+        }
+      },
+      "type": "Copy",
+      "userProperties": [],
+      "validateDataConsistency": null
+    }
+  ],
+  "annotations": [],
+  "description": null,
+  "folder": null,
+  "parameters": null,
+  "variables": null
+}

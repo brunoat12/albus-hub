@@ -1,24 +1,31 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import (
     Column,
+    Date,
     DateTime,
     Engine,
+    Index,
     Integer,
     MetaData,
+    Numeric,
     String,
     Table,
+    Text,
     create_engine,
+    delete,
+    func,
     insert,
     select,
     text,
 )
+from sqlalchemy.dialects.mysql import insert as mysql_insert
 from sqlalchemy.engine import URL
 
 from albus_hub.config.settings import Settings
@@ -34,6 +41,222 @@ app_runs_table = Table(
     Column("action", String(64), nullable=False),
     Column("processed_records", Integer, nullable=False, default=0),
     Column("created_at", DateTime(timezone=True), nullable=False),
+)
+
+ml_volume_predictions_current_table = Table(
+    "ml_volume_predictions_current",
+    metadata,
+    Column(
+        "priority_scope",
+        String(16),
+        primary_key=True,
+    ),
+    Column(
+        "horizon",
+        String(8),
+        primary_key=True,
+    ),
+    Column(
+        "reference_date",
+        DateTime(),
+        nullable=False,
+    ),
+    Column(
+        "predicted_incident_count",
+        Numeric(12, 2),
+        nullable=False,
+    ),
+    Column(
+        "lower_bound",
+        Numeric(12, 2),
+        nullable=True,
+    ),
+    Column(
+        "upper_bound",
+        Numeric(12, 2),
+        nullable=True,
+    ),
+    Column(
+        "model_name",
+        String(64),
+        nullable=True,
+    ),
+    Column(
+        "generated_at",
+        DateTime(),
+        nullable=False,
+    ),
+    Column(
+        "model_version",
+        String(128),
+        nullable=False,
+    ),
+    Column(
+        "updated_at",
+        DateTime(),
+        nullable=False,
+    ),
+)
+
+dl_risk_scores_current_table = Table(
+    "dl_risk_scores_current",
+    metadata,
+    Column(
+        "incident_id",
+        String(64),
+        primary_key=True,
+    ),
+    Column(
+        "scored_at",
+        DateTime(),
+        nullable=False,
+    ),
+    Column(
+        "model_version",
+        String(128),
+        nullable=False,
+    ),
+    Column(
+        "breach_probability",
+        Numeric(10, 8),
+        nullable=False,
+    ),
+    Column(
+        "predictive_risk_index",
+        Numeric(10, 8),
+        nullable=False,
+    ),
+    Column(
+        "priority_impact",
+        Numeric(5, 4),
+        nullable=False,
+    ),
+    Column(
+        "operational_pressure",
+        Numeric(5, 4),
+        nullable=False,
+    ),
+    Column(
+        "risk_score",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "risk_level",
+        String(16),
+        nullable=False,
+    ),
+    Column(
+        "top_risk_factors",
+        Text,
+        nullable=False,
+    ),
+    Column(
+        "recommended_action",
+        String(512),
+        nullable=False,
+    ),
+    Column(
+        "updated_at",
+        DateTime(),
+        nullable=False,
+    ),
+)
+
+
+app_daily_incident_volume_table = Table(
+    "app_daily_incident_volume",
+    metadata,
+    Column(
+        "reference_date",
+        Date,
+        primary_key=True,
+    ),
+    Column(
+        "priority_scope",
+        String(16),
+        primary_key=True,
+    ),
+    Column(
+        "incident_count",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "entered_kpi_count",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "kpi_breach_count",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "monitoring_incident_count",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "no_intervention_count",
+        Integer,
+        nullable=False,
+    ),
+)
+
+
+app_daily_incident_breakdown_table = Table(
+    "app_daily_incident_breakdown",
+    metadata,
+    Column(
+        "id",
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    ),
+    Column(
+        "reference_date",
+        Date,
+        nullable=False,
+    ),
+    Column(
+        "dimension_name",
+        String(64),
+        nullable=False,
+    ),
+    Column(
+        "dimension_value",
+        String(255),
+        nullable=False,
+    ),
+    Column(
+        "priority_scope",
+        String(16),
+        nullable=False,
+    ),
+    Column(
+        "incident_count",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "entered_kpi_count",
+        Integer,
+        nullable=False,
+    ),
+    Column(
+        "kpi_breach_count",
+        Integer,
+        nullable=False,
+    ),
+)
+
+
+Index(
+    "ix_app_breakdown_filters",
+    app_daily_incident_breakdown_table.c.reference_date,
+    app_daily_incident_breakdown_table.c.priority_scope,
+    app_daily_incident_breakdown_table.c.dimension_name,
 )
 
 
@@ -108,13 +331,340 @@ class MySQLRepository:
             tables=[app_runs_table],
         )
 
+    def ensure_ml_volume_predictions_table(
+        self,
+    ) -> None:
+        """Cria a tabela operacional de previsões vigentes."""
+
+        metadata.create_all(
+            self.engine,
+            tables=[ml_volume_predictions_current_table],
+        )
+
+        # create_all não altera tabelas existentes.
+        # Em MySQL, adicionamos de forma idempotente
+        # as colunas introduzidas pelo ML v3.2.
+        if self.engine.dialect.name == "mysql":
+            with self.engine.begin() as connection:
+                existing_columns = {
+                    row["Field"]
+                    for row in connection.execute(
+                        text("SHOW COLUMNS FROM ml_volume_predictions_current")
+                    ).mappings()
+                }
+
+                migrations = {
+                    "lower_bound": (
+                        "ALTER TABLE "
+                        "ml_volume_predictions_current "
+                        "ADD COLUMN lower_bound "
+                        "DECIMAL(12,2) NULL "
+                        "AFTER predicted_incident_count"
+                    ),
+                    "upper_bound": (
+                        "ALTER TABLE "
+                        "ml_volume_predictions_current "
+                        "ADD COLUMN upper_bound "
+                        "DECIMAL(12,2) NULL "
+                        "AFTER lower_bound"
+                    ),
+                    "model_name": (
+                        "ALTER TABLE "
+                        "ml_volume_predictions_current "
+                        "ADD COLUMN model_name "
+                        "VARCHAR(64) NULL "
+                        "AFTER upper_bound"
+                    ),
+                }
+
+                for column, ddl in migrations.items():
+                    if column not in existing_columns:
+                        connection.execute(text(ddl))
+
+    def ensure_dl_risk_scores_table(
+        self,
+    ) -> None:
+        """Cria a tabela operacional de scores de risco vigentes."""
+
+        metadata.create_all(
+            self.engine,
+            tables=[
+                dl_risk_scores_current_table,
+            ],
+        )
+
+        # create_all não altera tabelas existentes.
+        # Risk Score v2 adiciona o percentil histórico do risco
+        # preditivo ao contrato operacional.
+        if self.engine.dialect.name == "mysql":
+            with self.engine.begin() as connection:
+                existing_columns = {
+                    row["Field"]
+                    for row in connection.execute(
+                        text("SHOW COLUMNS FROM dl_risk_scores_current")
+                    ).mappings()
+                }
+
+                if "predictive_risk_index" not in existing_columns:
+                    connection.execute(
+                        text(
+                            "ALTER TABLE dl_risk_scores_current "
+                            "ADD COLUMN predictive_risk_index "
+                            "DECIMAL(10,8) NOT NULL DEFAULT 0 "
+                            "AFTER breach_probability"
+                        )
+                    )
+
+    def replace_dl_risk_scores(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> None:
+        """Substitui atomicamente a coorte vigente de scores de risco."""
+
+        now = datetime.now(UTC).replace(tzinfo=None)
+
+        normalized_rows = [
+            {
+                **row,
+                "updated_at": now,
+            }
+            for row in rows
+        ]
+
+        with self.engine.begin() as connection:
+            connection.execute(delete(dl_risk_scores_current_table))
+
+            if normalized_rows:
+                connection.execute(
+                    insert(dl_risk_scores_current_table),
+                    normalized_rows,
+                )
+
+    def fetch_dl_risk_scores(
+        self,
+    ) -> list[dict[str, Any]]:
+        """Retorna a coorte operacional vigente de scores de risco."""
+
+        statement = select(dl_risk_scores_current_table).order_by(
+            dl_risk_scores_current_table.c.risk_score.desc(),
+            dl_risk_scores_current_table.c.incident_id,
+        )
+
+        with self.engine.connect() as connection:
+            rows = connection.execute(statement).mappings().all()
+
+        return [dict(row) for row in rows]
+
+    def ensure_dashboard_serving_tables(
+        self,
+    ) -> None:
+        """Cria as tabelas serving usadas pelo dashboard."""
+
+        metadata.create_all(
+            self.engine,
+            tables=[
+                app_daily_incident_volume_table,
+                app_daily_incident_breakdown_table,
+            ],
+        )
+
+    def replace_daily_incident_volume(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> None:
+        """Substitui o Gold de volume diário no serving."""
+
+        with self.engine.begin() as connection:
+            connection.execute(delete(app_daily_incident_volume_table))
+
+            if rows:
+                connection.execute(
+                    insert(app_daily_incident_volume_table),
+                    rows,
+                )
+
+    def replace_daily_incident_breakdown(
+        self,
+        rows: list[dict[str, Any]],
+        *,
+        chunk_size: int = 5000,
+    ) -> None:
+        """Substitui o Gold de breakdown no serving."""
+
+        with self.engine.begin() as connection:
+            connection.execute(delete(app_daily_incident_breakdown_table))
+
+            for start in range(
+                0,
+                len(rows),
+                chunk_size,
+            ):
+                chunk = rows[start : start + chunk_size]
+
+                connection.execute(
+                    insert(app_daily_incident_breakdown_table),
+                    chunk,
+                )
+
+    def upsert_ml_volume_predictions(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> None:
+        """
+        Persiste a previsão vigente.
+
+        A chave priority_scope + horizon garante
+        apenas uma previsão atual por combinação.
+        """
+        if not rows:
+            return
+
+        now = datetime.now(UTC).replace(tzinfo=None)
+
+        normalized_rows = [
+            {
+                **row,
+                "updated_at": now,
+            }
+            for row in rows
+        ]
+
+        statement = mysql_insert(ml_volume_predictions_current_table).values(normalized_rows)
+
+        statement = statement.on_duplicate_key_update(
+            reference_date=statement.inserted.reference_date,
+            predicted_incident_count=(statement.inserted.predicted_incident_count),
+            lower_bound=statement.inserted.lower_bound,
+            upper_bound=statement.inserted.upper_bound,
+            model_name=statement.inserted.model_name,
+            generated_at=statement.inserted.generated_at,
+            model_version=statement.inserted.model_version,
+            updated_at=statement.inserted.updated_at,
+        )
+
+        with self.engine.begin() as connection:
+            connection.execute(statement)
+
+    def fetch_ml_volume_predictions(
+        self,
+    ) -> list[dict[str, Any]]:
+        """Retorna todas as previsões operacionais vigentes."""
+
+        statement = select(
+            ml_volume_predictions_current_table.c.priority_scope,
+            ml_volume_predictions_current_table.c.horizon,
+            ml_volume_predictions_current_table.c.reference_date,
+            ml_volume_predictions_current_table.c.predicted_incident_count,
+            ml_volume_predictions_current_table.c.lower_bound,
+            ml_volume_predictions_current_table.c.upper_bound,
+            ml_volume_predictions_current_table.c.model_name,
+            ml_volume_predictions_current_table.c.generated_at,
+            ml_volume_predictions_current_table.c.model_version,
+            ml_volume_predictions_current_table.c.updated_at,
+        ).order_by(
+            ml_volume_predictions_current_table.c.priority_scope,
+            ml_volume_predictions_current_table.c.horizon,
+        )
+
+        with self.engine.connect() as connection:
+            rows = connection.execute(statement).mappings().all()
+
+        return [dict(row) for row in rows]
+
+    def fetch_daily_incident_volume(
+        self,
+    ) -> list[dict[str, Any]]:
+        """Retorna o Gold diário utilizado pelo dashboard."""
+
+        statement = select(app_daily_incident_volume_table).order_by(
+            app_daily_incident_volume_table.c.reference_date,
+            app_daily_incident_volume_table.c.priority_scope,
+        )
+
+        with self.engine.connect() as connection:
+            return [dict(row) for row in connection.execute(statement).mappings()]
+
+    def fetch_incident_breakdown_ranking(
+        self,
+        *,
+        start_date: date,
+        end_date: date,
+        priority_scope: str,
+        dimension_name: str,
+        limit: int,
+        ranking_metric: str = "incident_count",
+        min_entered_kpi: int = 0,
+        exclude_missing: bool = False,
+    ) -> list[dict[str, Any]]:
+        """Retorna ranking operacional agregado pelo MySQL."""
+
+        incident_sum = func.sum(app_daily_incident_breakdown_table.c.incident_count)
+
+        entered_kpi_sum = func.sum(app_daily_incident_breakdown_table.c.entered_kpi_count)
+
+        breach_sum = func.sum(app_daily_incident_breakdown_table.c.kpi_breach_count)
+
+        breach_rate = (
+            100.0
+            * breach_sum
+            / func.nullif(
+                entered_kpi_sum,
+                0,
+            )
+        )
+
+        ranking_expressions = {
+            "incident_count": incident_sum,
+            "kpi_breach_count": breach_sum,
+            "breach_rate_pct": breach_rate,
+        }
+
+        if ranking_metric not in ranking_expressions:
+            raise ValueError(f"Métrica de ranking inválida: {ranking_metric}")
+
+        conditions = [
+            app_daily_incident_breakdown_table.c.reference_date.between(
+                start_date,
+                end_date,
+            ),
+            app_daily_incident_breakdown_table.c.priority_scope == priority_scope,
+            app_daily_incident_breakdown_table.c.dimension_name == dimension_name,
+        ]
+
+        if exclude_missing:
+            conditions.append(
+                ~app_daily_incident_breakdown_table.c.dimension_value.contains("__MISSING__")
+            )
+
+        statement = (
+            select(
+                app_daily_incident_breakdown_table.c.dimension_value,
+                incident_sum.label("incident_count"),
+                entered_kpi_sum.label("entered_kpi_count"),
+                breach_sum.label("kpi_breach_count"),
+                breach_rate.label("breach_rate_pct"),
+            )
+            .where(*conditions)
+            .group_by(app_daily_incident_breakdown_table.c.dimension_value)
+            .having(entered_kpi_sum >= min_entered_kpi)
+            .order_by(
+                ranking_expressions[ranking_metric].desc(),
+                breach_sum.desc(),
+                incident_sum.desc(),
+            )
+            .limit(limit)
+        )
+
+        with self.engine.connect() as connection:
+            return [dict(row) for row in connection.execute(statement).mappings()]
+
     def fetch_incident_summary(self) -> IncidentSummary:
         """Consulta e processa o volume de incidentes persistidos."""
 
         statement = text(
             """
             SELECT COUNT(*) AS total_incidents
-            FROM incidents_trusted
+            FROM fato_incidente
             """
         )
 
